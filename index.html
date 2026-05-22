@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Agent Lab is a private playground for autonomous agents, self-improving systems, and experimental intelligence."
+    />
+    <title>Agent Lab | Experimental Autonomous Agents</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              void: "#03050b",
+              ink: "#07111f",
+              lab: "#071827",
+              cyanfire: "#16f4ff",
+              volt: "#72ff7d",
+              plasma: "#9b5cff",
+              warning: "#ffdf6e",
+            },
+            fontFamily: {
+              display: ["Oxanium", "ui-sans-serif", "system-ui"],
+              body: ["IBM Plex Mono", "ui-monospace", "SFMono-Regular", "monospace"],
+            },
+            boxShadow: {
+              neon: "0 0 24px rgba(22,244,255,.28), inset 0 0 28px rgba(22,244,255,.08)",
+              plasma: "0 0 34px rgba(155,92,255,.22)",
+            },
+            animation: {
+              float: "float 7s ease-in-out infinite",
+              scan: "scan 4s linear infinite",
+              flicker: "flicker 5s steps(1,end) infinite",
+              drift: "drift 18s linear infinite",
+            },
+            keyframes: {
+              float: {
+                "0%,100%": { transform: "translateY(0)" },
+                "50%": { transform: "translateY(-12px)" },
+              },
+              scan: {
+                "0%": { transform: "translateY(-100%)" },
+                "100%": { transform: "translateY(100%)" },
+              },
+              flicker: {
+                "0%, 92%, 100%": { opacity: "1" },
+                "93%": { opacity: ".35" },
+                "94%": { opacity: ".9" },
+                "96%": { opacity: ".55" },
+              },
+              drift: {
+                "0%": { transform: "translate3d(0,0,0)" },
+                "100%": { transform: "translate3d(-80px,-60px,0)" },
+              },
+            },
+          },
+        },
+      };
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Oxanium:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Site-level atmosphere: grid, grain, and neon panels stay outside Tailwind for easier tuning. */
+      :root {
+        color-scheme: dark;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        min-height: 100vh;
+        overflow-x: hidden;
+        background:
+          radial-gradient(circle at 12% 8%, rgba(22, 244, 255, 0.16), transparent 28rem),
+          radial-gradient(circle at 76% 16%, rgba(155, 92, 255, 0.18), transparent 26rem),
+          linear-gradient(180deg, #03050b 0%, #050814 48%, #02030a 100%);
+      }
+
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+        background-image:
+          linear-gradient(rgba(22, 244, 255, 0.055) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(22, 244, 255, 0.045) 1px, transparent 1px);
+        background-size: 72px 72px;
+        mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.95), transparent 82%);
+      }
+
+      body::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 1;
+        opacity: 0.12;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 240 240' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)' opacity='.45'/%3E%3C/svg%3E");
+      }
+
+      .lab-panel {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid rgba(22, 244, 255, 0.2);
+        background:
+          linear-gradient(135deg, rgba(7, 24, 39, 0.86), rgba(5, 8, 20, 0.82)),
+          radial-gradient(circle at 20% 0%, rgba(22, 244, 255, 0.13), transparent 18rem);
+        box-shadow: 0 18px 70px rgba(0, 0, 0, 0.42);
+        backdrop-filter: blur(18px);
+      }
+
+      .lab-panel::before {
+        content: "";
+        position: absolute;
+        inset: -50%;
+        background: linear-gradient(
+          110deg,
+          transparent 42%,
+          rgba(22, 244, 255, 0.15) 50%,
+          transparent 58%
+        );
+        transform: translateX(-70%) rotate(8deg);
+        transition: transform 0.7s ease;
+      }
+
+      .lab-panel:hover::before {
+        transform: translateX(70%) rotate(8deg);
+      }
+
+      .terminal-line::before {
+        content: "> ";
+        color: #72ff7d;
+      }
+    </style>
+  </head>
+  <body class="font-body text-slate-200 antialiased">
+    <div class="relative z-10">
+      <header class="mx-auto flex w-full max-w-7xl flex-col gap-5 px-5 py-5 sm:px-8 md:flex-row md:items-center md:justify-between">
+        <a href="#" class="group flex items-center gap-3" aria-label="Agent Lab home">
+          <span
+            class="grid h-10 w-10 place-items-center border border-cyanfire/40 bg-cyanfire/10 text-cyanfire shadow-neon transition group-hover:scale-105"
+          >
+            AL
+          </span>
+          <span class="font-display text-lg font-extrabold tracking-[0.22em] text-white">
+            AGENTLAB
+          </span>
+        </a>
+
+        <nav class="flex w-full items-center gap-5 overflow-x-auto text-xs font-semibold uppercase tracking-[0.18em] text-slate-400 md:w-auto md:gap-6">
+          <a class="transition hover:text-cyanfire" href="#experiments">Experiments</a>
+          <a class="transition hover:text-cyanfire" href="#archive">Archive</a>
+          <a class="transition hover:text-cyanfire" href="#">GitHub</a>
+          <a class="transition hover:text-cyanfire" href="#">Telegram</a>
+        </nav>
+      </header>
+
+      <main>
+        <section class="mx-auto grid min-h-[calc(100vh-88px)] w-full max-w-7xl items-center gap-10 px-5 pb-16 pt-8 sm:px-8 lg:grid-cols-[1.08fr_.92fr]">
+          <div class="max-w-4xl">
+            <div class="mb-6 inline-flex items-center gap-3 border border-volt/30 bg-volt/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.22em] text-volt shadow-[0_0_24px_rgba(114,255,125,.14)]">
+              <span class="h-2 w-2 animate-pulse rounded-full bg-volt"></span>
+              Currently running 4 Hermes agents • Chaos in progress
+            </div>
+
+            <h1 class="font-display text-6xl font-extrabold leading-[0.86] text-white sm:text-7xl lg:text-8xl">
+              Agent
+              <span class="block animate-flicker text-transparent [-webkit-text-stroke:1px_#16f4ff]">
+                Lab
+              </span>
+            </h1>
+
+            <p class="mt-8 max-w-3xl text-xl leading-8 text-slate-300 sm:text-2xl sm:leading-9">
+              A private playground for autonomous agents, self-improving systems, and experimental intelligence.
+            </p>
+
+            <p class="mt-8 max-w-3xl border-l border-cyanfire/40 pl-5 text-base leading-8 text-slate-300">
+              This is where experimental agent setups live. Local-first tools, long-running autonomous agents,
+              weird orchestration experiments, and half-baked ideas that might become something dangerous
+              <span class="text-cyanfire">(in a good way)</span>.
+            </p>
+          </div>
+
+          <div class="relative hidden min-h-[560px] lg:block">
+            <div class="absolute left-8 top-8 h-72 w-72 animate-float border border-cyanfire/30 bg-cyanfire/5 shadow-neon"></div>
+            <div class="absolute right-2 top-20 h-48 w-48 border border-plasma/35 bg-plasma/10 shadow-plasma"></div>
+            <div class="absolute bottom-20 left-24 h-64 w-80 border border-volt/25 bg-volt/5"></div>
+
+            <div class="lab-panel absolute left-0 top-0 w-80 p-5">
+              <div class="mb-4 flex items-center justify-between text-xs text-slate-500">
+                <span>HERMES_04</span>
+                <span class="text-volt">ONLINE</span>
+              </div>
+              <div class="space-y-3 text-sm">
+                <p class="terminal-line text-cyanfire">wake orchestration layer</p>
+                <p class="terminal-line text-slate-400">mount local memory forge</p>
+                <p class="terminal-line text-warning">swarm drift detected</p>
+              </div>
+            </div>
+
+            <div class="lab-panel absolute bottom-8 right-0 w-96 p-6">
+              <div class="relative h-48 overflow-hidden border border-cyanfire/20 bg-void">
+                <div class="absolute inset-0 animate-drift bg-[radial-gradient(circle_at_20px_20px,rgba(22,244,255,.22)_1px,transparent_2px)] bg-[length:28px_28px]"></div>
+                <div class="absolute left-1/2 top-1/2 h-32 w-32 -translate-x-1/2 -translate-y-1/2 border border-cyanfire/50 shadow-neon"></div>
+                <div class="absolute inset-x-0 top-0 h-20 animate-scan bg-gradient-to-b from-transparent via-cyanfire/15 to-transparent"></div>
+              </div>
+              <div class="mt-4 flex items-center justify-between text-xs uppercase tracking-[0.2em] text-slate-500">
+                <span>Agent mesh</span>
+                <span class="text-cyanfire">Unstable</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="experiments" class="mx-auto w-full max-w-7xl px-5 py-20 sm:px-8">
+          <div class="mb-10 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+            <div>
+              <p class="text-xs font-bold uppercase tracking-[0.24em] text-cyanfire">Current Experiments</p>
+              <h2 class="mt-3 font-display text-4xl font-bold text-white sm:text-5xl">Unstable systems on the bench</h2>
+            </div>
+            <p class="max-w-md text-sm leading-7 text-slate-400">
+              Rough prototypes, weird loops, and agent circuits held together with curiosity.
+            </p>
+          </div>
+
+          <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <article class="lab-panel group p-6 transition duration-300 hover:-translate-y-1">
+              <span class="text-xs font-bold uppercase tracking-[0.2em] text-volt">Active</span>
+              <h3 class="mt-5 font-display text-2xl font-bold text-white">Hermes Cluster</h3>
+              <p class="mt-4 text-sm leading-7 text-slate-400">Four local agents negotiating tasks, tools, and memory under light supervision.</p>
+            </article>
+            <article class="lab-panel group p-6 transition duration-300 hover:-translate-y-1">
+              <span class="text-xs font-bold uppercase tracking-[0.2em] text-warning">Volatile</span>
+              <h3 class="mt-5 font-display text-2xl font-bold text-white">Local Memory Forge</h3>
+              <p class="mt-4 text-sm leading-7 text-slate-400">A scratchpad for turning messy runs into reusable context without cloud dependency.</p>
+            </article>
+            <article class="lab-panel group p-6 transition duration-300 hover:-translate-y-1">
+              <span class="text-xs font-bold uppercase tracking-[0.2em] text-plasma">Testing</span>
+              <h3 class="mt-5 font-display text-2xl font-bold text-white">Multi-Agent Swarm</h3>
+              <p class="mt-4 text-sm leading-7 text-slate-400">Tiny specialists with conflicting opinions, narrow tools, and a shared objective.</p>
+            </article>
+            <article class="lab-panel group p-6 transition duration-300 hover:-translate-y-1">
+              <span class="text-xs font-bold uppercase tracking-[0.2em] text-cyanfire">Draft</span>
+              <h3 class="mt-5 font-display text-2xl font-bold text-white">Toolchain Reactor</h3>
+              <p class="mt-4 text-sm leading-7 text-slate-400">Composio hooks, shell routines, browser checks, and other questionable lab equipment.</p>
+            </article>
+          </div>
+        </section>
+
+        <section id="archive" class="mx-auto grid w-full max-w-7xl gap-6 px-5 py-20 sm:px-8 lg:grid-cols-[.85fr_1.15fr]">
+          <div>
+            <p class="text-xs font-bold uppercase tracking-[0.24em] text-cyanfire">Lab Rules</p>
+            <h2 class="mt-3 font-display text-4xl font-bold text-white sm:text-5xl">No lab coats required</h2>
+          </div>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <div class="border border-white/10 bg-white/[0.03] p-5 text-sm text-slate-300 transition hover:border-cyanfire/40 hover:bg-cyanfire/[0.06]">No production promises</div>
+            <div class="border border-white/10 bg-white/[0.03] p-5 text-sm text-slate-300 transition hover:border-cyanfire/40 hover:bg-cyanfire/[0.06]">Break things creatively</div>
+            <div class="border border-white/10 bg-white/[0.03] p-5 text-sm text-slate-300 transition hover:border-cyanfire/40 hover:bg-cyanfire/[0.06]">Everything is temporary</div>
+            <div class="border border-white/10 bg-white/[0.03] p-5 text-sm text-slate-300 transition hover:border-cyanfire/40 hover:bg-cyanfire/[0.06]">Document the weird behavior</div>
+          </div>
+        </section>
+
+        <section class="mx-auto w-full max-w-7xl px-5 py-20 sm:px-8">
+          <div class="border-y border-cyanfire/20 py-10">
+            <p class="mb-6 text-xs font-bold uppercase tracking-[0.24em] text-cyanfire">Built With</p>
+            <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              <div class="bg-white/[0.04] px-5 py-4 font-display text-lg font-bold text-white">Hermes</div>
+              <div class="bg-white/[0.04] px-5 py-4 font-display text-lg font-bold text-white">Local LLMs</div>
+              <div class="bg-white/[0.04] px-5 py-4 font-display text-lg font-bold text-white">Composio</div>
+              <div class="bg-white/[0.04] px-5 py-4 font-display text-lg font-bold text-white">Shell Tools</div>
+              <div class="bg-white/[0.04] px-5 py-4 font-display text-lg font-bold text-white">Chaos</div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="mx-auto flex w-full max-w-7xl flex-col gap-4 px-5 py-10 text-sm text-slate-500 sm:px-8 md:flex-row md:items-center md:justify-between">
+        <p>Made for pure curiosity • No name, no brand, just agents.</p>
+        <p class="uppercase tracking-[0.2em] text-cyanfire/70">agentlab.in</p>
+      </footer>
+    </div>
+  </body>
+</html>
