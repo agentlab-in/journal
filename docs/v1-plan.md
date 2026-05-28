@@ -15,10 +15,11 @@
 **Canonical source of truth:** [Discussion #2](https://github.com/harshitsinghbhandari/agentlab-in/discussions/2). Open decisions resolved on Issue #4 (2026-05-29). Key resolutions baked into this plan:
 
 - Curator handle is **`agentlab-in`** (the user's own GitHub org), not `agentlab` (which collides with an existing org).
-- **No staging branch / no staging Supabase project.** Feature → PR → Vercel preview → merge to `main` → production. Single Supabase project (`agentlab-prod`).
+- **`main` = production (`agentlab.in`, Coming Soon page); `develop` = active build (`dev.agentlab.in`).** Feature → PR → Vercel preview → merge to `develop` → `dev.agentlab.in`. At launch, `develop` → `main` and the Coming Soon page is replaced by the real homepage. Single Supabase project (`agentlab-prod`) — no staging *database*. (Walked back from S5's "no staging branch" override on 2026-05-29; staging *Supabase* override stands.)
 - Comments are **plain text only** (no markdown), but support flag/report.
 - **No GitHub-repos block on profile pages** (dropped from spec).
 - Org-account publishing IS in v1 — verified via GitHub org-admin API, post-as dropdown in editor.
+- **A Coming Soon page with email waitlist ships on `main` until launch** — walked back from Q60's "no pre-launch waitlist" on 2026-05-29 so the apex domain is not blank while `develop` is built.
 
 ---
 
@@ -34,9 +35,9 @@
 - Error tracking (Sentry etc.)
 - Sponsorships / payments
 - External code contributions
-- Pre-launch waitlist
+- ~~Pre-launch waitlist~~ — WALKED BACK 2026-05-29: Coming Soon page on `main` with email waitlist ships before Phase 1 (see "Phase 0.5" below)
 - GitHub repos on profile (per user override)
-- Staging environment (per user override)
+- ~~Staging environment (per user override)~~ — WALKED BACK 2026-05-29: `develop` branch now serves `dev.agentlab.in` as active-build environment; staging Supabase project still NOT provisioned (single `agentlab-prod` shared between both)
 
 ---
 
@@ -445,6 +446,42 @@ Phases are numbered. Dependencies are explicit. Each phase is a coherent merge �
 - `pnpm typecheck && pnpm lint && pnpm test && pnpm e2e` all green locally.
 - Merging to `main` produces a production deploy at `agentlab.in` serving the same empty homepage.
 - CI workflow blocks a PR that breaks types.
+
+---
+
+## Phase 0.5 — Branching Split + Coming Soon + Actions Bump
+
+**Added 2026-05-29.** Pre-Phase-1 chore that splits production from active build and ships a placeholder on the apex domain.
+
+**Goal:** Gate the apex domain (`agentlab.in`) behind a Coming Soon page on `main` while active feature work moves to `develop` (→ `dev.agentlab.in`). Also bump GitHub Actions to Node-24-compatible majors before GitHub's 2026-06-02 Node 20 deprecation.
+
+**Depends on:** Phase 0.
+
+**Branching model after this phase:**
+- `main` = production = `agentlab.in` = Coming Soon page (until launch).
+- `develop` = active build = `dev.agentlab.in`. Future feature PRs target `develop`, not `main`.
+- At launch (Phase 15): `develop` → `main` PR replaces the Coming Soon page with the real homepage.
+
+**Files:**
+- Rewrite: `app/page.tsx` (Coming Soon: mono wordmark + 1-2 lines + email waitlist form)
+- Create: `components/marketing/WaitlistForm.tsx` (client component, zod-validated, inline success state)
+- Create: `lib/waitlist.ts` (shared zod schema)
+- Create: `app/api/waitlist/route.ts` (POST handler — proxies to Kit / ConvertKit `POST https://api.convertkit.com/v3/forms/{KIT_FORM_ID}/subscribe`; returns 503 if env vars missing, 502 on upstream failure)
+- Modify: `.env.example` (add `KIT_API_KEY` + `KIT_FORM_ID` placeholders)
+- Create: `tests/unit/waitlist.test.ts` (schema tests)
+- Modify: `.github/workflows/ci.yml` — bump `checkout@v6`, `setup-node@v6` (Node 24), `pnpm/action-setup@v6`, `cache@v5`, `upload-artifact@v7`
+- Modify: `docs/v1-plan.md` (this file — walk-backs above)
+
+**Acceptance:**
+- `main` deploys to `agentlab.in` showing only Coming Soon + working email form.
+- `develop` deploys to `dev.agentlab.in` (Vercel dashboard config done by user) and serves the Phase 0 scaffold.
+- CI workflow passes on Node 24 runners.
+- Waitlist form is keyboard-accessible, has visible focus, works in both themes.
+
+**Out of this phase (user does in Vercel dashboard):**
+- Add `dev.agentlab.in` subdomain.
+- Point `dev.agentlab.in` at the `develop` branch (Vercel → Settings → Domains).
+- Confirm `main` still maps to `agentlab.in` apex.
 
 ---
 
@@ -1186,11 +1223,12 @@ All secrets in Vercel env vars (Production + Preview):
 | Next.js 16, Tailwind v4, NextAuth, Supabase ap-south-1 | 0, 1, 2 |
 | Vercel hosting | 0 |
 | Vercel Analytics | 14 |
-| ~~Staging branch~~ | DROPPED (user override) |
+| ~~Staging branch~~ → `develop` branch + `dev.agentlab.in` (walk-back 2026-05-29) | 0.5 |
+| Pre-launch waitlist (walk-back from Q60 on 2026-05-29) | 0.5 |
 | CC BY 4.0 | 14 |
 | Pre-launch policy pages | 14 |
 
-No spec gaps. Three intentional omissions: GitHub-repos block, staging branch, comment markdown — all per explicit user overrides on Issue #4.
+No spec gaps. Two intentional omissions: GitHub-repos block, comment markdown — per explicit user overrides on Issue #4. The "no staging branch" and "no pre-launch waitlist" overrides were walked back on 2026-05-29; both are now addressed in Phase 0.5.
 
 **Placeholder scan:** No "TBD", "TODO", "implement later" patterns in tasks. The policy-page TEXT is the only "DRAFT" item, and it's explicitly authored by Harshit before launch with a fallback banner if late.
 
