@@ -6,9 +6,11 @@
 
 **Naming note:** The original spec used "Pattern" for the catch-all content type. Per user decision on 2026-05-29, that type is renamed to **"Post"** — a normal post sitting between practical (Playbook) and theoretical (Deep Dive). This drops the URL ↔ type mapping layer entirely: the URL segment, the DB enum value, and the user-facing label are all just `post`. The Problem / Structure / Trade-offs / Related template still ships as an *optional* prefill that authors can use when they happen to be writing a true Fowler-style pattern; it is no longer the type's default body.
 
-**Architecture:** Next.js 14 (App Router) on Vercel, Supabase Postgres + Storage (region `ap-south-1`) as the only backend, NextAuth.js + GitHub OAuth as the only auth, server-side MDX render with a strict component allowlist, Postgres full-text search, in-app notifications, localStorage-only drafts. Mono-typography "Vercel.com-meets-Berkshire-Hathaway" visual identity. Dark + light themes.
+**Architecture:** Next.js 16 (App Router) on Vercel, Supabase Postgres + Storage (region `ap-south-1`) as the only backend, NextAuth.js + GitHub OAuth as the only auth, server-side MDX render with a strict component allowlist, Postgres full-text search, in-app notifications, localStorage-only drafts. Mono-typography "Vercel.com-meets-Berkshire-Hathaway" visual identity. Dark + light themes.
 
-**Tech Stack:** Next.js 14, TypeScript (strict), Tailwind CSS, NextAuth.js, Supabase (`@supabase/supabase-js` + `@supabase/ssr`), Postgres (full-text search via `tsvector`), `@uiw/react-codemirror` (editor), `next-mdx-remote` + `rehype-sanitize` (rendering), Prism (syntax highlight, GitHub Dark theme), Mermaid (client-render diagrams), Vercel Analytics, Vercel hosting. Tests: Vitest (unit) + Playwright (e2e).
+**Tech Stack:** Next.js 16 (App Router), TypeScript (strict), Tailwind CSS v4 (CSS-first config — no `tailwind.config.ts`, theme tokens live in `app/globals.css` via `@theme inline`), ESLint 9 flat config (`eslint.config.mjs`), NextAuth.js, Supabase (`@supabase/supabase-js` + `@supabase/ssr`), Postgres (full-text search via `tsvector`), `@uiw/react-codemirror` (editor), `next-mdx-remote` + `rehype-sanitize` (rendering), Prism (syntax highlight, GitHub Dark theme), Mermaid (client-render diagrams), Vercel Analytics, Vercel hosting. Tests: Vitest (unit) + Playwright (e2e). Package manager: **pnpm**.
+
+> **Stack-version note for future subagents:** The original Discussion #2 spec said Next.js 14 / Tailwind v3 / ESLint legacy. As of 2026-05-29 (Phase 0 bootstrap), `create-next-app@latest` produces Next 16 / Tailwind v4 / ESLint 9 flat. User accepted the modernization. **Next 16 has breaking changes vs. training data** — there's an `AGENTS.md` at the repo root spelling this out. Before writing any Next-API code (route handlers, server actions, `next/font`, middleware, etc.), grep `node_modules/next/dist/docs/` for the current API rather than relying on Next 14 memory. If a modernization breaks a feature the plan needs, surface it to the user before rolling back — they want to keep the modern stack "until it doesn't fuck up the app."
 
 **Canonical source of truth:** [Discussion #2](https://github.com/harshitsinghbhandari/agentlab-in/discussions/2). Open decisions resolved on Issue #4 (2026-05-29). Key resolutions baked into this plan:
 
@@ -191,7 +193,7 @@
 │       └── org-publish.spec.ts
 ├── playwright.config.ts
 ├── vitest.config.ts
-├── tailwind.config.ts
+├── (no tailwind.config.ts — Tailwind v4 puts theme tokens in app/globals.css via @theme inline)
 ├── next.config.mjs
 ├── tsconfig.json
 ├── .env.example
@@ -408,23 +410,28 @@ Phases are numbered. Dependencies are explicit. Each phase is a coherent merge �
 
 ## Phase 0 — Project Bootstrap
 
-**Goal:** Replace the static landing page with a working Next.js 14 + TypeScript + Tailwind scaffold that deploys to Vercel.
+**Goal:** Replace the static landing page with a working Next.js 16 + TypeScript + Tailwind v4 scaffold that deploys to Vercel.
 
 **Depends on:** nothing.
 
+**Status (2026-05-29):** ✅ Shipped on `session/age-1` (commits `526a551..003aff0`). Vercel preview live. See "Stack-version note" in plan header for the Next 14 → 16 + Tailwind v3 → v4 + ESLint legacy → flat acceptances.
+
 **Files:**
-- Delete: `index.html`, `README.md` (rewrite)
-- Create: `package.json`, `tsconfig.json`, `next.config.mjs`, `tailwind.config.ts`, `postcss.config.mjs`, `.eslintrc.json`, `.prettierrc`, `.gitignore` updates
-- Create: `app/layout.tsx`, `app/page.tsx`, `app/globals.css`, `app/not-found.tsx`, `app/error.tsx`
+- Delete: `index.html` (throwaway landing)
+- Create: `package.json`, `tsconfig.json`, `next.config.mjs`, `postcss.config.mjs`, `eslint.config.mjs` (flat), `.prettierrc`, `.gitignore` updates
+- Create: `app/layout.tsx`, `app/page.tsx`, `app/globals.css` (Tailwind v4 `@theme inline` lives here), `app/not-found.tsx`, `app/error.tsx`
+- Create: `components/layout/Nav.tsx`, `Footer.tsx`, `ThemeToggle.tsx`
 - Create: `lib/env.ts` (Zod-validated env access)
-- Create: `vitest.config.ts`, `playwright.config.ts`
-- Create: `.github/workflows/ci.yml` (typecheck, lint, unit tests on PR)
+- Create: `vitest.config.ts`, `playwright.config.ts`, `tests/setup.ts`
+- Create: `.github/workflows/ci.yml` (typecheck, lint, unit tests, e2e on PR)
 - Create: `.env.example`
+- Keep: `AGENTS.md`, `CLAUDE.md` (generated by `create-next-app` — Next 16 breaking-change advisory; useful for future subagents)
+- Rewrite: `README.md`
 
 **Tasks:**
 
-1. **Scaffold Next.js 14 (App Router) + TS strict.** `npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir=false --import-alias '@/*' --use-npm`. Migrate any kept files manually (none — landing is throwaway). Set `"strict": true` in `tsconfig.json`. Drop the `src/` convention.
-2. **Mono font + theme tokens.** Add JetBrains Mono via `next/font/google`. Wire in `app/layout.tsx`. Define dark + light color tokens in `tailwind.config.ts` (use CSS variables; switching done via `data-theme` attribute on `<html>`). Reference palette: pure black `#000`, pure white `#fff`, neutral grays. No accent color beyond off-white/off-black for v1.
+1. **Scaffold Next.js 16 (App Router) + TS strict.** `pnpm create next-app@latest . --typescript --tailwind --eslint --app --no-src-dir --import-alias '@/*' --use-pnpm`. Whatever current is at the time of running. Verify `"strict": true` in `tsconfig.json`.
+2. **Mono font + theme tokens.** Add JetBrains Mono via `next/font/google`. Wire in `app/layout.tsx`. Define dark + light color tokens in `app/globals.css` using Tailwind v4's `@theme inline { ... }` block (CSS variables, no `tailwind.config.ts`). Switching done via `data-theme="light|dark"` attribute on `<html>`. Reference palette: pure black `#000`, pure white `#fff`, neutral grays. No accent color beyond off-white/off-black for v1.
 3. **Theme toggle (no persistence yet — Phase 13 adds localStorage).** Stub `components/layout/ThemeToggle.tsx`. Place stub in `Nav`.
 4. **Wordmark + nav skeleton.** `Nav` with "agentlab" wordmark left, sign-in placeholder right. `Footer` with policy/privacy/terms links (404 until Phase 14).
 5. **Vitest setup.** Run `vitest --run` in CI. One throwaway test passes.
@@ -981,7 +988,7 @@ Phases are numbered. Dependencies are explicit. Each phase is a coherent merge �
 **Files:**
 - Modify: `app/layout.tsx` (theme provider with persistence)
 - Modify: `components/layout/ThemeToggle.tsx`
-- Modify: `tailwind.config.ts` (audit all color tokens)
+- Modify: `app/globals.css` (audit all color tokens in the `@theme inline` block)
 - Modify: `app/globals.css` (focus rings, prefers-reduced-motion, prose styles)
 - Modify: most components for keyboard + ARIA
 - Create: `app/offline/page.tsx` (Vercel will serve when offline if PWA configured; v1 just a static page)
@@ -1176,7 +1183,7 @@ All secrets in Vercel env vars (Production + Preview):
 | Profile pages (avatar, bio, posts, pinned, stats) | 6 |
 | ~~GitHub repos on profile~~ | DROPPED (user override) |
 | Username changes never | 1 |
-| Next.js 14, Tailwind, NextAuth, Supabase ap-south-1 | 0, 1, 2 |
+| Next.js 16, Tailwind v4, NextAuth, Supabase ap-south-1 | 0, 1, 2 |
 | Vercel hosting | 0 |
 | Vercel Analytics | 14 |
 | ~~Staging branch~~ | DROPPED (user override) |
