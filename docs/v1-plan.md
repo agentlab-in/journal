@@ -2,7 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan phase-by-phase. Each phase below expands into bite-sized TDD steps at execution time.
 
-**Goal:** Ship the v1 community publishing platform for AI agent infrastructure knowledge (Patterns, Playbooks, Deep Dives) — auth, editor, posts, comments, feeds, profiles, search, moderation — in ~2 weeks of focused work.
+**Goal:** Ship the v1 community publishing platform for AI agent infrastructure knowledge (Posts, Playbooks, Deep Dives) — auth, editor, posts, comments, feeds, profiles, search, moderation — in ~2 weeks of focused work.
+
+**Naming note:** The original spec used "Pattern" for the catch-all content type. Per user decision on 2026-05-29, that type is renamed to **"Post"** — a normal post sitting between practical (Playbook) and theoretical (Deep Dive). This drops the URL ↔ type mapping layer entirely: the URL segment, the DB enum value, and the user-facing label are all just `post`. The Problem / Structure / Trade-offs / Related template still ships as an *optional* prefill that authors can use when they happen to be writing a true Fowler-style pattern; it is no longer the type's default body.
 
 **Architecture:** Next.js 14 (App Router) on Vercel, Supabase Postgres + Storage (region `ap-south-1`) as the only backend, NextAuth.js + GitHub OAuth as the only auth, server-side MDX render with a strict component allowlist, Postgres full-text search, in-app notifications, localStorage-only drafts. Mono-typography "Vercel.com-meets-Berkshire-Hathaway" visual identity. Dark + light themes.
 
@@ -235,7 +237,7 @@ create index account_aliases_admin_idx on account_aliases (admin_user_id);
 create table posts (
   id uuid primary key default gen_random_uuid(),
   author_id uuid not null references users(id),
-  type text not null check (type in ('pattern', 'playbook', 'dive')),
+  type text not null check (type in ('post', 'playbook', 'dive')),
   title text not null,
   slug text not null,
   summary text not null,
@@ -255,9 +257,7 @@ create table posts (
 create index posts_author_idx on posts (author_id, published_at desc);
 create index posts_type_published_idx on posts (type, published_at desc) where is_deleted = false;
 
--- URL segment ↔ type
--- 'post' → 'pattern', 'playbook' → 'playbook', 'dive' → 'dive'
--- Resolved in URL routing; not stored.
+-- URL segment === type value (no mapping needed). 'post' | 'playbook' | 'dive'.
 
 -- Versions (M7)
 create table post_versions (
@@ -396,15 +396,9 @@ create index posts_search_idx on posts using gin (search_tsv) where is_deleted =
 
 ---
 
-## URL ↔ Type Mapping
+## URL ↔ Type
 
-| URL segment | Stored `type` value | Spec name |
-|---|---|---|
-| `post` | `pattern` | Pattern |
-| `playbook` | `playbook` | Playbook |
-| `dive` | `dive` | Deep Dive |
-
-Resolution lives in `lib/posts/url.ts`. Single source of truth for both link-generation and route-parsing.
+URL segment IS the type value — no mapping. Three types: `post`, `playbook`, `dive`. The TypeScript union and the Postgres check constraint use the same three literals, and the URL `/<username>/<type>/<slug>` uses them directly. A tiny `lib/posts/url.ts` helper builds canonical URLs but does no translation.
 
 ---
 
@@ -551,11 +545,10 @@ Phases are numbered. Dependencies are explicit. Each phase is a coherent merge �
 **Tasks:**
 
 1. **Editor shell at `/write`.** Three-section layout: top bar (type picker, title input, summary input, tag picker, cover image, "publish-as" select stub, publish button — disabled until validation passes), split pane (CodeMirror left, preview right), bottom status ("draft saved 5s ago").
-2. **Type picker.** Three buttons: Pattern / Playbook / Deep Dive. Selecting a type pre-fills the body with the spec's template headings:
-   - Pattern: `## Problem\n\n## Structure\n\n## Trade-offs\n\n## Related\n`
-   - Playbook: `## Environment / Target\n\n## Prerequisites\n\n## Core Instructions\n\n## Safety / Failure Modes\n` (these four ARE required-marked, but enforcement at publish-time is part of Phase 4)
-   - Deep Dive: `## TL;DR\n\n## The Question\n`
-   - Pattern headings are deletable; the others are validated at publish.
+2. **Type picker.** Three buttons: **Post** / **Playbook** / **Deep Dive**. Selecting a type pre-fills the body with template headings:
+   - Post: empty body by default. An "Insert Pattern template" button in the editor toolbar inserts `## Problem\n\n## Structure\n\n## Trade-offs\n\n## Related\n` for authors who want the Fowler-style structure. Optional — not enforced.
+   - Playbook: `## Environment / Target\n\n## Prerequisites\n\n## Core Instructions\n\n## Safety / Failure Modes\n` — all four headings required, enforced at publish (Phase 4).
+   - Deep Dive: `## TL;DR\n\n## The Question\n` — both required, enforced at publish.
 3. **CodeMirror integration.** `@uiw/react-codemirror` with markdown language pack, line wrap on, dark/light theme matches site theme.
 4. **MDX compile pipeline (`lib/mdx/compile.ts`).** Use `next-mdx-remote/serialize`. Plugins:
    - `remark-gfm` (tables, task lists)
@@ -578,7 +571,7 @@ Phases are numbered. Dependencies are explicit. Each phase is a coherent merge �
 17. **Required-field validation.** Publish button enabled iff: title ≥ 5 chars, summary ≥ 10 chars and ≤ 200 chars, body ≥ 50 chars, type set, ≥1 tag selected. For Playbook: all four section headings present in body. For Deep Dive: `## TL;DR` and `## The Question` present.
 18. **Tests.**
     - Unit: `slug('Hello, World!') === 'hello-world'`; `slug('Café Olé')` ASCII-folds; long titles truncate. Wikilink parser handles `[[X]]`, `[[X|alias]]`, escapes inside code blocks. Sanitizer strips `<script>` and inline `onclick=`.
-    - E2E: type a title, select Pattern, type body; reload page; restore modal appears; restore preserves all fields.
+    - E2E: type a title, select Post, type body; reload page; restore modal appears; restore preserves all fields.
 
 **Acceptance:**
 - A signed-in user can open `/write`, pick a type, write, and see live preview update.
@@ -608,11 +601,16 @@ Phases are numbered. Dependencies are explicit. Each phase is a coherent merge �
 
 **Tasks:**
 
-1. **`lib/posts/url.ts`.** Single source of truth for URL ↔ type mapping:
+1. **`lib/posts/url.ts`.** Tiny helper, no mapping needed since URL segment === type:
    ```ts
-   export const URL_SEGMENT_BY_TYPE = { pattern: 'post', playbook: 'playbook', dive: 'dive' } as const;
-   export const TYPE_BY_URL_SEGMENT = { post: 'pattern', playbook: 'playbook', dive: 'dive' } as const;
-   export function postUrl(author: string, type: PostType, slug: string): string { ... }
+   export type PostType = 'post' | 'playbook' | 'dive';
+   export const POST_TYPES: readonly PostType[] = ['post', 'playbook', 'dive'] as const;
+   export function postUrl(author: string, type: PostType, slug: string): string {
+     return `/${author}/${type}/${slug}`;
+   }
+   export function isPostType(s: string): s is PostType {
+     return (POST_TYPES as readonly string[]).includes(s);
+   }
    ```
 2. **`POST /api/posts`.** Auth required. Body: `{ title, summary, body_md, type, tag_slugs[], cover_image_url? }`. Steps:
    - Server-side re-validate every required field (do NOT trust client).
@@ -708,7 +706,7 @@ Phases are numbered. Dependencies are explicit. Each phase is a coherent merge �
 1. **`/<username>` route.** Server component. Lookup user by canonical lowercase login; 404 if none (user might not exist on agentlab yet — DO NOT show GitHub-fetched data for non-members; their first sign-in creates the row).
 2. **`ProfileHeader.tsx`.** Avatar (GitHub avatar URL), display name, bio, follower/following counts, follow button (if not me).
 3. **`ProfileStats.tsx`.** Public stats: post count, follower count. Author-only stat: total view count (sum across non-deleted posts).
-4. **`PostList.tsx`.** Tabs: All / Patterns / Playbooks / Deep Dives. Lists posts by this author (`is_deleted = false`), newest first, paginated 20 per page.
+4. **`PostList.tsx`.** Tabs: All / Posts / Playbooks / Deep Dives. Lists posts by this author (`is_deleted = false`), newest first, paginated 20 per page.
 5. **`PinnedPosts.tsx`.** Above the post list. Shows the user's `pinned_posts` (max 6, ordered by `position`). If the profile owner is viewing, each post has a pin/unpin control. Settings page (step 7) has the full pin manager.
 6. **`FollowButton.tsx`.** Optimistic toggle via `POST /api/follows`. Body `{ followed_id }`. Auth required.
 7. **`/settings` page.** Editable fields: `bio` (spec says everything except display_name and username). Avatar refresh = button that re-fetches from GitHub. Pinned posts manager: select up to 6 of your published posts, reorder. PATCH `/api/users/me`.
@@ -1062,7 +1060,7 @@ Phases are numbered. Dependencies are explicit. Each phase is a coherent merge �
 
 1. **Final manual QA pass.** Run through the golden paths:
    - Fresh user signs in.
-   - Writes and publishes a Pattern.
+   - Writes and publishes a Post.
    - Comments, likes, bookmarks the seed post.
    - Submits a new tag → appears in admin queue.
    - Admin approves it → tag landing page works.
@@ -1144,7 +1142,7 @@ All secrets in Vercel env vars (Production + Preview):
 | Username = GitHub login | 1 |
 | Org accounts | 11 |
 | Curator `agentlab-in` | 11, 15 |
-| Pattern / Playbook / Deep Dive structures | 3, 4 |
+| Post / Playbook / Deep Dive structures (Post = renamed from spec's "Pattern") | 3, 4 |
 | Required fields | 3 |
 | Split-pane editor | 3 |
 | localStorage drafts | 3 |
@@ -1189,7 +1187,7 @@ No spec gaps. Three intentional omissions: GitHub-repos block, staging branch, c
 
 **Placeholder scan:** No "TBD", "TODO", "implement later" patterns in tasks. The policy-page TEXT is the only "DRAFT" item, and it's explicitly authored by Harshit before launch with a fallback banner if late.
 
-**Type / name consistency:** Reviewed type names (`pattern|playbook|dive`), URL segments (`post|playbook|dive`), table names, function names across phases. The mapping is centralized in `lib/posts/url.ts` (Phase 4); all other phases reference it. Comment `depth` field is denormalized for query speed (used in Phases 2, 7).
+**Type / name consistency:** Reviewed type names (`post|playbook|dive`) — URL segments and DB enum values match, no mapping layer needed. `lib/posts/url.ts` is now a thin helper around URL construction only. Comment `depth` field is denormalized for query speed (used in Phases 2, 7).
 
 ---
 
