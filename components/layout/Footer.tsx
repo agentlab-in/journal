@@ -8,13 +8,13 @@ const FOOTER_LINKS = [
 
 export default function Footer() {
   return (
-    <footer className="border-t border-[var(--border)] px-6 py-4">
+    <footer className="border-t border-border px-6 py-4">
       <div className="flex items-center gap-6">
         {FOOTER_LINKS.map(({ label, href }) => (
           <Link
             key={href}
             href={href}
-            className="text-xs text-[var(--fg-subtle)] hover:text-[var(--fg)]"
+            className="text-xs text-fg-subtle hover:text-fg"
           >
             {label}
           </Link>
