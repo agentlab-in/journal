@@ -138,10 +138,8 @@ export function EditorShell({
     setBodyMd(draft.body_md)
     setStructuredSections(draft.structured_sections)
     setCoverImageUrl(draft.cover_image_url)
-    // Tag slugs are persisted as `string[]` in the draft schema; we have
-    // no way to recover the parent_tag_slug / display name without a
-    // server round-trip. Surface them as pending so the chip renders
-    // and the user can replace if needed.
+    // Render chips immediately so the picker isn't blank; mark them all
+    // pending until the server tells us otherwise.
     setTags(
       draft.tags.map((s) => ({
         slug: s,
@@ -150,6 +148,43 @@ export function EditorShell({
         pending: true,
       })),
     )
+    // Then re-check each slug against /api/tags/search so approved tags
+    // drop the (new) label and recover their canonical name + parent.
+    // Fire-and-forget: each chip updates when its lookup resolves.
+    void Promise.all(
+      draft.tags.map(async (s) => {
+        try {
+          const res = await fetch(
+            `/api/tags/search?q=${encodeURIComponent(s)}`,
+          )
+          if (!res.ok) return null
+          const json = (await res.json()) as {
+            tags: {
+              slug: string
+              name: string
+              parent_tag_slug: string | null
+            }[]
+          }
+          return json.tags.find((t) => t.slug === s) ?? null
+        } catch {
+          return null
+        }
+      }),
+    ).then((results) => {
+      setTags((prev) =>
+        prev.map((t) => {
+          const i = draft.tags.indexOf(t.slug)
+          const match = i >= 0 ? results[i] : null
+          if (!match) return t
+          return {
+            slug: match.slug,
+            name: match.name,
+            parent_tag_slug: match.parent_tag_slug,
+            pending: false,
+          }
+        }),
+      )
+    })
   }, [])
 
   // ---- form state derivation --------------------------------------------
