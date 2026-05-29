@@ -6,9 +6,16 @@
  * standing up a fetch server. The mocks render simple test ids so the
  * harness can assert presence and feed state changes through onChange.
  */
+import React from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { EditorShell } from '@/components/editor/EditorShell'
+
+// ---- Next.js navigation mock -------------------------------------------
+const mockPush = vi.fn()
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: mockPush }),
+}))
 
 // ---- Mocks ---------------------------------------------------------------
 // We mock heavyweight client components because:
@@ -70,9 +77,24 @@ vi.mock('@/components/editor/CoverImagePicker', () => ({
   CoverImagePicker: () => <div data-testid="mock-cover" />,
 }))
 
-vi.mock('@/components/editor/DraftManager', () => ({
-  DraftManager: () => <div data-testid="mock-draft" />,
+// clearDraft spy — hoisted so it's available inside vi.mock factory
+const { mockClearDraft } = vi.hoisted(() => ({
+  mockClearDraft: vi.fn(),
 }))
+
+vi.mock('@/components/editor/DraftManager', async () => {
+  const { forwardRef, useImperativeHandle } = await import('react')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const MockDraftManager = forwardRef<any, any>((_props, ref) => {
+    useImperativeHandle(ref, () => ({
+      clearDraft: mockClearDraft,
+      clearOnSubmit: mockClearDraft,
+    }))
+    return <div data-testid="mock-draft" />
+  })
+  MockDraftManager.displayName = 'MockDraftManager'
+  return { DraftManager: MockDraftManager }
+})
 
 vi.mock('@/components/editor/PublishAsSelect', () => ({
   PublishAsSelect: (props: { currentUsername: string }) => (
@@ -82,10 +104,14 @@ vi.mock('@/components/editor/PublishAsSelect', () => ({
 
 beforeEach(() => {
   vi.spyOn(window, 'alert').mockImplementation(() => {})
+  mockPush.mockReset()
+  mockClearDraft.mockReset()
+  vi.stubGlobal('fetch', vi.fn())
 })
 
 afterEach(() => {
   vi.restoreAllMocks()
+  vi.unstubAllGlobals()
 })
 
 describe('<EditorShell> — initial render', () => {
@@ -169,7 +195,14 @@ describe('<EditorShell> — publish button', () => {
     expect(publishBtn).not.toBeDisabled()
   })
 
-  it('alerts on click that publishing will be wired in Phase 4', () => {
+  it('calls fetch with the correct POST body when all fields are valid', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: async () => ({ id: 'post-1', slug: 'a-great-title', url: '/alice/post/a-great-title' }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
     render(<EditorShell mode="new" currentUsername="alice" />)
     fireEvent.change(screen.getByLabelText(/title/i), {
       target: { value: 'A great title' },
@@ -183,8 +216,72 @@ describe('<EditorShell> — publish button', () => {
     fireEvent.click(screen.getByRole('button', { name: /add-tag/i }))
 
     fireEvent.click(screen.getByRole('button', { name: /^publish/i }))
-    expect(window.alert).toHaveBeenCalledWith(
-      expect.stringMatching(/phase 4/i),
+    await waitFor(() => expect(mockFetch).toHaveBeenCalled())
+    const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe('/api/posts')
+    expect(opts.method).toBe('POST')
+    const body = JSON.parse(opts.body as string) as Record<string, unknown>
+    expect(body.title).toBe('A great title')
+    expect(body.type).toBe('post')
+  })
+})
+
+// ---- publish: error and success paths ----------------------------------
+describe('<EditorShell> — publish API integration', () => {
+  /** Helper: fill all required fields so the publish button is enabled. */
+  function fillRequiredFields() {
+    fireEvent.change(screen.getByLabelText(/title/i), {
+      target: { value: 'A great title' },
+    })
+    fireEvent.change(screen.getByLabelText(/summary/i), {
+      target: { value: 'A summary at least ten chars long.' },
+    })
+    fireEvent.change(screen.getByTestId('mock-cm'), {
+      target: { value: 'x'.repeat(80) },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /add-tag/i }))
+  }
+
+  it('shows first issue message on 400 response with issues array', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({
+        error: 'invalid_body',
+        issues: [{ path: ['summary'], message: 'Summary too long' }],
+      }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    render(<EditorShell mode="new" currentUsername="alice" />)
+    fillRequiredFields()
+    fireEvent.click(screen.getByRole('button', { name: /^publish/i }))
+
+    await waitFor(() =>
+      expect(screen.getByTestId('publish-error')).toBeInTheDocument(),
     )
+    expect(screen.getByTestId('publish-error')).toHaveTextContent('Summary too long')
+    // Button should be re-enabled
+    expect(screen.getByRole('button', { name: /^publish/i })).not.toBeDisabled()
+  })
+
+  it('calls router.push with the url and clears draft on 201 success', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: async () => ({
+        id: 'post-abc',
+        slug: 'a-great-title',
+        url: '/alice/post/a-great-title',
+      }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    render(<EditorShell mode="new" currentUsername="alice" />)
+    fillRequiredFields()
+    fireEvent.click(screen.getByRole('button', { name: /^publish/i }))
+
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/alice/post/a-great-title'))
+    expect(mockClearDraft).toHaveBeenCalled()
   })
 })

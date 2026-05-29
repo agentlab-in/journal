@@ -106,6 +106,7 @@ export default async function EditPostPage({
   return (
     <EditorShell
       mode="edit"
+      editPostId={postId}
       currentUsername={username}
       initialPost={initialPost}
       initialTags={initialTags}

@@ -160,3 +160,20 @@ describe('wikilinks remark plugin', () => {
     expect(links).toHaveLength(0)
   })
 })
+
+import remarkStringify from 'remark-stringify'
+
+it('rewrites href to resolved URL when resolver returns one', async () => {
+  const out = String(
+    await unified()
+      .use(remarkParse)
+      .use(wikilinks, {
+        resolve: (anchor: string) =>
+          anchor === 'Pattern X' ? { url: '/alice/post/pattern-x' } : null,
+      })
+      .use(remarkStringify)
+      .process('see [[Pattern X]] and [[Unknown]]'),
+  )
+  expect(out).toContain('](/alice/post/pattern-x)')
+  expect(out).toContain('](/wikilink-resolve?title=Unknown)')
+})
