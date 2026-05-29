@@ -15,13 +15,19 @@ import { visit, SKIP } from 'unist-util-visit'
  *    is the alias separator.
  *  - Empty titles (`[[]]`) and unbalanced brackets (`[[X]`) are not matched.
  *  - The alias is taken literally — whitespace is NOT trimmed.
- *  - Phase 4 will replace the resolver target with a canonical URL at
- *    publish time; this plugin only emits the stub.
+ *  - Phase 4 extended the signature with an optional `resolve` hook: when
+ *    provided and returns a URL, that URL is used instead of the stub.
  */
+
+export interface WikilinkResolveResult { url: string }
+export interface WikilinkPluginOptions {
+  resolve?: (anchor: string) => WikilinkResolveResult | null
+}
 
 const WIKILINK_RE = /\[\[([^[\]|\n]+)(?:\|([^[\]\n]+))?\]\]/g
 
-const wikilinks: Plugin<[], Root> = () => {
+const wikilinks: Plugin<[WikilinkPluginOptions?], Root> = (opts = {}) => {
+  const resolve = opts.resolve
   return (tree) => {
     // NOTE: `visit` for the 'text' type never enters `inlineCode` / `code`
     // mdast nodes because those store their content as a string `value`,
@@ -53,9 +59,12 @@ const wikilinks: Plugin<[], Root> = () => {
         }
 
         const display = alias ?? title
+        const resolved = resolve?.(title) ?? null
         const link: Link = {
           type: 'link',
-          url: `/wikilink-resolve?title=${encodeURIComponent(title)}`,
+          url: resolved
+            ? resolved.url
+            : `/wikilink-resolve?title=${encodeURIComponent(title)}`,
           title: null,
           children: [{ type: 'text', value: display }],
         }
