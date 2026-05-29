@@ -42,6 +42,10 @@ vi.mock('@/components/posts/ViewBeacon', () => ({
 vi.mock('@/components/posts/Backlinks', () => ({
   Backlinks: () => React.createElement('div', { 'data-testid': 'backlinks' }),
 }))
+vi.mock('@/components/post/CommentsSection', () => ({
+  CommentsSection: () =>
+    React.createElement('div', { 'data-testid': 'comments-section' }),
+}))
 vi.mock('@/components/posts/AuthorActions', () => ({
   AuthorActions: ({ postId }: { postId: string }) =>
     React.createElement('div', { 'data-testid': 'author-actions', 'data-post-id': postId }),
@@ -106,6 +110,7 @@ const BASE_POST: LookedUpPost = {
   cover_image_url: null,
   structured_sections: null,
   view_count: 10,
+  comment_count: 0,
   published_at: '2026-01-01T00:00:00Z',
   edited_at: null,
   author: {

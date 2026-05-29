@@ -63,6 +63,7 @@ const POST_ROW = {
   cover_image_url: null,
   structured_sections: null,
   view_count: 42,
+  comment_count: 7,
   published_at: '2026-01-01T00:00:00Z',
   edited_at: null,
   deleted_at: null,
