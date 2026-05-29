@@ -9,17 +9,23 @@
 -- =============================================================================
 
 -- ---------------------------------------------------------------------------
--- 0. Extensions
+-- 0. UUID generator
 -- ---------------------------------------------------------------------------
--- next_auth.users / .accounts / .sessions all default to uuid_generate_v4().
--- Supabase projects usually ship with uuid-ossp pre-enabled, but make this
--- migration self-contained.
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- All four NextAuth tables default `id` to a random UUID. We use
+-- gen_random_uuid() (built into PostgreSQL 13+ / Supabase's Postgres) rather
+-- than uuid_generate_v4(): the latter ships via the "uuid-ossp" extension
+-- which Supabase installs into the `extensions` schema, NOT on the default
+-- search_path, so a bare `uuid_generate_v4()` call from `next_auth.*` DDL
+-- fails to resolve. gen_random_uuid() has no such issue.
 
 -- ---------------------------------------------------------------------------
 -- 1. next_auth schema
 -- ---------------------------------------------------------------------------
-CREATE SCHEMA next_auth;
+-- IMPORTANT (post-migration step): expose `next_auth` to PostgREST by adding
+-- it in the Supabase dashboard: Project Settings → API → Exposed schemas →
+-- add `next_auth`. Without this, the adapter sees "Invalid schema: next_auth"
+-- at runtime. See README.md → "Supabase setup" for the full checklist.
+CREATE SCHEMA IF NOT EXISTS next_auth;
 
 GRANT USAGE ON SCHEMA next_auth TO service_role;
 GRANT ALL ON SCHEMA next_auth TO postgres;
@@ -28,7 +34,7 @@ GRANT ALL ON SCHEMA next_auth TO postgres;
 -- 2. next_auth.users — extended with Phase 1 audit columns
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS next_auth.users (
-    id                                  uuid NOT NULL DEFAULT uuid_generate_v4(),
+    id                                  uuid NOT NULL DEFAULT gen_random_uuid(),
     name                                text,
     email                               text,
     "emailVerified"                     timestamp with time zone,
@@ -51,7 +57,7 @@ GRANT ALL ON TABLE next_auth.users TO service_role;
 -- 3. next_auth.uid() — used in RLS policies
 --    Source: canonical adapter migration (verbatim)
 -- ---------------------------------------------------------------------------
-CREATE FUNCTION next_auth.uid() RETURNS uuid
+CREATE OR REPLACE FUNCTION next_auth.uid() RETURNS uuid
     LANGUAGE sql STABLE
     AS $$
   select
@@ -65,7 +71,7 @@ $$;
 -- 4. next_auth.sessions
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS next_auth.sessions (
-    id              uuid NOT NULL DEFAULT uuid_generate_v4(),
+    id              uuid NOT NULL DEFAULT gen_random_uuid(),
     expires         timestamp with time zone NOT NULL,
     "sessionToken"  text NOT NULL,
     "userId"        uuid,
@@ -85,7 +91,7 @@ GRANT ALL ON TABLE next_auth.sessions TO service_role;
 -- 5. next_auth.accounts
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS next_auth.accounts (
-    id                  uuid NOT NULL DEFAULT uuid_generate_v4(),
+    id                  uuid NOT NULL DEFAULT gen_random_uuid(),
     type                text NOT NULL,
     provider            text NOT NULL,
     "providerAccountId" text NOT NULL,

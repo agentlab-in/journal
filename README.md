@@ -38,6 +38,23 @@ pnpm build       # Production build
 
 See `.env.example` for all required and optional variables with documentation.
 
+## Supabase setup (one-time)
+
+Before sign-in works locally, complete these against your Supabase project:
+
+1. **Push the auth migration:**
+   ```bash
+   supabase db push   # applies supabase/migrations/0001_auth.sql
+   ```
+2. **Expose the `next_auth` schema to PostgREST.** In the Supabase dashboard:
+   *Project Settings → API → Exposed schemas → add `next_auth`.* Without this
+   the NextAuth adapter fails with `Invalid schema: next_auth (PGRST106)`.
+3. **Fill `.env.local`** with `NEXTAUTH_SECRET`, `GITHUB_CLIENT_*`,
+   `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
+   `SUPABASE_SERVICE_ROLE_KEY`.
+4. **GitHub OAuth app:** the dev callback URL is
+   `http://localhost:3010/api/auth/callback/github` (port 3010, not 3000).
+
 ## Architecture
 
 Full implementation plan: [`docs/v1-plan.md`](docs/v1-plan.md)
