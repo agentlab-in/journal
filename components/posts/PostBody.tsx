@@ -60,7 +60,7 @@ export function PostBody({ html }: PostBodyProps) {
   return (
     <div
       ref={wrapperRef}
-      className="post-body prose"
+      className="post-body"
       dangerouslySetInnerHTML={{ __html: html }}
     />
   )

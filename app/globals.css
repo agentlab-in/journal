@@ -83,26 +83,166 @@ body {
   border-right: 1px solid var(--border);
 }
 
-/* Phase 5 — post page */
+/* ============================================================
+   Phase 5 — public post-read page
+   Visual polish (typography scale, color refinements) is Phase 13.
+   This file lays down the legibility floor.
+   ============================================================ */
 
-.post-body a[href^="/"][href*="/post/"],
-.post-body a[href^="/"][href*="/playbook/"],
-.post-body a[href^="/"][href*="/dive/"] {
-  /* resolved wikilink — base style; tune in Phase 13 */
-  text-decoration: underline;
-  text-decoration-style: dotted;
+.post-page {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2.5rem 1.25rem 4rem;
+  line-height: 1.6;
 }
 
-.post-body .broken-wikilink {
-  color: var(--color-fg-subtle, #888);
-  text-decoration: line-through dotted;
+.post-cover {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 420px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.post-header {
+  margin-bottom: 2.5rem;
+}
+
+.post-header h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.75rem;
+}
+
+.post-summary {
+  font-size: 1.0625rem;
+  color: var(--fg-subtle);
+  margin: 0 0 1.5rem;
+}
+
+.post-author {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+  margin: 0 0 1.25rem;
+  font-size: 0.875rem;
+}
+
+.author-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  object-fit: cover;
+}
+
+.author-handle {
+  color: var(--fg);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.author-handle:hover {
+  text-decoration: underline;
+}
+
+.author-display {
+  color: var(--fg-subtle);
+}
+
+.follow-stub {
+  margin-left: auto;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-family: inherit;
+  background: transparent;
+  color: var(--fg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 999px;
   cursor: not-allowed;
 }
 
+.post-tags {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.tag-chip {
+  display: inline-block;
+  padding: 0.125rem 0.625rem;
+  font-size: 0.75rem;
+  background: var(--bg-subtle);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  text-decoration: none;
+  transition: background-color 0.15s ease;
+}
+
+.tag-chip:hover {
+  background: var(--bg-hover);
+}
+
+.tag-chip.tag-pending {
+  color: var(--fg-subtle);
+  border-style: dashed;
+}
+
+.post-meta {
+  font-size: 0.8125rem;
+  color: var(--fg-subtle);
+  margin-bottom: 1rem;
+}
+
+.author-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.author-actions__edit,
+.author-actions__delete {
+  font-family: inherit;
+  font-size: 0.8125rem;
+  padding: 0.375rem 0.875rem;
+  background: transparent;
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 0.15s ease;
+}
+
+.author-actions__edit:hover,
+.author-actions__delete:hover {
+  background: var(--bg-hover);
+}
+
+.author-actions__delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---- Structured sections (playbook/dive) ---- */
+
 .structured-sections {
-  border-left: 3px solid var(--color-border, #ddd);
-  padding-left: 1rem;
-  margin-bottom: 2rem;
+  border-left: 3px solid var(--border);
+  padding: 0.25rem 0 0.25rem 1.25rem;
+  margin: 0 0 2.5rem;
 }
 
 .structured-sections section + section {
@@ -110,20 +250,208 @@ body {
 }
 
 .structured-sections h2 {
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-fg-subtle, #888);
+  letter-spacing: 0.08em;
+  color: var(--fg-subtle);
+  margin: 0 0 0.5rem;
+}
+
+.structured-sections > section > div > * {
+  margin: 0 0 0.75rem;
+}
+
+.structured-sections > section > div > *:last-child {
+  margin-bottom: 0;
+}
+
+/* ---- Post body (rendered from body_html) ---- */
+/* The `prose` class would normally come from @tailwindcss/typography, but
+   we're not pulling that dep — these rules give body_html the legibility
+   floor (heading scale, list indents, code blocks, blockquote). */
+
+.post-body {
+  font-size: 1rem;
+}
+
+.post-body > * + * {
+  margin-top: 1.25rem;
+}
+
+.post-body h1,
+.post-body h2,
+.post-body h3,
+.post-body h4 {
+  line-height: 1.3;
+  margin-top: 2rem;
   margin-bottom: 0.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.post-body h1 { font-size: 1.625rem; }
+.post-body h2 { font-size: 1.375rem; }
+.post-body h3 { font-size: 1.125rem; }
+.post-body h4 { font-size: 1rem; }
+
+.post-body p {
+  margin: 0;
+}
+
+.post-body a {
+  color: var(--fg);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.post-body a:hover {
+  text-decoration-thickness: 2px;
+}
+
+.post-body ul,
+.post-body ol {
+  padding-left: 1.5rem;
+  margin: 0;
+}
+
+.post-body ul li,
+.post-body ol li {
+  margin: 0.25rem 0;
+}
+
+.post-body blockquote {
+  border-left: 3px solid var(--border);
+  padding: 0.25rem 0 0.25rem 1rem;
+  margin: 0;
+  color: var(--fg-subtle);
+}
+
+.post-body code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  background: var(--bg-subtle);
+  padding: 0.125em 0.375em;
+  border-radius: 0.25rem;
+}
+
+.post-body pre {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  overflow-x: auto;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.post-body pre code {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  font-size: inherit;
+}
+
+.post-body img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+}
+
+.post-body hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 2rem 0;
+}
+
+.post-body table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.post-body th,
+.post-body td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+.post-body th {
+  font-weight: 600;
+}
+
+/* ---- Wikilinks ---- */
+
+.post-body a[href^="/"][href*="/post/"],
+.post-body a[href^="/"][href*="/playbook/"],
+.post-body a[href^="/"][href*="/dive/"] {
+  text-decoration-style: dotted;
+}
+
+.post-body .broken-wikilink {
+  color: var(--fg-subtle);
+  text-decoration: line-through dotted;
+  cursor: not-allowed;
+}
+
+/* ---- Mermaid ---- */
+
+.mermaid-svg {
+  display: flex;
+  justify-content: center;
+  margin: 1.5rem 0;
 }
 
 .mermaid-error {
-  border: 1px solid #fca5a5;
-  background: #fef2f2;
-  color: #991b1b;
+  border: 1px solid var(--border);
+  background: var(--bg-subtle);
+  color: var(--fg);
   padding: 0.75rem;
   border-radius: 0.375rem;
   font-size: 0.75rem;
   overflow-x: auto;
+  white-space: pre-wrap;
+}
+
+/* ---- Backlinks ---- */
+
+.backlinks {
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.backlinks h2 {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fg-subtle);
+  margin: 0 0 0.75rem;
+}
+
+.backlinks ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.backlinks li {
+  margin: 0.375rem 0;
+  font-size: 0.875rem;
+}
+
+.backlinks a {
+  color: var(--fg);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.backlink-author {
+  color: var(--fg-subtle);
+  font-size: 0.8125rem;
 }
