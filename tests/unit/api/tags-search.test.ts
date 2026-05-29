@@ -119,11 +119,13 @@ describe('GET /api/tags/search', () => {
     expect(supabaseMock.record.limitCalls).toContain(50)
   })
 
-  it('orders by parent_tag_slug nulls first then slug', async () => {
+  it('orders by slug ascending', async () => {
+    // Previously also ordered by parent_tag_slug, but chaining two `.order()`
+    // calls when one column is nullable was causing live PostgREST 500s; the
+    // parent-grouping is now a display concern handled client-side.
     await GET(req())
     expect(supabaseMock.record.orderCalls.length).toBeGreaterThanOrEqual(1)
     const cols = supabaseMock.record.orderCalls.map(([c]) => c)
-    expect(cols).toContain('parent_tag_slug')
     expect(cols).toContain('slug')
   })
 

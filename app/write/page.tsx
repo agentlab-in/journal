@@ -11,6 +11,7 @@
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
+import { ensurePublicUser } from '@/lib/users/ensure-public-user'
 import { EditorShell } from '@/components/editor/EditorShell'
 
 // The editor is a thick client component; rendering the server shell as
@@ -24,17 +25,7 @@ export default async function WritePage() {
   }
 
   const supabase = createAdminSupabaseClient()
-  const { data: user } = await supabase
-    .from('users')
-    .select('username')
-    .eq('id', session.user.id)
-    .maybeSingle<{ username: string }>()
-
-  // If the user row is missing (sync hasn't run yet), the editor still
-  // renders — the slug preview will read `unknown` until they sign in
-  // again and the trigger fires. We choose not to hard-fail because the
-  // author can still draft locally.
-  const username = user?.username ?? ''
+  const username = (await ensurePublicUser(supabase, session.user.id)) ?? ''
 
   // E2E hook: when E2E_AUTOSAVE_MS is set in the environment (e.g. by
   // playwright.config.ts via the webServer env block) we forward it to the

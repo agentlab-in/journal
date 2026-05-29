@@ -50,9 +50,19 @@ export interface CodeMirrorEditorProps {
 
 type Theme = 'light' | 'dark'
 
+// Mirrors the CSS resolution order in app/globals.css:
+//   1. explicit `data-theme="dark"|"light"` on <html> wins
+//   2. otherwise fall back to the OS preference (`prefers-color-scheme`)
+// Without the second step the CodeMirror theme silently disagreed with the
+// page theme — visible as white text on white background when the OS was
+// in dark mode but ThemeToggle hadn't been clicked.
 function getThemeSnapshot(): Theme {
   const attr = document.documentElement.getAttribute('data-theme')
-  return attr === 'dark' ? 'dark' : 'light'
+  if (attr === 'dark') return 'dark'
+  if (attr === 'light') return 'light'
+  return window.matchMedia('(prefers-color-scheme: dark)').matches
+    ? 'dark'
+    : 'light'
 }
 
 // SSR snapshot: always return the safe default so server output matches the
@@ -67,7 +77,12 @@ function subscribeTheme(callback: () => void): () => void {
     attributes: true,
     attributeFilter: ['data-theme'],
   })
-  return () => observer.disconnect()
+  const mq = window.matchMedia('(prefers-color-scheme: dark)')
+  mq.addEventListener('change', callback)
+  return () => {
+    observer.disconnect()
+    mq.removeEventListener('change', callback)
+  }
 }
 
 export function CodeMirrorEditor({

@@ -54,13 +54,22 @@ export async function GET(req: NextRequest | Request): Promise<Response> {
     builder = builder.or(`slug.ilike.${pattern},name.ilike.${pattern}`)
   }
 
+  // PostgREST rejects `nulls=first` on a column not part of the SELECT in some
+  // setups, and chaining two `.order()` calls when one column is nullable has
+  // bitten this codebase before. Order by slug only — the parent-first
+  // grouping is a display concern that the picker can do client-side.
   const { data, error } = await builder
-    .order('parent_tag_slug', { nullsFirst: true })
     .order('slug', { ascending: true })
     .limit(LIMIT)
 
   if (error) {
-    return json(500, { error: 'query_failed' })
+    console.error('[tags/search] supabase query failed:', {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    })
+    return json(500, { error: 'query_failed', detail: error.message })
   }
 
   return json(

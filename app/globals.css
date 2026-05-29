@@ -64,3 +64,21 @@ body {
     background-color 0.15s ease,
     color 0.15s ease;
 }
+
+/* CodeMirror failsafe: even if the package's bundled theme misses a
+   selector, force the editor to use our theme tokens so text is always
+   readable against the editor background. */
+.cm-editor {
+  background-color: var(--bg);
+  color: var(--fg);
+}
+.cm-editor .cm-content,
+.cm-editor .cm-line {
+  color: var(--fg);
+  caret-color: var(--fg);
+}
+.cm-editor .cm-gutters {
+  background-color: var(--bg-subtle);
+  color: var(--fg-subtle);
+  border-right: 1px solid var(--border);
+}

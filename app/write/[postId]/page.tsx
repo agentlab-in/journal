@@ -13,6 +13,7 @@
 import { redirect, notFound } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
+import { ensurePublicUser } from '@/lib/users/ensure-public-user'
 import { EditorShell, type InitialPost } from '@/components/editor/EditorShell'
 import type { TagOption } from '@/components/editor/TagPicker'
 import type { DraftType } from '@/lib/drafts'
@@ -70,13 +71,9 @@ export default async function EditPostPage({
     notFound()
   }
 
-  // Username for the slug preview.
-  const { data: user } = await supabase
-    .from('users')
-    .select('username')
-    .eq('id', session.user.id)
-    .maybeSingle<{ username: string }>()
-  const username = user?.username ?? ''
+  // Username for the slug preview. Self-heals public.users if the row
+  // is missing (e.g. user signed up before Phase 1.1's populator).
+  const username = (await ensurePublicUser(supabase, session.user.id)) ?? ''
 
   // Tags currently attached to this post.
   const { data: joinRows } = await supabase
