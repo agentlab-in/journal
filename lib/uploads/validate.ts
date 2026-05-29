@@ -8,7 +8,7 @@
 
 export type SniffedMime = 'jpeg' | 'png' | 'webp' | 'gif'
 
-export type AllowedBucket = 'covers' | 'post-images'
+export type AllowedBucket = 'covers' | 'post-images' | 'avatars'
 
 /**
  * Inspect the first few bytes of a buffer and return the detected image
@@ -81,12 +81,13 @@ export function sniffMime(buffer: Buffer): SniffedMime | null {
  * Resolve the `?bucket` query param against the allowlist.
  *
  * - `null` (no param given) → defaults to `'covers'`
- * - `'covers'` or `'post-images'` → returned as-is
+ * - `'covers'`, `'post-images'`, or `'avatars'` → returned as-is
  * - anything else (including empty string or different case) → `null` (reject)
  */
 export function validateBucket(name: string | null): AllowedBucket | null {
   if (name === null) return 'covers'
   if (name === 'covers') return 'covers'
   if (name === 'post-images') return 'post-images'
+  if (name === 'avatars') return 'avatars'
   return null
 }

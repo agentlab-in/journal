@@ -73,10 +73,15 @@ describe('validateBucket()', () => {
     expect(validateBucket('post-images')).toBe('post-images')
   })
 
+  it("accepts 'avatars'", () => {
+    expect(validateBucket('avatars')).toBe('avatars')
+  })
+
   it('rejects any other name', () => {
     expect(validateBucket('foo')).toBeNull()
     expect(validateBucket('')).toBeNull()
     expect(validateBucket('Covers')).toBeNull() // case-sensitive
+    expect(validateBucket('Avatars')).toBeNull() // case-sensitive
   })
 })
 
