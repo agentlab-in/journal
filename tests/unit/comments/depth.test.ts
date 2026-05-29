@@ -39,4 +39,15 @@ describe('getNewCommentDepth', () => {
       /rpc failed/,
     )
   })
+
+  it('throws parent_not_found when the parent UUID does not exist', async () => {
+    // RPC returns NULL (via NULLIF on count=0) when p_parent matches no row.
+    // Without the explicit guard, getNewCommentDepth would silently treat a
+    // bogus UUID as a root comment (NULL + 1 → NaN or 1).
+    const rpc = vi.fn(async () => ({ data: null, error: null }))
+    const admin = makeAdmin(rpc)
+    await expect(getNewCommentDepth(admin, 'bogus-uuid')).rejects.toThrow(
+      /parent_not_found/,
+    )
+  })
 })

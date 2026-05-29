@@ -68,6 +68,11 @@ AFTER INSERT OR UPDATE OF deleted_at OR DELETE ON public.comments
 FOR EACH ROW
 EXECUTE FUNCTION public.handle_comment_count_change();
 
+-- Returns NULL when p_parent doesn't exist (caller treats as parent_not_found).
+-- The CYCLE clause bounds termination defensively: the FK on
+-- parent_comment_id alone does not prevent id = parent_comment_id self-cycles
+-- or multi-row cycles, so we ask Postgres to detect any repeated node in the
+-- walk and stop. Requires Postgres 14+ (Supabase ships 15+).
 CREATE OR REPLACE FUNCTION public.comment_depth_for_parent(p_parent uuid)
 RETURNS integer
 LANGUAGE sql
@@ -82,7 +87,8 @@ AS $$
     FROM public.comments c
     JOIN chain ch ON c.id = ch.parent_comment_id
   )
-  SELECT COALESCE(count(*)::integer, 0) FROM chain;
+  CYCLE id SET is_cycle USING path
+  SELECT NULLIF(count(*)::integer, 0) FROM chain WHERE NOT is_cycle;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.comment_depth_for_parent(uuid)

@@ -16,5 +16,11 @@ export async function getNewCommentDepth(
     throw new Error(error.message)
   }
 
+  // RPC returns NULL when the parent UUID doesn't exist (NULLIF on count=0).
+  // Without this guard, a bogus parent silently becomes a root comment.
+  if (data == null) {
+    throw new Error('parent_not_found')
+  }
+
   return (data as number) + 1
 }

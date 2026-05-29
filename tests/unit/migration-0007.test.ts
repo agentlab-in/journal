@@ -76,6 +76,20 @@ describe('0007_comments_count_and_depth.sql shape', () => {
     expect(migration).toMatch(/WITH RECURSIVE[\s\S]*parent_comment_id/)
   })
 
+  it('depth RPC has an explicit cycle guard (bounded termination)', () => {
+    // The FK on comments.parent_comment_id does not prevent id =
+    // parent_comment_id self-cycles or multi-row cycles, which would loop
+    // the recursive CTE forever. Require Postgres `CYCLE id` syntax.
+    expect(migration).toMatch(/CYCLE\s+id\s+SET\s+is_cycle\s+USING\s+path/)
+    expect(migration).toMatch(/WHERE\s+NOT\s+is_cycle/)
+  })
+
+  it('depth RPC returns NULL (not 0) when the parent does not exist', () => {
+    // NULLIF(count(*)::integer, 0) lets the application layer distinguish
+    // "parent missing" from "parent is a root with depth 1".
+    expect(migration).toMatch(/NULLIF\(count\(\*\)::integer,\s*0\)/)
+  })
+
   it('depth RPC is SECURITY DEFINER with locked search_path', () => {
     expect(migration).toMatch(
       /comment_depth_for_parent[\s\S]*SECURITY DEFINER[\s\S]*SET search_path = public, pg_temp/,
