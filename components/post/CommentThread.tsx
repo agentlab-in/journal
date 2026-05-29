@@ -11,9 +11,7 @@ import type {
   CommentFormEditedResult,
 } from './CommentForm'
 
-const MAX_VISUAL_DEPTH = 5
 const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000
-const INDENT_PX = 20
 
 export interface ThreadAuthor {
   username: string
@@ -184,10 +182,6 @@ function CommentNode({
   const withinEditWindow =
     nowMs - new Date(c.created_at).getTime() < EDIT_WINDOW_MS
 
-  const visualDepth = Math.min(node.depth, MAX_VISUAL_DEPTH)
-  // Roots have no left indent; each nested level shifts by INDENT_PX.
-  const indentPx = (visualDepth - 1) * INDENT_PX
-
   async function handleDelete() {
     if (deleting) return
     if (!window.confirm('Delete this comment? It will be marked as removed.')) {
@@ -221,7 +215,6 @@ function CommentNode({
       className="comment"
       data-comment-id={c.id}
       data-depth={node.depth}
-      style={{ marginLeft: indentPx }}
     >
       <div className="comment__header">
         {c.author?.avatar_url && (
