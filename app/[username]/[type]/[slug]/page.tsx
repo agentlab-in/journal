@@ -16,6 +16,18 @@ interface PageParams {
   slug: string
 }
 
+// Pin a locale so SSR + client render the same string and React doesn't
+// emit a hydration mismatch when the server and viewer locales differ.
+const DATE_FMT = new Intl.DateTimeFormat('en-US', {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+})
+
+function formatDate(iso: string): string {
+  return DATE_FMT.format(new Date(iso))
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -109,13 +121,11 @@ export default async function PostPage({
           </ul>
         )}
         <div className="post-meta">
-          <time dateTime={post.published_at}>
-            {new Date(post.published_at).toLocaleDateString()}
-          </time>
+          <time dateTime={post.published_at}>{formatDate(post.published_at)}</time>
           {post.edited_at && (
             <>
               {' · '}
-              <span>Edited {new Date(post.edited_at).toLocaleDateString()}</span>
+              <span>Edited {formatDate(post.edited_at)}</span>
             </>
           )}
         </div>
