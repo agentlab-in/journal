@@ -10,9 +10,25 @@ const jetbrainsMono = JetBrains_Mono({
   display: 'swap',
 })
 
+const SITE_DESCRIPTION = 'Community publishing for AI agent infrastructure.'
+
 export const metadata: Metadata = {
+  metadataBase: new URL('https://agentlab.in'),
   title: 'agentlab',
-  description: 'Community publishing for AI agent infrastructure.',
+  description: SITE_DESCRIPTION,
+  openGraph: {
+    title: 'agentlab',
+    description: SITE_DESCRIPTION,
+    siteName: 'agentlab.in',
+    images: ['/og.png'],
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'agentlab',
+    description: SITE_DESCRIPTION,
+    images: ['/og.png'],
+  },
 }
 
 export default function RootLayout({

@@ -35,7 +35,7 @@ export default function WaitlistForm() {
 
       if (response.ok) {
         setStatus('success')
-        setMessage("You're on the list. We'll be in touch.")
+        setMessage('Check your email to confirm your subscription.')
         setEmail('')
         return
       }
