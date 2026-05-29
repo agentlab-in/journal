@@ -27,7 +27,7 @@ test.describe('Coming Soon waitlist form', () => {
     await page.goto('/')
     await page.getByRole('textbox', { name: /email address/i }).fill('test@agentlab.in')
     await page.getByRole('button', { name: /^join$/i }).click()
-    await expect(page.getByRole('status')).toContainText(/on the list/i)
+    await expect(page.getByRole('status')).toContainText(/check your email to confirm/i)
     await expect(page.getByRole('button', { name: /joined/i })).toBeDisabled()
   })
 
