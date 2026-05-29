@@ -12,16 +12,15 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// Hoisted mock for next-auth session lookup. Default = signed in; tests
-// flip this to `null` to assert the 401 path.
+// Hoisted mock for the auth helper. Default = signed in; tests flip this
+// to `null` to assert the 401 path. The route now uses `getSession` (a
+// lib/auth wrapper around getServerSession that adds an E2E shim), so we
+// mock the lib/auth surface rather than next-auth directly.
 const sessionMock = vi.hoisted(() => ({ current: { user: { id: 'u-1' } } as null | { user: { id: string } } }))
-vi.mock('next-auth/next', () => ({
-  getServerSession: vi.fn(async () => sessionMock.current),
+vi.mock('@/lib/auth', () => ({
+  authOptions: {},
+  getSession: vi.fn(async () => sessionMock.current),
 }))
-
-// authOptions is referenced by the route but never invoked by the mocked
-// getServerSession — stub the module so we don't drag in Supabase env vars.
-vi.mock('@/lib/auth', () => ({ authOptions: {} }))
 
 import { POST, MAX_LENGTH } from '@/app/api/mdx/preview/route'
 

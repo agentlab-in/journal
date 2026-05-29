@@ -27,13 +27,19 @@ export interface DraftManagerProps {
   formState: DraftFormState
   onRestore: (restored: Draft) => void
   serverUpdatedAt?: string | null
+  /**
+   * Auto-save debounce in milliseconds. Defaults to 30_000 (30s) to match
+   * production behaviour; E2E tests pass a small value (e.g. 500) so they
+   * don't have to wait 30s for a debounce to fire.
+   */
+  autoSaveMs?: number
 }
 
 export interface DraftManagerHandle {
   clearOnSubmit: () => void
 }
 
-const AUTOSAVE_DELAY_MS = 30_000
+const DEFAULT_AUTOSAVE_DELAY_MS = 30_000
 
 type ModalKind = 'restore' | 'conflict' | null
 
@@ -51,7 +57,14 @@ function relativeTime(from: Date, to: Date): string {
 
 export const DraftManager = forwardRef<DraftManagerHandle, DraftManagerProps>(
   function DraftManager(
-    { mode, postId, formState, onRestore, serverUpdatedAt },
+    {
+      mode,
+      postId,
+      formState,
+      onRestore,
+      serverUpdatedAt,
+      autoSaveMs = DEFAULT_AUTOSAVE_DELAY_MS,
+    },
     ref,
   ) {
     const storageKey = useMemo(() => {
@@ -88,18 +101,20 @@ export const DraftManager = forwardRef<DraftManagerHandle, DraftManagerProps>(
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
-    // Debounced auto-save: every formState change resets a 30s timer.
+    // Debounced auto-save: every formState change resets the timer. The
+    // delay is configurable via the `autoSaveMs` prop so E2E tests can avoid
+    // a 30s wait.
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     useEffect(() => {
       if (timerRef.current) clearTimeout(timerRef.current)
       timerRef.current = setTimeout(() => {
         const saved = saveDraft(storageKey, formState)
         setLastSavedAt(saved.savedAt)
-      }, AUTOSAVE_DELAY_MS)
+      }, autoSaveMs)
       return () => {
         if (timerRef.current) clearTimeout(timerRef.current)
       }
-    }, [formState, storageKey])
+    }, [formState, storageKey, autoSaveMs])
 
     // Update the "Xs ago" label once a second.
     useEffect(() => {

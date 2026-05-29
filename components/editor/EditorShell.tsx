@@ -68,6 +68,12 @@ export interface EditorShellProps {
   currentUsername: string
   initialPost?: InitialPost
   initialTags?: TagOption[]
+  /**
+   * Optional override for the DraftManager auto-save debounce. Used by E2E
+   * tests so the test doesn't have to wait the production 30s for a draft
+   * to be persisted. If undefined, DraftManager uses its built-in default.
+   */
+  autoSaveMs?: number
 }
 
 const SUMMARY_MAX = 200
@@ -83,6 +89,7 @@ export function EditorShell({
   currentUsername,
   initialPost,
   initialTags,
+  autoSaveMs,
 }: EditorShellProps) {
   // ---- form state --------------------------------------------------------
   const [title, setTitle] = useState<string>(initialPost?.title ?? '')
@@ -473,6 +480,7 @@ export function EditorShell({
           serverUpdatedAt={
             initialPost?.edited_at ?? initialPost?.published_at ?? null
           }
+          autoSaveMs={autoSaveMs}
         />
       </footer>
     </div>

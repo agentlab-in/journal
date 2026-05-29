@@ -23,8 +23,7 @@
  *   500 upload_failed           — Supabase storage error
  */
 import type { NextRequest } from 'next/server'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
+import { getSession } from '@/lib/auth'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { sniffMime, validateBucket } from '@/lib/uploads/validate'
 import { processImage, readDimensions } from '@/lib/uploads/process'
@@ -47,7 +46,7 @@ function json(status: number, body: Record<string, unknown>): Response {
 
 export async function POST(req: NextRequest): Promise<Response> {
   // 1. Auth
-  const session = await getServerSession(authOptions)
+  const session = await getSession()
   if (!session?.user?.id) {
     return json(401, { error: 'unauthorized' })
   }

@@ -11,8 +11,7 @@
  * node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/page.md.
  */
 import { redirect, notFound } from 'next/navigation'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
+import { getSession } from '@/lib/auth'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { EditorShell, type InitialPost } from '@/components/editor/EditorShell'
 import type { TagOption } from '@/components/editor/TagPicker'
@@ -49,7 +48,7 @@ export default async function EditPostPage({
 }) {
   const { postId } = await params
 
-  const session = await getServerSession(authOptions)
+  const session = await getSession()
   if (!session?.user?.id) {
     redirect(`/auth/signin?callbackUrl=/write/${postId}`)
   }

@@ -23,8 +23,7 @@
  * The 422 path is what the PreviewPane renders inline as a "compile error"
  * banner; the 4xx validation paths surface as generic toasts.
  */
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
+import { getSession } from '@/lib/auth'
 import { compileMdx } from '@/lib/mdx/compile'
 
 // Route Handlers default to the Node runtime, but compileMdx hard-requires
@@ -48,7 +47,7 @@ function json(status: number, body: Record<string, unknown>): Response {
 
 export async function POST(req: Request): Promise<Response> {
   // 1. Auth
-  const session = await getServerSession(authOptions)
+  const session = await getSession()
   if (!session?.user?.id) {
     return json(401, { error: 'unauthorized' })
   }

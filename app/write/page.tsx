@@ -9,8 +9,7 @@
  * login.
  */
 import { redirect } from 'next/navigation'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
+import { getSession } from '@/lib/auth'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { EditorShell } from '@/components/editor/EditorShell'
 
@@ -19,7 +18,7 @@ import { EditorShell } from '@/components/editor/EditorShell'
 export const dynamic = 'force-dynamic'
 
 export default async function WritePage() {
-  const session = await getServerSession(authOptions)
+  const session = await getSession()
   if (!session?.user?.id) {
     redirect('/auth/signin?callbackUrl=/write')
   }
@@ -37,5 +36,22 @@ export default async function WritePage() {
   // author can still draft locally.
   const username = user?.username ?? ''
 
-  return <EditorShell mode="new" currentUsername={username} />
+  // E2E hook: when E2E_AUTOSAVE_MS is set in the environment (e.g. by
+  // playwright.config.ts via the webServer env block) we forward it to the
+  // editor shell so the draft auto-save debounce uses a small value. In
+  // production this var is unset and DraftManager uses its 30s default.
+  const autoSaveMsRaw = process.env.E2E_AUTOSAVE_MS
+  const autoSaveMs = autoSaveMsRaw ? Number.parseInt(autoSaveMsRaw, 10) : undefined
+  const autoSaveMsProp =
+    autoSaveMs !== undefined && Number.isFinite(autoSaveMs) && autoSaveMs > 0
+      ? autoSaveMs
+      : undefined
+
+  return (
+    <EditorShell
+      mode="new"
+      currentUsername={username}
+      autoSaveMs={autoSaveMsProp}
+    />
+  )
 }
