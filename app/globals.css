@@ -82,3 +82,48 @@ body {
   color: var(--fg-subtle);
   border-right: 1px solid var(--border);
 }
+
+/* Phase 5 — post page */
+
+.post-body a[href^="/"][href*="/post/"],
+.post-body a[href^="/"][href*="/playbook/"],
+.post-body a[href^="/"][href*="/dive/"] {
+  /* resolved wikilink — base style; tune in Phase 13 */
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+.post-body .broken-wikilink {
+  color: var(--color-fg-subtle, #888);
+  text-decoration: line-through dotted;
+  cursor: not-allowed;
+}
+
+.structured-sections {
+  border-left: 3px solid var(--color-border, #ddd);
+  padding-left: 1rem;
+  margin-bottom: 2rem;
+}
+
+.structured-sections section + section {
+  margin-top: 1.5rem;
+}
+
+.structured-sections h2 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-fg-subtle, #888);
+  margin-bottom: 0.5rem;
+}
+
+.mermaid-error {
+  border: 1px solid #fca5a5;
+  background: #fef2f2;
+  color: #991b1b;
+  padding: 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  overflow-x: auto;
+}
