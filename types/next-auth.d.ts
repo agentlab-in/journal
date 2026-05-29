@@ -10,6 +10,12 @@ declare module 'next-auth' {
   interface Session {
     user: {
       id: string
+      /**
+       * Lowercased GitHub login mirrored from public.users.username.
+       * Optional because the lookup may fail (no row yet / Supabase
+       * outage) and we fall back to a non-link rendering.
+       */
+      username?: string | null
     } & DefaultSession['user']
   }
 }

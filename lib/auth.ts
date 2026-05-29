@@ -199,10 +199,35 @@ export const authOptions: NextAuthOptions = {
      * DB user row in `user`. We surface its primary-key UUID on
      * `session.user.id` so route handlers (e.g. /api/uploads) can
      * scope writes to the signed-in user.
+     *
+     * We also look up `public.users.username` and attach it to
+     * `session.user.username` so the topbar can link the user to
+     * their own profile page (Phase 6).
+     *
+     * The Supabase lookup is best-effort: if it fails or the row is
+     * missing, we surface the session without username and the topbar
+     * falls back to the non-link rendering.
      */
     async session({ session, user }) {
       if (session.user && user?.id) {
         session.user.id = user.id
+
+        try {
+          const supabase = createAdminSupabaseClient()
+          const lookup = await supabase
+            .from('users')
+            .select('username')
+            .eq('id', user.id)
+            .maybeSingle<{ username: string }>()
+
+          const username = lookup.data?.username ?? null
+
+          if (username) {
+            session.user.username = username
+          }
+        } catch (err) {
+          console.error('[auth] session username lookup failed:', err)
+        }
       }
       return session
     },
