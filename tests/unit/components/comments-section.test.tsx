@@ -136,13 +136,18 @@ describe('<CommentsSection>', () => {
     sessionState.value = null
 
     const tree = await CommentsSection({ postId: 'post-1' })
-    render(tree)
+    const { container } = render(tree)
     expect(
       screen.getByRole('heading', { name: /3 comments/i }),
     ).toBeInTheDocument()
     expect(screen.getByText('root one')).toBeInTheDocument()
     expect(screen.getByText('reply to c1')).toBeInTheDocument()
     expect(screen.getByText('root two')).toBeInTheDocument()
+
+    // Threading structure: the reply must render at depth 2 (root = depth 1).
+    const replyNode = container.querySelector('[data-depth="2"]')
+    expect(replyNode).not.toBeNull()
+    expect(replyNode?.textContent).toContain('reply to c1')
   })
 
   it('renders the "Sign in to comment" affordance for anonymous viewers with comments', async () => {

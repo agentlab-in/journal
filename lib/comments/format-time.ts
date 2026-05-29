@@ -18,6 +18,10 @@ const HOUR = 60 * MIN
 const DAY = 24 * HOUR
 const THIRTY_DAYS = 30 * DAY
 
+// `now` defaults to `new Date()` for ergonomic client usage; callers from a
+// server component MUST pass an explicit `now` (or avoid the helper) — the
+// default would otherwise bake the SSR wall-clock into the HTML and drift
+// from the first client paint, causing a hydration mismatch.
 export function formatRelativeTime(iso: string, now: Date = new Date()): string {
   const ts = new Date(iso).getTime()
   if (!Number.isFinite(ts)) return ''

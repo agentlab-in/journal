@@ -101,7 +101,7 @@ export async function CommentsSection({ postId }: CommentsSectionProps) {
           <>
             <p className="comments-section__empty">Be the first to comment.</p>
             <p className="comments-section__signin">
-              <Link href="/auth/signin">Sign in</Link> to comment.
+              Sign in to comment. <Link href="/auth/signin">Sign in</Link>
             </p>
           </>
         )}
