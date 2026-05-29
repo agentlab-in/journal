@@ -11,7 +11,7 @@ pnpm install
 # Copy env template
 cp .env.example .env.local
 
-# Start dev server at http://localhost:3000
+# Start dev server at http://localhost:3010
 pnpm dev
 ```
 
