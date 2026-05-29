@@ -50,5 +50,27 @@ export async function POST(req: NextRequest | Request): Promise<Response> {
     return json(400, { error: 'invalid_cover_url' })
   }
 
+  // Step 4: derive structured sections + required-key check for playbook/dive
+  const structured_sections = extractStructuredSections(body_md, type as PostType)
+  if (type !== 'post' && structured_sections !== null) {
+    const REQUIRED_KEYS: Record<string, string[]> = {
+      playbook: ['environment_target', 'prerequisites', 'core_instructions', 'safety_failure_modes'],
+      dive: ['tldr', 'the_question'],
+    }
+    const required = REQUIRED_KEYS[type] ?? []
+    const missing = required.filter(
+      (k) => !structured_sections[k] || !String(structured_sections[k]).trim(),
+    )
+    if (missing.length > 0) {
+      return json(400, { error: 'missing_sections', detail: missing.join(', ') })
+    }
+  }
+
+  // Step 5: derive base slug + reserved check
+  const baseSlug = toSlug(title)
+  if (isReserved(baseSlug)) {
+    return json(400, { error: 'reserved_slug' })
+  }
+
   return json(500, { error: 'not_implemented' })
 }

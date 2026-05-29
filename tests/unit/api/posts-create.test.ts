@@ -83,6 +83,23 @@ describe('POST /api/posts — 401 (no session)', () => {
   })
 })
 
+describe('POST /api/posts — 400 Zod body validation', () => {
+  beforeEach(() => {
+    sessionState.value = { user: { id: 'user-123' } }
+    supabaseStub.state.inserts = []
+  })
+
+  it('returns 400 with invalid_body when summary is too long', async () => {
+    const { POST } = await import('@/app/api/posts/route')
+    const req = makeRequest({ ...VALID_POST_PAYLOAD, summary: 'x'.repeat(201) })
+    const res = await POST(req as never)
+    expect(res.status).toBe(400)
+    const body = await res.json()
+    expect(body.error).toBe('invalid_body')
+    expect(Array.isArray(body.issues)).toBe(true)
+  })
+})
+
 describe('POST /api/posts — 400 cover_image_url prefix check', () => {
   beforeEach(() => {
     sessionState.value = { user: { id: 'user-123' } }
@@ -100,5 +117,62 @@ describe('POST /api/posts — 400 cover_image_url prefix check', () => {
     expect(res.status).toBe(400)
     const body = await res.json()
     expect(body.error).toBe('invalid_cover_url')
+  })
+})
+
+describe('POST /api/posts — 400 missing_sections for playbook/dive', () => {
+  beforeEach(() => {
+    sessionState.value = { user: { id: 'user-123' } }
+    supabaseStub.state.inserts = []
+  })
+
+  it('returns 400 when playbook is missing required sections', async () => {
+    const { POST } = await import('@/app/api/posts/route')
+    const req = makeRequest({
+      type: 'playbook',
+      title: 'My Playbook',
+      summary: 'A valid summary.',
+      body_md: '# Intro\nNo structured sections here.',
+      tags: ['rag'],
+    })
+    const res = await POST(req as never)
+    expect(res.status).toBe(400)
+    const body = await res.json()
+    expect(body.error).toBe('missing_sections')
+    expect(typeof body.detail).toBe('string')
+  })
+
+  it('returns 400 when dive is missing required sections', async () => {
+    const { POST } = await import('@/app/api/posts/route')
+    const req = makeRequest({
+      type: 'dive',
+      title: 'My Deep Dive',
+      summary: 'A valid summary.',
+      body_md: '# Intro\nNo TL;DR or The Question here.',
+      tags: ['rag'],
+    })
+    const res = await POST(req as never)
+    expect(res.status).toBe(400)
+    const body = await res.json()
+    expect(body.error).toBe('missing_sections')
+  })
+})
+
+describe('POST /api/posts — 400 reserved slug', () => {
+  beforeEach(() => {
+    sessionState.value = { user: { id: 'user-123' } }
+    supabaseStub.state.inserts = []
+  })
+
+  it('returns 400 when post title slugifies to a reserved name', async () => {
+    const { POST } = await import('@/app/api/posts/route')
+    const req = makeRequest({
+      ...VALID_POST_PAYLOAD,
+      title: 'admin', // 'admin' is a reserved slug
+    })
+    const res = await POST(req as never)
+    expect(res.status).toBe(400)
+    const body = await res.json()
+    expect(body.error).toBe('reserved_slug')
   })
 })
