@@ -96,16 +96,20 @@ export function validatePublishable(
   }
 
   if (input.type === 'playbook') {
-    for (const heading of PLAYBOOK_HEADINGS) {
-      if (!hasHeading(input.body_md, heading)) {
-        errors.push(`Playbook is missing required section: ${heading.replace(/^##\s*/, '')}`)
-      }
+    const missing = PLAYBOOK_HEADINGS.filter(
+      (h) => !hasHeading(input.body_md, h),
+    ).map((h) => h.replace(/^##\s*/, ''))
+    if (missing.length > 0) {
+      const label = missing.length === 1 ? 'section' : 'sections'
+      errors.push(`Playbook is missing required ${label}: ${missing.join(', ')}`)
     }
   } else if (input.type === 'dive') {
-    for (const heading of DIVE_HEADINGS) {
-      if (!hasHeading(input.body_md, heading)) {
-        errors.push(`Deep dive is missing required section: ${heading.replace(/^##\s*/, '')}`)
-      }
+    const missing = DIVE_HEADINGS.filter(
+      (h) => !hasHeading(input.body_md, h),
+    ).map((h) => h.replace(/^##\s*/, ''))
+    if (missing.length > 0) {
+      const label = missing.length === 1 ? 'section' : 'sections'
+      errors.push(`Deep dive is missing required ${label}: ${missing.join(', ')}`)
     }
   }
 
