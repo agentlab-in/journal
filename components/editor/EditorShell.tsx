@@ -32,6 +32,7 @@ import {
   useState,
   type ChangeEvent,
 } from 'react'
+import { useRouter } from 'next/navigation'
 import { CodeMirrorEditor, type CodeMirrorEditorApi } from './CodeMirrorEditor'
 import { PreviewPane } from './PreviewPane'
 import { TagPicker, type TagOption } from './TagPicker'
@@ -66,6 +67,11 @@ export interface EditorShellProps {
   mode: 'new' | 'edit'
   /** Author's canonical username for the slug preview + publish-as label. */
   currentUsername: string
+  /**
+   * The post ID when mode='edit'. Required so the publish handler can target
+   * PATCH /api/posts/<editPostId>.
+   */
+  editPostId?: string
   initialPost?: InitialPost
   initialTags?: TagOption[]
   /**
@@ -87,10 +93,12 @@ interface UploadErrorBody {
 export function EditorShell({
   mode,
   currentUsername,
+  editPostId,
   initialPost,
   initialTags,
   autoSaveMs,
 }: EditorShellProps) {
+  const router = useRouter()
   // ---- form state --------------------------------------------------------
   const [title, setTitle] = useState<string>(initialPost?.title ?? '')
   const [summary, setSummary] = useState<string>(initialPost?.summary ?? '')
@@ -111,6 +119,8 @@ export function EditorShell({
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [publishing, setPublishing] = useState(false)
+  const [serverError, setServerError] = useState<string | null>(null)
 
   const handleEditorReady = useCallback((api: CodeMirrorEditorApi) => {
     editorApiRef.current = api
@@ -283,17 +293,65 @@ export function EditorShell({
     [],
   )
 
-  // ---- publish stub ------------------------------------------------------
-  const handlePublish = useCallback(() => {
-    if (!validation.valid) return
-    // Clear the draft so a future visit doesn't restore a stale copy.
-    draftRef.current?.clearOnSubmit()
-    window.alert('Publish is wired up in Phase 4')
-  }, [validation])
+  // ---- publish handler ---------------------------------------------------
+  const handlePublish = useCallback(async () => {
+    if (validation.errors.length > 0) return
+    setPublishing(true)
+    setServerError(null)
+    try {
+      const url = mode === 'new' ? '/api/posts' : `/api/posts/${editPostId}`
+      const method = mode === 'new' ? 'POST' : 'PATCH'
+      const body: Record<string, unknown> = {
+        title,
+        summary,
+        body_md: bodyMd,
+        tags: tags.map((t) => t.slug),
+        cover_image_url: coverImageUrl ?? undefined,
+      }
+      if (mode === 'new') body.type = type
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const data = await res.json().catch(() => ({})) as {
+        url?: string
+        error?: string
+        issues?: Array<{ message: string }>
+      }
+      if (!res.ok) {
+        setServerError(
+          data?.issues?.[0]?.message ??
+            data?.error ??
+            `Publish failed (status ${res.status})`,
+        )
+        return
+      }
+      draftRef.current?.clearDraft()
+      router.push(data.url!)
+    } catch (e) {
+      setServerError(e instanceof Error ? e.message : 'Network error')
+    } finally {
+      setPublishing(false)
+    }
+  }, [
+    validation.errors.length,
+    mode,
+    editPostId,
+    title,
+    summary,
+    bodyMd,
+    tags,
+    coverImageUrl,
+    type,
+    router,
+  ])
 
   // Tooltip / aria-description for the disabled state
   const publishTooltip = validation.valid
-    ? 'Publish'
+    ? publishing
+      ? 'Publishing…'
+      : 'Publish'
     : `Missing: ${validation.errors.join('; ')}`
 
   // ---- summary counter colour --------------------------------------------
@@ -392,17 +450,26 @@ export function EditorShell({
         </div>
 
         {/* publish button */}
-        <div className="flex items-end">
+        <div className="flex flex-col items-end gap-1">
           <button
             type="button"
-            disabled={!validation.valid}
-            onClick={handlePublish}
+            disabled={!validation.valid || publishing}
+            onClick={() => void handlePublish()}
             title={publishTooltip}
             aria-describedby="publish-help"
             className="rounded-md bg-fg px-4 py-2 text-sm font-medium text-bg hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Publish
+            {publishing ? 'Publishing…' : 'Publish'}
           </button>
+          {serverError ? (
+            <span
+              className="text-xs text-red-700"
+              role="alert"
+              data-testid="publish-error"
+            >
+              {serverError}
+            </span>
+          ) : null}
         </div>
       </header>
 

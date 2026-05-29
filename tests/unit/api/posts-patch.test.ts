@@ -34,7 +34,14 @@ const capturedOps: CapturedOp[] = []
 // Builder helpers
 // ---------------------------------------------------------------------------
 
-const EXISTING_POST = {
+const EXISTING_POST: {
+  id: string
+  author_id: string
+  slug: string
+  type: string
+  body_md: string
+  deleted_at: string | null
+} = {
   id: 'post-abc',
   author_id: 'user-123',
   slug: 'my-post',

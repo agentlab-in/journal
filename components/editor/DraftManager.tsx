@@ -37,6 +37,8 @@ export interface DraftManagerProps {
 
 export interface DraftManagerHandle {
   clearOnSubmit: () => void
+  /** Alias for clearOnSubmit — used by the Phase 4 publish handler. */
+  clearDraft: () => void
 }
 
 const DEFAULT_AUTOSAVE_DELAY_MS = 30_000
@@ -147,6 +149,10 @@ export const DraftManager = forwardRef<DraftManagerHandle, DraftManagerProps>(
       ref,
       () => ({
         clearOnSubmit: () => {
+          clearDraft(storageKey)
+          setLastSavedAt(null)
+        },
+        clearDraft: () => {
           clearDraft(storageKey)
           setLastSavedAt(null)
         },
