@@ -67,6 +67,7 @@ const USER_ROW = {
   display_name: 'Alice',
   bio: 'AI infra builder',
   avatar_url: 'https://example.com/a.jpg',
+  github_login: 'Alice',
   created_at: '2026-01-01T00:00:00Z',
 }
 
@@ -122,10 +123,24 @@ describe('lookupProfileByUsername', () => {
       display_name: 'Alice',
       bio: 'AI infra builder',
       avatar_url: 'https://example.com/a.jpg',
+      github_login: 'Alice',
       created_at: '2026-01-01T00:00:00Z',
     })
     expect(db.from).toHaveBeenCalledWith('users')
+    expect(chain.select).toHaveBeenCalledWith(
+      expect.stringContaining('github_login'),
+    )
     expect(chain.eq).toHaveBeenCalledWith('username', 'alice')
+  })
+
+  it('preserves a null github_login from the row', async () => {
+    const chain = makeSingleChain({
+      data: { ...USER_ROW, github_login: null },
+      error: null,
+    })
+    const db = makeClientFrom(chain)
+    const result = await lookupProfileByUsername(db as never, 'alice')
+    expect(result?.github_login).toBeNull()
   })
 })
 

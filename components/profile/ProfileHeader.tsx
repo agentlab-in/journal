@@ -16,6 +16,13 @@ export interface ProfileHeaderProps {
   avatarUrl: string | null
   bioHtml: string | null
   createdAt: string
+  /**
+   * Original-case GitHub login mirrored from next_auth.users. Preferred for
+   * the external GitHub link so we preserve casing for any future display /
+   * copy-to-clipboard surface. Falls back to `username` when null (defensive
+   * — older rows may not have been re-synced yet).
+   */
+  githubLogin: string | null
   isOwner: boolean
 }
 
@@ -25,8 +32,10 @@ export function ProfileHeader({
   avatarUrl,
   bioHtml,
   createdAt,
+  githubLogin,
   isOwner,
 }: ProfileHeaderProps) {
+  const githubHandle = githubLogin ?? username
   return (
     <header className="profile-header">
       <div className="profile-header__top">
@@ -62,7 +71,7 @@ export function ProfileHeader({
 
       <div className="profile-meta">
         <a
-          href={`https://github.com/${username}`}
+          href={`https://github.com/${githubHandle}`}
           target="_blank"
           rel="noopener noreferrer"
           className="profile-github-link"

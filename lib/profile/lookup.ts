@@ -1,6 +1,6 @@
 import { cache } from 'react'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { createAdminSupabaseClient } from '@/lib/supabase/admin'
+import { createAnonServerSupabaseClient } from '@/lib/supabase/server'
 import type { PostType } from '@/lib/posts/url'
 
 export interface ProfileUser {
@@ -9,6 +9,7 @@ export interface ProfileUser {
   display_name: string
   bio: string | null
   avatar_url: string | null
+  github_login: string | null
   created_at: string
 }
 
@@ -40,6 +41,7 @@ interface UserRow {
   display_name: string
   bio: string | null
   avatar_url: string | null
+  github_login: string | null
   created_at: string
 }
 
@@ -112,7 +114,7 @@ export async function lookupProfileByUsername(
 
   const { data, error } = await db
     .from('users')
-    .select('id, username, display_name, bio, avatar_url, created_at')
+    .select('id, username, display_name, bio, avatar_url, github_login, created_at')
     .eq('username', username)
     .maybeSingle()
 
@@ -125,6 +127,7 @@ export async function lookupProfileByUsername(
     display_name: row.display_name,
     bio: row.bio,
     avatar_url: row.avatar_url,
+    github_login: row.github_login,
     created_at: row.created_at,
   }
 }
@@ -182,6 +185,6 @@ export async function getAuthoredPosts(
  */
 export const getCachedProfile = cache(
   async (username: string): Promise<ProfileUser | null> => {
-    return lookupProfileByUsername(createAdminSupabaseClient(), username)
+    return lookupProfileByUsername(createAnonServerSupabaseClient(), username)
   },
 )

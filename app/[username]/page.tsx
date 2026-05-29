@@ -1,7 +1,7 @@
 import { notFound, permanentRedirect } from 'next/navigation'
 import type { Metadata } from 'next'
 import { getSession } from '@/lib/auth'
-import { createAdminSupabaseClient } from '@/lib/supabase/admin'
+import { createAnonServerSupabaseClient } from '@/lib/supabase/server'
 import {
   getAuthoredPosts,
   getCachedProfile,
@@ -74,8 +74,10 @@ export default async function ProfilePage({
   const session = await getSession()
   const isOwner = session?.user?.id === profile.id
 
-  // Share a single admin client across the two list queries.
-  const db = createAdminSupabaseClient()
+  // Share a single anon SSR client across the two list queries. Public reads
+  // are gated by RLS public-read policies on users / posts / post_tags /
+  // pinned_posts (see supabase/migrations/0002_content.sql).
+  const db = createAnonServerSupabaseClient()
   const [pinned, authored, bioHtml] = await Promise.all([
     getPinnedPosts(db, profile.id),
     getAuthoredPosts(db, profile.id),
@@ -92,6 +94,7 @@ export default async function ProfilePage({
         avatarUrl={profile.avatar_url}
         bioHtml={bioHtml}
         createdAt={profile.created_at}
+        githubLogin={profile.github_login}
         isOwner={isOwner}
       />
 

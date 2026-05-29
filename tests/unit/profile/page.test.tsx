@@ -22,8 +22,9 @@ vi.mock('@/lib/auth', () => ({
   getSession: vi.fn(),
 }))
 
-vi.mock('@/lib/supabase/admin', () => ({
-  createAdminSupabaseClient: vi.fn(() => ({ from: vi.fn() })),
+vi.mock('@/lib/supabase/server', () => ({
+  createServerSupabaseClient: vi.fn(() => ({ from: vi.fn() })),
+  createAnonServerSupabaseClient: vi.fn(() => ({ from: vi.fn() })),
 }))
 
 vi.mock('next/navigation', () => ({
@@ -36,10 +37,17 @@ vi.mock('next/navigation', () => ({
 }))
 
 vi.mock('@/components/profile/ProfileHeader', () => ({
-  ProfileHeader: ({ isOwner }: { isOwner: boolean }) =>
+  ProfileHeader: ({
+    isOwner,
+    githubLogin,
+  }: {
+    isOwner: boolean
+    githubLogin: string | null
+  }) =>
     React.createElement('div', {
       'data-testid': 'profile-header',
       'data-is-owner': String(isOwner),
+      'data-github-login': githubLogin ?? '',
     }),
 }))
 vi.mock('@/components/profile/PinnedPosts', () => ({
@@ -75,6 +83,7 @@ const BASE_PROFILE: ProfileUser = {
   display_name: 'Alice',
   bio: null,
   avatar_url: null,
+  github_login: 'Alice',
   created_at: '2026-01-01T00:00:00Z',
 }
 
@@ -175,6 +184,19 @@ describe('ProfilePage', () => {
     })
     const header = findByComponentType(tree, ProfileHeader)
     expect((header!.props as { isOwner: boolean }).isOwner).toBe(true)
+  })
+
+  it('forwards github_login from the profile row to ProfileHeader', async () => {
+    vi.mocked(getCachedProfile).mockResolvedValue(BASE_PROFILE)
+    vi.mocked(getSession).mockResolvedValue(null)
+
+    const tree = await ProfilePage({
+      params: Promise.resolve({ username: 'alice' }),
+    })
+    const header = findByComponentType(tree, ProfileHeader)
+    expect(
+      (header!.props as { githubLogin: string | null }).githubLogin,
+    ).toBe('Alice')
   })
 
   it('renders PinnedPosts and PostList in the tree', async () => {
