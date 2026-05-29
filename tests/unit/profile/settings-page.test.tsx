@@ -20,6 +20,9 @@ vi.mock('next/navigation', () => ({
   redirect: vi.fn((url: string) => {
     throw new Error(`NEXT_REDIRECT:${url}`)
   }),
+  notFound: vi.fn(() => {
+    throw new Error('NEXT_NOT_FOUND')
+  }),
 }))
 
 vi.mock('@/components/profile/ProfileSettingsForm', () => ({
@@ -43,7 +46,7 @@ vi.mock('@/components/profile/ProfileSettingsForm', () => ({
 // ---------------------------------------------------------------------------
 
 import { getSession } from '@/lib/auth'
-import { redirect } from 'next/navigation'
+import { redirect, notFound } from 'next/navigation'
 import { ProfileSettingsForm } from '@/components/profile/ProfileSettingsForm'
 import ProfileSettingsPage from '@/app/settings/profile/page'
 
@@ -96,6 +99,7 @@ describe('ProfileSettingsPage', () => {
   beforeEach(() => {
     vi.mocked(getSession).mockReset()
     vi.mocked(redirect).mockClear()
+    vi.mocked(notFound).mockClear()
     currentAdminClient = makeAdminClient(null)
   })
 
@@ -132,6 +136,17 @@ describe('ProfileSettingsPage', () => {
     expect(props.displayName).toBe('Alice')
     expect(props.bio).toBe('About me.')
     expect(props.avatarUrl).toBe('https://cdn.example.com/u/a.webp')
+  })
+
+  it('calls notFound() when the public.users row is missing', async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      user: { id: USER_ID, name: 'Ghost', email: 'g@example.com' },
+      expires: '2099-12-31T23:59:59.000Z',
+    })
+    currentAdminClient = makeAdminClient(null)
+
+    await expect(ProfileSettingsPage()).rejects.toThrow('NEXT_NOT_FOUND')
+    expect(notFound).toHaveBeenCalled()
   })
 
   it('forwards null bio / avatar_url to the form', async () => {

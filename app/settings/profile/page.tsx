@@ -1,4 +1,4 @@
-import { redirect } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 import { getSession } from '@/lib/auth'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
@@ -29,12 +29,15 @@ export default async function ProfileSettingsPage() {
     .eq('id', session.user.id)
     .single()
 
-  const row = (data as UserRow | null) ?? {
-    username: '',
-    display_name: '',
-    bio: null,
-    avatar_url: null,
+  // Session passed the auth gate, but the corresponding public.users row is
+  // missing (or the SELECT errored — `data` is null in either case). That's a
+  // genuinely-not-found state for this resource; surfacing an empty form
+  // would silently hide the real problem and render a broken `@` handle.
+  if (data == null) {
+    notFound()
   }
+
+  const row = data as UserRow
 
   return (
     <main className="settings-page">
