@@ -23,6 +23,7 @@ export interface ProfilePostCardData {
   cover_image_url: string | null
   published_at: string
   view_count: number
+  comment_count: number
   tags: Array<{ slug: string; name: string; is_approved: boolean }>
 }
 
@@ -62,6 +63,10 @@ export function ProfilePostCard({ username, post, action }: ProfilePostCardProps
         <time dateTime={post.published_at}>{formatDate(post.published_at)}</time>
         <span aria-hidden="true"> · </span>
         <span>{post.view_count} views</span>
+        <span aria-hidden="true"> · </span>
+        <span>
+          {post.comment_count} {post.comment_count === 1 ? 'comment' : 'comments'}
+        </span>
       </div>
     </article>
   )

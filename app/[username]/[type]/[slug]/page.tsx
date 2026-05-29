@@ -9,6 +9,7 @@ import { StructuredSections } from '@/components/posts/StructuredSections'
 import { ViewBeacon } from '@/components/posts/ViewBeacon'
 import { AuthorActions } from '@/components/posts/AuthorActions'
 import { Backlinks } from '@/components/posts/Backlinks'
+import { CommentsSection } from '@/components/post/CommentsSection'
 
 interface PageParams {
   username: string
@@ -128,6 +129,11 @@ export default async function PostPage({
               <span>Edited {formatDate(post.edited_at)}</span>
             </>
           )}
+          <span aria-hidden="true"> · </span>
+          <span>
+            {post.comment_count}{' '}
+            {post.comment_count === 1 ? 'comment' : 'comments'}
+          </span>
         </div>
         {(isOwner || isAdminUser) && <AuthorActions postId={post.id} />}
       </header>
@@ -137,6 +143,8 @@ export default async function PostPage({
       <PostBody html={post.body_html} />
 
       <Backlinks postId={post.id} />
+
+      <CommentsSection postId={post.id} />
 
       <ViewBeacon postId={post.id} />
     </article>
