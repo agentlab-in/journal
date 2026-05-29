@@ -31,7 +31,7 @@
 - KaTeX/math
 - Email digest, web push
 - Real personalization for "For You" (heat-rank only)
-- Logo (wordmark only)
+- ~~Logo (wordmark only)~~ — WALKED BACK 2026-05-29: brand mark shipped (Q48). `>` chevron + forward-step glyph at `public/logo.svg` (currentColor, inverts with theme), favicons at `app/icon.png` + `app/apple-icon.png`, OG image at `public/og.png`.
 - Error tracking (Sentry etc.)
 - Sponsorships / payments
 - External code contributions
