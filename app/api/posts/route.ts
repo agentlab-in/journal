@@ -43,5 +43,12 @@ export async function POST(req: NextRequest | Request): Promise<Response> {
     })
   }
 
+  const { type, title, summary, body_md, tags, cover_image_url } = parsed.data
+
+  // Step 3: cover_image_url bucket validation
+  if (cover_image_url !== undefined && !isValidCoverImageUrl(cover_image_url)) {
+    return json(400, { error: 'invalid_cover_url' })
+  }
+
   return json(500, { error: 'not_implemented' })
 }

@@ -82,3 +82,23 @@ describe('POST /api/posts — 401 (no session)', () => {
     expect(body).toEqual({ error: 'unauthorized' })
   })
 })
+
+describe('POST /api/posts — 400 cover_image_url prefix check', () => {
+  beforeEach(() => {
+    sessionState.value = { user: { id: 'user-123' } }
+    supabaseStub.state.inserts = []
+    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://abc.supabase.co'
+  })
+
+  it('returns 400 when cover_image_url is not from covers bucket', async () => {
+    const { POST } = await import('@/app/api/posts/route')
+    const req = makeRequest({
+      ...VALID_POST_PAYLOAD,
+      cover_image_url: 'https://evil.example/storage/v1/object/public/covers/x.webp',
+    })
+    const res = await POST(req as never)
+    expect(res.status).toBe(400)
+    const body = await res.json()
+    expect(body.error).toBe('invalid_cover_url')
+  })
+})
