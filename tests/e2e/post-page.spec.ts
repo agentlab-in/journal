@@ -5,13 +5,12 @@
  *   - header `x-e2e-auth: 1` activates the bypass inside `lib/auth.ts`.
  *   - env `E2E_TEST_AUTH_USER_ID` sets the user ID the bypass returns.
  *
- * DB dependency: scenarios 2–5 hit the database (Supabase service role key
- * required). They are skipped when `E2E_TEST_AUTH_USER_ID` is not set in the
- * process env (same guard used in publish.spec.ts). Scenario 1 (unknown slug
- * → 404) requires no DB because the page fast-returns `notFound()` from
- * `getCachedPost` before any meaningful DB read; but note: Supabase admin
- * client still initialises — so we use the same DB-available guard as the
- * others to stay consistent with the real CI gate.
+ * DB dependency: ALL scenarios require Supabase because the page route's
+ * `getCachedPost` constructs the admin client even for the 404 path. In CI
+ * (no Supabase env), `createAdminSupabaseClient()` throws and the page 500s
+ * instead of rendering Next.js's not-found page. We gate every test on
+ * `E2E_TEST_AUTH_USER_ID` (same guard used in publish.spec.ts) so the suite
+ * runs locally with a real backend and cleanly skips in CI.
  *
  * Navigation calls use `waitUntil: 'domcontentloaded'` to tolerate the
  * ViewBeacon's fire-and-forget fetch that can keep the page "loading".
@@ -74,6 +73,8 @@ test.describe('Phase 5 post-read page', () => {
   test('anonymous GET to unknown slug returns 404 and renders not-found content', async ({
     page,
   }) => {
+    test.skip(!HAS_E2E_AUTH, SKIP_REASON)
+
     const response = await page.goto('/unknown-user-abc/post/unknown-slug-xyz', {
       waitUntil: 'domcontentloaded',
     })
