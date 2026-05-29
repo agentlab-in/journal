@@ -65,6 +65,19 @@ interface PostRow {
   post_tags: PostTagRow[]
 }
 
+/**
+ * Fetch a single published post by author username, post type, and slug.
+ *
+ * Returns null if:
+ * - `params.type` is not a valid PostType
+ * - `params.username` contains uppercase letters (non-canonical URL)
+ * - no user or post matches the given params
+ * - the post has been soft-deleted
+ *
+ * @param db Must be a service-role client. RLS on the `tags` table filters
+ *   out unapproved rows for non-service-role clients; pages render unapproved
+ *   tags muted, so a non-service-role caller would silently lose them.
+ */
 export async function lookupPost(
   db: Pick<SupabaseClient, 'from'>,
   params: LookupParams,
@@ -92,7 +105,7 @@ export async function lookupPost(
       `id, author_id, type, slug, title, summary, body_html,
       cover_image_url, structured_sections, view_count,
       published_at, edited_at, deleted_at,
-      post_tags(tag_slug, tags!inner(slug, name, is_approved))`,
+      post_tags(tag_slug, tags(slug, name, is_approved))`,
     )
     .eq('author_id', user.id)
     .eq('type', params.type)
