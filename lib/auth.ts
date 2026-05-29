@@ -6,6 +6,7 @@ import { SupabaseAdapter } from '@next-auth/supabase-adapter'
 import { fetchGithubUser } from '@/lib/github'
 import { isReserved } from '@/lib/reserved-names'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
+import { ensurePublicUser } from '@/lib/users/ensure-public-user'
 
 // ---------------------------------------------------------------------------
 // Gate types (exported for unit testing — pure function, no I/O)
@@ -202,11 +203,15 @@ export const authOptions: NextAuthOptions = {
      *
      * We also look up `public.users.username` and attach it to
      * `session.user.username` so the topbar can link the user to
-     * their own profile page (Phase 6).
+     * their own profile page (Phase 6). If the row is missing — which
+     * happens for users who signed up before Phase 1.1's audit-cols
+     * populator landed — we self-heal by calling `ensurePublicUser`
+     * so the next session read returns a username and existing
+     * signed-in users don't have to log out + back in.
      *
-     * The Supabase lookup is best-effort: if it fails or the row is
-     * missing, we surface the session without username and the topbar
-     * falls back to the non-link rendering.
+     * All Supabase work is best-effort: if it fails, we surface the
+     * session without username and the topbar falls back to the
+     * non-link rendering.
      */
     async session({ session, user }) {
       if (session.user && user?.id) {
@@ -220,7 +225,13 @@ export const authOptions: NextAuthOptions = {
             .eq('id', user.id)
             .maybeSingle<{ username: string }>()
 
-          const username = lookup.data?.username ?? null
+          let username = lookup.data?.username ?? null
+
+          if (!username) {
+            // Self-heal: missing public.users row. ensurePublicUser
+            // handles next_auth.users → GitHub REST fallbacks.
+            username = await ensurePublicUser(supabase, user.id)
+          }
 
           if (username) {
             session.user.username = username
@@ -296,6 +307,16 @@ export const authOptions: NextAuthOptions = {
           .eq('id', user.id)
         if (error) {
           console.error('[auth] audit-column update failed:', error.message)
+        }
+
+        // Defensive backstop: even if the audit-column UPDATE fired the
+        // Phase 2 trigger successfully, call ensurePublicUser so any
+        // surviving missing public.users row gets healed on this sign-in
+        // without forcing a sign-out cycle. Best-effort.
+        try {
+          await ensurePublicUser(supabase, user.id)
+        } catch (innerErr) {
+          console.error('[auth] ensurePublicUser threw:', innerErr)
         }
       } catch (err) {
         console.error('[auth] audit-column update threw:', err)

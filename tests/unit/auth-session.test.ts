@@ -1,8 +1,13 @@
 /**
  * Unit tests for the NextAuth `session` callback in lib/auth.ts.
  *
- * The callback now looks up `public.users.username` and surfaces it on
- * `session.user.username` so the topbar can link to the user's profile.
+ * The callback:
+ *   1. Looks up `public.users.username` and surfaces it on
+ *      `session.user.username` so the topbar can link to the profile.
+ *   2. Self-heals a missing `public.users` row by invoking
+ *      ensurePublicUser when the lookup returns nothing.
+ *   3. Falls back gracefully (no username, no throw) when Supabase
+ *      misbehaves.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { Session, User } from 'next-auth'
@@ -12,7 +17,12 @@ import type { AdapterUser } from 'next-auth/adapters'
 // Mocks (declared before the import that triggers them)
 // ---------------------------------------------------------------------------
 
+const ensurePublicUser = vi.fn()
 const createAdminSupabaseClient = vi.fn()
+
+vi.mock('@/lib/users/ensure-public-user', () => ({
+  ensurePublicUser: (...args: unknown[]) => ensurePublicUser(...args),
+}))
 
 vi.mock('@/lib/supabase/admin', () => ({
   createAdminSupabaseClient: (...args: unknown[]) => createAdminSupabaseClient(...args),
@@ -66,6 +76,7 @@ async function callSession(args: {
 
 describe('authOptions.callbacks.session', () => {
   beforeEach(() => {
+    ensurePublicUser.mockReset()
     createAdminSupabaseClient.mockReset()
   })
 
@@ -80,20 +91,39 @@ describe('authOptions.callbacks.session', () => {
 
     expect(out.user?.id).toBe('user-1')
     expect(out.user?.username).toBe('alice')
+    // Username was already there, so no self-heal call.
+    expect(ensurePublicUser).not.toHaveBeenCalled()
     expect(supa.from).toHaveBeenCalledWith('users')
   })
 
-  it('leaves username undefined when the public.users row is missing', async () => {
+  it('self-heals via ensurePublicUser when the public.users row is missing', async () => {
     const supa = mockSupabaseUsersLookup(null)
     createAdminSupabaseClient.mockReturnValue(supa)
+    ensurePublicUser.mockResolvedValue('healed-name')
 
     const out = await callSession({
       session: { ...BASE_SESSION, user: { ...BASE_SESSION.user! } },
       user: BASE_USER,
     })
 
-    expect(out.user?.id).toBe('user-1')
+    expect(ensurePublicUser).toHaveBeenCalledTimes(1)
+    expect(ensurePublicUser).toHaveBeenCalledWith(supa, 'user-1')
+    expect(out.user?.username).toBe('healed-name')
+  })
+
+  it('leaves username undefined when even ensurePublicUser fails', async () => {
+    const supa = mockSupabaseUsersLookup(null)
+    createAdminSupabaseClient.mockReturnValue(supa)
+    ensurePublicUser.mockResolvedValue(null)
+
+    const out = await callSession({
+      session: { ...BASE_SESSION, user: { ...BASE_SESSION.user! } },
+      user: BASE_USER,
+    })
+
+    expect(ensurePublicUser).toHaveBeenCalledTimes(1)
     expect(out.user?.username).toBeUndefined()
+    expect(out.user?.id).toBe('user-1')
   })
 
   it('does not throw when Supabase throws — returns the session without username', async () => {
