@@ -18,7 +18,7 @@ describe('evaluateGate()', () => {
     )
     expect(result.ok).toBe(false)
     if (!result.ok) {
-      expect(result.redirect).toBe('/auth/blocked?reason=age_27_days')
+      expect(result.redirect).toBe('/auth/blocked?reason=age_27_days&login=newuser')
     }
   })
 
@@ -29,7 +29,7 @@ describe('evaluateGate()', () => {
     )
     expect(result.ok).toBe(false)
     if (!result.ok) {
-      expect(result.redirect).toBe('/auth/blocked?reason=age_5_days')
+      expect(result.redirect).toBe('/auth/blocked?reason=age_5_days&login=newuser2')
     }
   })
 
@@ -40,7 +40,7 @@ describe('evaluateGate()', () => {
     )
     expect(result.ok).toBe(false)
     if (!result.ok) {
-      expect(result.redirect).toBe('/auth/blocked?reason=no_public_repos')
+      expect(result.redirect).toBe('/auth/blocked?reason=no_public_repos&login=olduser')
     }
   })
 
@@ -52,7 +52,7 @@ describe('evaluateGate()', () => {
     )
     expect(result.ok).toBe(false)
     if (!result.ok) {
-      expect(result.redirect).toBe('/auth/blocked?reason=reserved_name')
+      expect(result.redirect).toBe('/auth/blocked?reason=reserved_name&login=admin')
     }
   })
 
@@ -79,7 +79,8 @@ describe('evaluateGate()', () => {
     )
     expect(result.ok).toBe(false)
     if (!result.ok) {
-      expect(result.redirect).toBe('/auth/blocked?reason=reserved_name')
+      // Login is lowercased before being appended.
+      expect(result.redirect).toBe('/auth/blocked?reason=reserved_name&login=admin')
     }
   })
 
@@ -90,7 +91,22 @@ describe('evaluateGate()', () => {
     )
     expect(result.ok).toBe(false)
     if (!result.ok) {
-      expect(result.redirect).toBe('/auth/blocked?reason=invalid_account_data')
+      expect(result.redirect).toBe(
+        '/auth/blocked?reason=invalid_account_data&login=newuser',
+      )
+    }
+  })
+
+  it('omits login from the redirect when the value is not a valid GitHub handle', () => {
+    // A hostile / malformed login (e.g. injected from an exploit) should
+    // never make it into the redirect URL.
+    const result = evaluateGate(
+      { login: '<script>alert(1)</script>', public_repos: 5, created_at: daysAgo(5) },
+      NOW,
+    )
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.redirect).toBe('/auth/blocked?reason=age_5_days')
     }
   })
 })

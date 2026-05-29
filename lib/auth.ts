@@ -34,25 +34,34 @@ export type GateResult = { ok: true } | { ok: false; redirect: string }
  * @param now    - injectable for unit tests; defaults to new Date()
  */
 export function evaluateGate(input: GateInput, now: Date = new Date()): GateResult {
+  // GitHub handle shape — same regex used by the blocked page when it
+  // sanitises the `login` query param. Anything outside this shape can't
+  // be appended to the redirect URL, so the page never has to render
+  // arbitrary text from the redirect.
+  const safeLogin =
+    typeof input.login === 'string' && /^[a-z0-9-]{1,39}$/i.test(input.login)
+      ? `&login=${encodeURIComponent(input.login.toLowerCase())}`
+      : ''
+
   if (isReserved(input.login)) {
-    return { ok: false, redirect: '/auth/blocked?reason=reserved_name' }
+    return { ok: false, redirect: `/auth/blocked?reason=reserved_name${safeLogin}` }
   }
 
   const createdAt = new Date(input.created_at).getTime()
   if (Number.isNaN(createdAt)) {
     // Malformed timestamp — fail closed so an unparseable date can't bypass
     // the age check (NaN < 30 is false, which would silently allow signup).
-    return { ok: false, redirect: '/auth/blocked?reason=invalid_account_data' }
+    return { ok: false, redirect: `/auth/blocked?reason=invalid_account_data${safeLogin}` }
   }
 
   const ageDays = Math.floor((now.getTime() - createdAt) / 86_400_000)
 
   if (ageDays < 30) {
-    return { ok: false, redirect: `/auth/blocked?reason=age_${ageDays}_days` }
+    return { ok: false, redirect: `/auth/blocked?reason=age_${ageDays}_days${safeLogin}` }
   }
 
   if (input.public_repos < 1) {
-    return { ok: false, redirect: '/auth/blocked?reason=no_public_repos' }
+    return { ok: false, redirect: `/auth/blocked?reason=no_public_repos${safeLogin}` }
   }
 
   return { ok: true }
