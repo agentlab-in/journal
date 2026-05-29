@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 
 export interface ViewBeaconProps {
   postId: string
@@ -9,12 +9,7 @@ export interface ViewBeaconProps {
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000
 
 export function ViewBeacon({ postId }: ViewBeaconProps) {
-  const firedRef = useRef(false)
-
   useEffect(() => {
-    if (firedRef.current) return
-    firedRef.current = true
-
     const key = `agentlab.viewed.${postId}`
     const stored = localStorage.getItem(key)
 

@@ -47,7 +47,7 @@ describe('ViewBeacon', () => {
     render(<ViewBeacon postId={POST_ID} />)
 
     // Give effects time to run
-    await new Promise((r) => setTimeout(r, 50))
+    await new Promise((r) => setTimeout(r, 0))
 
     expect(fetch).not.toHaveBeenCalled()
   })
@@ -71,5 +71,19 @@ describe('ViewBeacon', () => {
     // Also updates localStorage
     const stored = localStorage.getItem(LS_KEY)
     expect(stored).not.toBe(twentyFiveHoursAgo)
+  })
+
+  it('fires fetch when localStorage entry is corrupt (treats as no entry)', async () => {
+    // Set a corrupt value that cannot be parsed as a date
+    localStorage.setItem(LS_KEY, 'not-a-date')
+
+    render(<ViewBeacon postId={POST_ID} />)
+
+    await vi.waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith(
+        `/api/posts/${POST_ID}/view`,
+        expect.objectContaining({ method: 'POST', keepalive: true }),
+      )
+    })
   })
 })

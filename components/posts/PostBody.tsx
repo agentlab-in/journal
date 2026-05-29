@@ -1,14 +1,14 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useId, useRef } from 'react'
+import { initMermaidOnce, getMermaid } from '@/lib/mdx/mermaid-init'
 
 export interface PostBodyProps {
   html: string
 }
 
-let mermaidIdCounter = 0
-
 export function PostBody({ html }: PostBodyProps) {
+  const id = useId()
   const wrapperRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -22,19 +22,20 @@ export function PostBody({ html }: PostBodyProps) {
     if (codeEls.length === 0) return
 
     void (async () => {
-      const mermaid = (await import('mermaid')).default
       const theme =
         document.documentElement.dataset.theme === 'dark' ? 'dark' : 'default'
-      mermaid.initialize({ startOnLoad: false, theme, securityLevel: 'strict' })
+      await initMermaidOnce(theme)
+      const mermaid = await getMermaid()
 
-      for (const codeEl of Array.from(codeEls)) {
+      for (let i = 0; i < Array.from(codeEls).length; i++) {
         if (cancelled) break
+        const codeEl = Array.from(codeEls)[i]
         const preEl = codeEl.parentElement
         if (!preEl) continue
         const code = codeEl.textContent ?? ''
-        const id = `mermaid-postbody-${++mermaidIdCounter}`
+        const blockId = `mermaid-${id}-${i}`.replace(/[:]/g, '')
         try {
-          const { svg } = await mermaid.render(id, code)
+          const { svg } = await mermaid.render(blockId, code)
           if (cancelled) break
           const container = document.createElement('div')
           container.className = 'mermaid-svg my-6 flex justify-center'
@@ -54,7 +55,7 @@ export function PostBody({ html }: PostBodyProps) {
     return () => {
       cancelled = true
     }
-  }, [html])
+  }, [html, id])
 
   return (
     <div

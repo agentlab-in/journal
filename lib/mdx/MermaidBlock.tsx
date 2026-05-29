@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useId, useRef, useState } from 'react'
+import { initMermaidOnce } from '@/lib/mdx/mermaid-init'
 
 /**
  * Client-only Mermaid renderer. The component receives the fenced-code
@@ -29,7 +30,7 @@ export function MermaidBlock({ code }: MermaidBlockProps) {
         const mermaid = (await import('mermaid')).default
         const theme =
           document.documentElement.dataset.theme === 'dark' ? 'dark' : 'default'
-        mermaid.initialize({ startOnLoad: false, theme, securityLevel: 'strict' })
+        await initMermaidOnce(theme)
         const { svg } = await mermaid.render(`mermaid-${id}`, code)
         if (!cancelled && ref.current) ref.current.innerHTML = svg
       } catch (err) {
