@@ -148,4 +148,13 @@ describe('fetchBacklinks', () => {
     const result = await fetchBacklinks(db as never, 'target-post-1')
     expect(result).toEqual([])
   })
+
+  it('returns empty array when refs succeed but posts SELECT returns an error', async () => {
+    const db = makeFakeClient(
+      { data: [REF_ROW], error: null },
+      { data: null, error: new Error('posts db error') },
+    )
+    const result = await fetchBacklinks(db as never, 'target-post-1')
+    expect(result).toEqual([])
+  })
 })

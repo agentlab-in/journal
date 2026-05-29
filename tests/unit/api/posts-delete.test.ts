@@ -12,6 +12,7 @@ vi.mock('@/lib/auth', () => ({
     void login
     return isAdminState.value
   }),
+  resolveIsAdmin: vi.fn(async (_userId: string) => isAdminState.value),
 }))
 
 // ---------------------------------------------------------------------------

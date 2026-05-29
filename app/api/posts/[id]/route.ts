@@ -1,5 +1,5 @@
 import type { NextRequest } from 'next/server'
-import { getSession, isAdmin } from '@/lib/auth'
+import { getSession, resolveIsAdmin } from '@/lib/auth'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { PostPatchBody } from '@/lib/posts/schema'
 import { isValidCoverImageUrl } from '@/lib/posts/cover-image'
@@ -69,17 +69,8 @@ export async function PATCH(
   }
 
   // Step 3: author OR admin check
-  // To check admin we need github_login from next_auth.users
-  const { data: naUserRow } = await admin
-    .schema('next_auth')
-    .from('users')
-    .select('github_login')
-    .eq('id', userId)
-    .single()
-
-  const githubLogin = (naUserRow as { github_login: string } | null)?.github_login ?? ''
   const isAuthor = userId === post.author_id
-  const isAdminUser = isAdmin(githubLogin)
+  const isAdminUser = await resolveIsAdmin(userId)
 
   if (!isAuthor && !isAdminUser) {
     return json(403, { error: 'forbidden' })
@@ -317,16 +308,8 @@ export async function DELETE(
   }
 
   // Step 3: author/admin gate
-  const { data: naUserRow } = await admin
-    .schema('next_auth')
-    .from('users')
-    .select('github_login')
-    .eq('id', userId)
-    .single()
-
-  const githubLogin = (naUserRow as { github_login: string } | null)?.github_login ?? ''
   const isAuthor = userId === post.author_id
-  const isAdminUser = isAdmin(githubLogin)
+  const isAdminUser = await resolveIsAdmin(userId)
 
   if (!isAuthor && !isAdminUser) {
     return json(403, { error: 'forbidden' })

@@ -106,6 +106,31 @@ export function isAdmin(login: string): boolean {
   return list.includes(login.toLowerCase())
 }
 
+/**
+ * Resolve whether a given user ID has admin privileges by looking up
+ * their GitHub login from next_auth.users and checking against the
+ * ADMIN_GITHUB_LOGINS env var.
+ *
+ * Returns false on any error (fail-safe). Creates its own admin client
+ * internally so callers don't need to pass a client.
+ */
+export async function resolveIsAdmin(userId: string): Promise<boolean> {
+  if (!userId) return false
+  try {
+    const supabase = createAdminSupabaseClient()
+    const { data } = await supabase
+      .schema('next_auth')
+      .from('users')
+      .select('github_login')
+      .eq('id', userId)
+      .single()
+    const login = (data as { github_login: string } | null)?.github_login ?? ''
+    return isAdmin(login)
+  } catch {
+    return false
+  }
+}
+
 // ---------------------------------------------------------------------------
 // NextAuth v4 configuration
 // ---------------------------------------------------------------------------

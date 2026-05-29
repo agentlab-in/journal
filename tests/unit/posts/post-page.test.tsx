@@ -6,20 +6,20 @@ import type { LookedUpPost } from '@/lib/posts/lookup'
 // Module mocks — declared before any imports that trigger them
 // ---------------------------------------------------------------------------
 
-vi.mock('@/lib/posts/lookup', () => ({ lookupPost: vi.fn() }))
+vi.mock('@/lib/posts/lookup', () => ({
+  lookupPost: vi.fn(),
+  getCachedPost: vi.fn(),
+}))
+
+const isAdminState = { value: false }
+
 vi.mock('@/lib/auth', () => ({
   getSession: vi.fn(),
-  isAdmin: vi.fn(() => false),
-}))
-vi.mock('@/lib/supabase/admin', () => ({
-  createAdminSupabaseClient: vi.fn(() => ({
-    from: vi.fn(() => ({
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      single: vi.fn(() => Promise.resolve({ data: null, error: null })),
-    })),
-    schema: vi.fn().mockReturnThis(),
-  })),
+  isAdmin: vi.fn((login: string) => {
+    void login
+    return isAdminState.value
+  }),
+  resolveIsAdmin: vi.fn(async () => isAdminState.value),
 }))
 vi.mock('next/navigation', () => ({
   notFound: vi.fn(() => {
@@ -55,8 +55,8 @@ vi.mock('next/link', () => ({
 // Import after mocks are registered
 // ---------------------------------------------------------------------------
 
-import { lookupPost } from '@/lib/posts/lookup'
-import { getSession } from '@/lib/auth'
+import { getCachedPost } from '@/lib/posts/lookup'
+import { getSession, resolveIsAdmin } from '@/lib/auth'
 import { notFound } from 'next/navigation'
 import { AuthorActions } from '@/components/posts/AuthorActions'
 // Dynamic import of the page (avoids circular-mock issues at the top level)
@@ -130,12 +130,16 @@ const VALID_PARAMS = {
 
 describe('PostPage', () => {
   beforeEach(() => {
-    vi.mocked(lookupPost).mockReset()
+    vi.mocked(getCachedPost).mockReset()
     vi.mocked(getSession).mockReset()
+    vi.mocked(resolveIsAdmin).mockReset()
+    isAdminState.value = false
+    // Default resolveIsAdmin to false unless overridden
+    vi.mocked(resolveIsAdmin).mockResolvedValue(false)
   })
 
-  it('calls notFound() when lookupPost returns null (invalid type)', async () => {
-    vi.mocked(lookupPost).mockResolvedValue(null)
+  it('calls notFound() when getCachedPost returns null (invalid type)', async () => {
+    vi.mocked(getCachedPost).mockResolvedValue(null)
     vi.mocked(getSession).mockResolvedValue(null)
 
     await expect(
@@ -145,8 +149,8 @@ describe('PostPage', () => {
     expect(notFound).toHaveBeenCalled()
   })
 
-  it('calls notFound() when lookupPost returns null (mixed-case username)', async () => {
-    vi.mocked(lookupPost).mockResolvedValue(null)
+  it('calls notFound() when getCachedPost returns null (mixed-case username)', async () => {
+    vi.mocked(getCachedPost).mockResolvedValue(null)
     vi.mocked(getSession).mockResolvedValue(null)
 
     await expect(
@@ -156,8 +160,8 @@ describe('PostPage', () => {
     expect(notFound).toHaveBeenCalled()
   })
 
-  it('calls notFound() when lookupPost returns null (soft-deleted post)', async () => {
-    vi.mocked(lookupPost).mockResolvedValue(null)
+  it('calls notFound() when getCachedPost returns null (soft-deleted post)', async () => {
+    vi.mocked(getCachedPost).mockResolvedValue(null)
     vi.mocked(getSession).mockResolvedValue(null)
 
     await expect(
@@ -168,7 +172,7 @@ describe('PostPage', () => {
   })
 
   it('does NOT render AuthorActions when user is not signed in', async () => {
-    vi.mocked(lookupPost).mockResolvedValue(BASE_POST)
+    vi.mocked(getCachedPost).mockResolvedValue(BASE_POST)
     vi.mocked(getSession).mockResolvedValue(null)
 
     const tree = await PostPage({ params: Promise.resolve(VALID_PARAMS) })
@@ -176,12 +180,13 @@ describe('PostPage', () => {
     expect(findByComponentType(tree, AuthorActions)).toBe(false)
   })
 
-  it('does NOT render AuthorActions when signed-in user is not the author', async () => {
-    vi.mocked(lookupPost).mockResolvedValue(BASE_POST)
+  it('does NOT render AuthorActions when signed-in user is not the author (and not admin)', async () => {
+    vi.mocked(getCachedPost).mockResolvedValue(BASE_POST)
     vi.mocked(getSession).mockResolvedValue({
       user: { id: 'other-user-99', name: 'Bob', email: 'bob@example.com' },
       expires: '2099-12-31T23:59:59.000Z',
     })
+    vi.mocked(resolveIsAdmin).mockResolvedValue(false)
 
     const tree = await PostPage({ params: Promise.resolve(VALID_PARAMS) })
 
@@ -189,11 +194,25 @@ describe('PostPage', () => {
   })
 
   it('renders AuthorActions when signed-in user is the author', async () => {
-    vi.mocked(lookupPost).mockResolvedValue(BASE_POST)
+    vi.mocked(getCachedPost).mockResolvedValue(BASE_POST)
     vi.mocked(getSession).mockResolvedValue({
       user: { id: 'user-1', name: 'Alice', email: 'alice@example.com' },
       expires: '2099-12-31T23:59:59.000Z',
     })
+
+    const tree = await PostPage({ params: Promise.resolve(VALID_PARAMS) })
+
+    expect(findByComponentType(tree, AuthorActions)).toBe(true)
+  })
+
+  it('renders AuthorActions when signed-in non-author user is an admin', async () => {
+    vi.mocked(getCachedPost).mockResolvedValue(BASE_POST)
+    vi.mocked(getSession).mockResolvedValue({
+      user: { id: 'admin-user-99', name: 'Admin', email: 'admin@example.com' },
+      expires: '2099-12-31T23:59:59.000Z',
+    })
+    // Non-author (id != 'user-1'), but is admin
+    vi.mocked(resolveIsAdmin).mockResolvedValue(true)
 
     const tree = await PostPage({ params: Promise.resolve(VALID_PARAMS) })
 

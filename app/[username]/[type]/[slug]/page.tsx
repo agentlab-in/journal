@@ -1,9 +1,8 @@
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { getSession, isAdmin } from '@/lib/auth'
-import { createAdminSupabaseClient } from '@/lib/supabase/admin'
-import { lookupPost } from '@/lib/posts/lookup'
+import { getSession, resolveIsAdmin } from '@/lib/auth'
+import { getCachedPost } from '@/lib/posts/lookup'
 import { postUrl } from '@/lib/posts/url'
 import { PostBody } from '@/components/posts/PostBody'
 import { StructuredSections } from '@/components/posts/StructuredSections'
@@ -23,8 +22,7 @@ export async function generateMetadata({
   params: Promise<PageParams>
 }): Promise<Metadata> {
   const { username, type, slug } = await params
-  const admin = createAdminSupabaseClient()
-  const post = await lookupPost(admin, { username, type, slug })
+  const post = await getCachedPost({ username, type, slug })
 
   if (!post) {
     return { title: 'Not found' }
@@ -39,14 +37,14 @@ export async function generateMetadata({
       title: post.title,
       description: post.summary,
       url: canonicalPath,
-      images: post.cover_image_url ? [{ url: post.cover_image_url }] : undefined,
+      images: post.cover_image_url ? [{ url: post.cover_image_url }] : [{ url: '/og.png' }],
       type: 'article',
     },
     twitter: {
       card: 'summary_large_image',
       title: post.title,
       description: post.summary,
-      images: post.cover_image_url ? [post.cover_image_url] : undefined,
+      images: post.cover_image_url ? [post.cover_image_url] : ['/og.png'],
     },
     alternates: { canonical: canonicalPath },
   }
@@ -59,8 +57,7 @@ export default async function PostPage({
 }) {
   const { username, type, slug } = await params
 
-  const admin = createAdminSupabaseClient()
-  const post = await lookupPost(admin, { username, type, slug })
+  const post = await getCachedPost({ username, type, slug })
 
   if (post == null) {
     notFound()
@@ -69,19 +66,10 @@ export default async function PostPage({
   const session = await getSession()
   const isOwner = session?.user?.id === post.author_id
 
-  // Admin check: if signed in but not owner, look up github_login
+  // Admin check: if signed in but not owner, resolve via helper
   let isAdminUser = false
   if (session?.user?.id && !isOwner) {
-    const { data: naUserRow } = await admin
-      .schema('next_auth')
-      .from('users')
-      .select('github_login')
-      .eq('id', session.user.id)
-      .single()
-
-    const githubLogin =
-      (naUserRow as { github_login: string } | null)?.github_login ?? ''
-    isAdminUser = isAdmin(githubLogin)
+    isAdminUser = await resolveIsAdmin(session.user.id)
   }
 
   return (

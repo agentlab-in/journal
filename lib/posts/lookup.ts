@@ -1,6 +1,8 @@
+import { cache } from 'react'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { isPostType } from './url'
 import type { PostType } from './url'
+import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 
 export interface LookupParams {
   username: string // raw URL segment, may be mixed case
@@ -149,3 +151,14 @@ export async function lookupPost(
     tags,
   }
 }
+
+/**
+ * Request-scoped cached lookup. Use this in server components so that
+ * both `generateMetadata` and the page body share a single DB roundtrip.
+ * Internally calls `lookupPost` against a fresh admin client.
+ */
+export const getCachedPost = cache(
+  async (params: LookupParams): Promise<LookedUpPost | null> => {
+    return lookupPost(createAdminSupabaseClient(), params)
+  },
+)
