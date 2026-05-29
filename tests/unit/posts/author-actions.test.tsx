@@ -39,6 +39,12 @@ afterEach(() => {
 })
 
 describe('AuthorActions', () => {
+  it('Edit link points to /write/<postId> (dynamic edit route, not query string)', () => {
+    render(<AuthorActions postId={POST_ID} />)
+    const editLink = screen.getByRole('link', { name: /edit/i })
+    expect(editLink).toHaveAttribute('href', `/write/${POST_ID}`)
+  })
+
   it('does NOT call fetch or navigate when user cancels confirm', async () => {
     vi.mocked(window.confirm).mockReturnValue(false)
 

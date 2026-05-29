@@ -25,7 +25,7 @@ export function AuthorActions({ postId }: AuthorActionsProps) {
 
   return (
     <div className="author-actions">
-      <Link href={`/write?edit=${postId}`} className="author-actions__edit">
+      <Link href={`/write/${postId}`} className="author-actions__edit">
         Edit
       </Link>
       <button
