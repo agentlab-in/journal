@@ -1,8 +1,10 @@
 import type { NextAuthOptions } from 'next-auth'
 import GithubProvider from 'next-auth/providers/github'
+import type { GithubProfile } from 'next-auth/providers/github'
 import { SupabaseAdapter } from '@next-auth/supabase-adapter'
 import { fetchGithubUser } from '@/lib/github'
 import { isReserved } from '@/lib/reserved-names'
+import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 
 // ---------------------------------------------------------------------------
 // Gate types (exported for unit testing — pure function, no I/O)
@@ -52,6 +54,39 @@ export function evaluateGate(input: GateInput, now: Date = new Date()): GateResu
   }
 
   return { ok: true }
+}
+
+// ---------------------------------------------------------------------------
+// Audit-column derivation for next_auth.users
+//
+// Phase 1 added github_login + the two count columns to next_auth.users as
+// audit columns, but shipped without populating them. Phase 2's
+// sync_user_from_next_auth_trigger fires AFTER UPDATE OF github_login —
+// without this populator, no public.users row ever gets created.
+//
+// Pure function, no I/O. Tested in isolation in auth-audit.test.ts.
+// ---------------------------------------------------------------------------
+
+export interface AuditColumns {
+  github_login: string
+  github_account_age_days_at_signup: number
+  github_public_repo_count_at_signup: number
+}
+
+export function deriveAuditColumns(
+  profile: Pick<GithubProfile, 'login' | 'public_repos' | 'created_at'>,
+  now: Date = new Date(),
+): AuditColumns {
+  const createdMs = new Date(profile.created_at).getTime()
+  // Caller is responsible for handling NaN; this function trusts its input
+  // because the signIn callback has already validated created_at via the gate.
+  const ageDays = Math.floor((now.getTime() - createdMs) / 86_400_000)
+
+  return {
+    github_login: profile.login.toLowerCase(),
+    github_account_age_days_at_signup: ageDays,
+    github_public_repo_count_at_signup: profile.public_repos,
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -161,6 +196,45 @@ export const authOptions: NextAuthOptions = {
       }
 
       return true
+    },
+  },
+
+  events: {
+    /**
+     * Populate the audit columns on next_auth.users that drive Phase 2's
+     * sync_user_from_next_auth trigger. Fires AFTER the adapter has
+     * inserted or located the user row, so `user.id` is the DB UUID.
+     *
+     * Runs on every sign-in (not just first) — keeps repo count + age
+     * stable across re-evaluation and ensures pre-1.1 users land a
+     * public.users row on their next sign-in.
+     *
+     * Best-effort: a Supabase write failure logs but never blocks login.
+     */
+    async signIn({ user, profile }) {
+      if (!user.id || !profile) return
+
+      const gh = profile as GithubProfile
+      if (!gh.login || !gh.created_at || typeof gh.public_repos !== 'number') {
+        return
+      }
+
+      const cols = deriveAuditColumns(gh)
+      if (Number.isNaN(cols.github_account_age_days_at_signup)) return
+
+      try {
+        const supabase = createAdminSupabaseClient()
+        const { error } = await supabase
+          .schema('next_auth')
+          .from('users')
+          .update(cols)
+          .eq('id', user.id)
+        if (error) {
+          console.error('[auth] audit-column update failed:', error.message)
+        }
+      } catch (err) {
+        console.error('[auth] audit-column update threw:', err)
+      }
     },
   },
 }
