@@ -208,4 +208,27 @@ describe('<DraftManager> — auto-save', () => {
     expect(parsed.title).toBe('ab')
     expect(parsed.schemaVersion).toBe(1)
   })
+
+  it('does not overwrite the stored draft while the restore modal is open', () => {
+    // Regression: previously the auto-save effect ran even while the modal
+    // was shown, so the on-disk draft got clobbered by the empty form state
+    // before the user could click Restore.
+    vi.useFakeTimers()
+    const stored = presetDraft(DRAFT_NEW_KEY, { title: 'Pre-existing' })
+    render(
+      <DraftManager
+        mode="new"
+        formState={emptyFormState}
+        onRestore={() => {}}
+      />,
+    )
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    act(() => {
+      vi.advanceTimersByTime(60_000)
+    })
+    const raw = localStorage.getItem(DRAFT_NEW_KEY)
+    expect(raw).not.toBeNull()
+    const parsed = JSON.parse(raw as string)
+    expect(parsed.title).toBe(stored.title)
+  })
 })

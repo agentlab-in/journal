@@ -103,9 +103,12 @@ export const DraftManager = forwardRef<DraftManagerHandle, DraftManagerProps>(
 
     // Debounced auto-save: every formState change resets the timer. The
     // delay is configurable via the `autoSaveMs` prop so E2E tests can avoid
-    // a 30s wait.
+    // a 30s wait. Pauses while a restore/conflict modal is open so the
+    // initial empty form doesn't clobber the on-disk draft before the user
+    // decides whether to Restore.
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     useEffect(() => {
+      if (modal !== null) return
       if (timerRef.current) clearTimeout(timerRef.current)
       timerRef.current = setTimeout(() => {
         const saved = saveDraft(storageKey, formState)
@@ -114,7 +117,7 @@ export const DraftManager = forwardRef<DraftManagerHandle, DraftManagerProps>(
       return () => {
         if (timerRef.current) clearTimeout(timerRef.current)
       }
-    }, [formState, storageKey, autoSaveMs])
+    }, [formState, storageKey, autoSaveMs, modal])
 
     // Update the "Xs ago" label once a second.
     useEffect(() => {
