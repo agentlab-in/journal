@@ -3,6 +3,7 @@ import { JetBrains_Mono } from 'next/font/google'
 import './globals.css'
 import Nav from '@/components/layout/Nav'
 import Footer from '@/components/layout/Footer'
+import AuthProvider from '@/components/providers/AuthProvider'
 
 const jetbrainsMono = JetBrains_Mono({
   variable: '--font-jetbrains-mono',
@@ -39,9 +40,11 @@ export default function RootLayout({
   return (
     <html lang="en" className={jetbrainsMono.variable}>
       <body className="flex min-h-screen flex-col">
-        <Nav />
-        <main className="flex flex-1 flex-col">{children}</main>
-        <Footer />
+        <AuthProvider>
+          <Nav />
+          <main className="flex flex-1 flex-col">{children}</main>
+          <Footer />
+        </AuthProvider>
       </body>
     </html>
   )

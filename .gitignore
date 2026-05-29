@@ -50,3 +50,7 @@ test-results/
 .env.development.local
 .env.test.local
 .env.production.local
+
+# agent / IDE tooling (local-only, not project artifacts)
+.ao/
+.claude/

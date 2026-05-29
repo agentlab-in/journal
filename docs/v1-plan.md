@@ -452,6 +452,14 @@ Phases are numbered. Dependencies are explicit. Each phase is a coherent merge �
 
 **Goal:** GitHub OAuth sign-in working end-to-end, with the 30-day-account + ≥1-public-repo gate enforced and reserved usernames blocked.
 
+**Status (2026-05-29):** ✅ Shipped on `feat/phase-1-auth` (commit SHA TBD).
+
+**Deviations from original spec:**
+- Original spec said `next-auth + @auth/supabase-adapter`. Those packages are version-incompatible (`@auth/supabase-adapter` is for `@auth/core` / NextAuth v5, not the legacy `next-auth` v4 package). Shipped `next-auth@4.24.14` + `@next-auth/supabase-adapter@0.2.1` instead (both stable, both explicitly support Next 16 in peerDependencies). Authjs v5 was still in beta with no GA release.
+- Auth routes placed at `app/auth/signin` and `app/auth/blocked` (not `app/sign-in` and `app/sign-in/rejected` as in the file list below) — matches the brief's scope section URL conventions more cleanly and avoids a nested route collision.
+- Profile auto-creation beyond NextAuth adapter tables deferred to Phase 2 as specified in the brief's "Out of scope" section.
+- `middleware.ts` (canonical-case redirect) deferred to Phase 6 as specified in the brief's "Out of scope" section.
+
 **Depends on:** Phase 0.
 
 **Files:**
