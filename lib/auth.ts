@@ -5,6 +5,7 @@ import type { GithubProfile } from 'next-auth/providers/github'
 import { SupabaseAdapter } from '@next-auth/supabase-adapter'
 import { fetchGithubUser } from '@/lib/github'
 import { isReserved } from '@/lib/reserved-names'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { ensurePublicUser } from '@/lib/users/ensure-public-user'
 
@@ -190,6 +191,32 @@ function buildGithubProvider() {
   return GithubProvider({ clientId, clientSecret })
 }
 
+// ---------------------------------------------------------------------------
+// public.users profile reader
+//
+// Returns username + display_name + avatar_url for the session callback.
+// Kept as a private helper (not exported) so the session callback can
+// re-read after self-heal without duplicating the chained query.
+// ---------------------------------------------------------------------------
+
+interface PublicUserProfile {
+  username: string
+  display_name: string | null
+  avatar_url: string | null
+}
+
+async function readPublicUserProfile(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<PublicUserProfile | null> {
+  const lookup = await supabase
+    .from('users')
+    .select('username, display_name, avatar_url')
+    .eq('id', userId)
+    .maybeSingle<PublicUserProfile>()
+  return lookup.data ?? null
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [buildGithubProvider()],
 
@@ -210,17 +237,36 @@ export const authOptions: NextAuthOptions = {
      * `session.user.id` so route handlers (e.g. /api/uploads) can
      * scope writes to the signed-in user.
      *
-     * We also look up `public.users.username` and attach it to
-     * `session.user.username` so the topbar can link the user to
-     * their own profile page (Phase 6). If the row is missing — which
-     * happens for users who signed up before Phase 1.1's audit-cols
-     * populator landed — we self-heal by calling `ensurePublicUser`
-     * so the next session read returns a username and existing
-     * signed-in users don't have to log out + back in.
+     * We also look up `public.users` (username + display_name +
+     * avatar_url) and use it to:
+     *   - attach `session.user.username` so the topbar can link to
+     *     the profile page (Phase 6);
+     *   - OVERRIDE `session.user.name` with display_name, and
+     *     OVERRIDE `session.user.image` with avatar_url when present.
+     *
+     * The override exists because @next-auth/supabase-adapter@0.2.1
+     * ships a broken `format()` helper that coerces ANY date-parseable
+     * string column it finds into a Date object. Many GitHub logins
+     * (e.g. short numeric strings like "317", or strings that look
+     * like partial dates) parse as valid dates, so the adapter
+     * silently rewrites `next_auth.users.name` to a Date, which
+     * NextAuth then ISO-8601-serializes into the session and the
+     * topbar renders as e.g. "0317-12-31T18:06:32.000Z". `public.users`
+     * is populated by a plain Postgres trigger (Phase 2) and read here
+     * with plain text columns, so it's not affected by the bug.
+     *
+     * Email is left alone — email columns aren't parseable as dates,
+     * so the bug doesn't bite there.
+     *
+     * If the row is missing — which happens for users who signed up
+     * before Phase 1.1's audit-cols populator landed — we self-heal
+     * by calling `ensurePublicUser`, then re-read display_name +
+     * avatar_url so the first render after self-heal already has the
+     * correct name (no need to log out + back in).
      *
      * All Supabase work is best-effort: if it fails, we surface the
-     * session without username and the topbar falls back to the
-     * non-link rendering.
+     * session unchanged and the topbar falls back to whatever the
+     * adapter passed in.
      */
     async session({ session, user }) {
       if (session.user && user?.id) {
@@ -228,22 +274,31 @@ export const authOptions: NextAuthOptions = {
 
         try {
           const supabase = createAdminSupabaseClient()
-          const lookup = await supabase
-            .from('users')
-            .select('username')
-            .eq('id', user.id)
-            .maybeSingle<{ username: string }>()
+          let profile = await readPublicUserProfile(supabase, user.id)
 
-          let username = lookup.data?.username ?? null
-
-          if (!username) {
+          if (!profile) {
             // Self-heal: missing public.users row. ensurePublicUser
-            // handles next_auth.users → GitHub REST fallbacks.
-            username = await ensurePublicUser(supabase, user.id)
+            // handles next_auth.users → GitHub REST fallbacks. After
+            // it returns, re-read so name/image overrides apply on
+            // this same session render.
+            const healedUsername = await ensurePublicUser(supabase, user.id)
+            if (healedUsername) {
+              profile = (await readPublicUserProfile(supabase, user.id)) ?? {
+                username: healedUsername,
+                display_name: null,
+                avatar_url: null,
+              }
+            }
           }
 
-          if (username) {
-            session.user.username = username
+          if (profile?.username) {
+            session.user.username = profile.username
+          }
+          if (profile?.display_name) {
+            session.user.name = profile.display_name
+          }
+          if (profile?.avatar_url) {
+            session.user.image = profile.avatar_url
           }
         } catch (err) {
           console.error('[auth] session username lookup failed:', err)
