@@ -168,6 +168,20 @@ export const authOptions: NextAuthOptions = {
 
   callbacks: {
     /**
+     * session callback — runs whenever a session is read (e.g. by
+     * `getServerSession`). With database sessions, NextAuth passes the
+     * DB user row in `user`. We surface its primary-key UUID on
+     * `session.user.id` so route handlers (e.g. /api/uploads) can
+     * scope writes to the signed-in user.
+     */
+    async session({ session, user }) {
+      if (session.user && user?.id) {
+        session.user.id = user.id
+      }
+      return session
+    },
+
+    /**
      * signIn callback — runs on EVERY successful OAuth handshake.
      * Return true to allow, false to deny, or a URL string to redirect.
      *
