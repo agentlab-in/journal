@@ -52,6 +52,10 @@ export async function POST(req: NextRequest | Request): Promise<Response> {
 
   const admin = createAdminSupabaseClient()
 
+  // TODO(post-v1): the post/parent existence checks below race with concurrent
+  // author-deletes — a child can attach to a tombstoned parent in the window
+  // between read and insert. Acceptable for v1 traffic; harden with a DB-side
+  // trigger or partial check constraint later.
   // Step 5: verify post exists and is not soft-deleted
   const { data: postRow, error: postFetchErr } = await admin
     .from('posts')
@@ -88,7 +92,9 @@ export async function POST(req: NextRequest | Request): Promise<Response> {
     }
   }
 
-  // Step 7: compute depth via RPC-backed helper; reject if > MAX_DEPTH
+  // Step 7: compute depth via RPC-backed helper; reject if > MAX_DEPTH.
+  // Safe under concurrent inserts because parent_comment_id is immutable —
+  // the parent's depth in the chain cannot regress under us.
   const depth = await getNewCommentDepth(admin, parent_comment_id ?? null)
   if (depth > MAX_DEPTH) {
     return json(400, { error: 'depth_exceeded', max: MAX_DEPTH })
