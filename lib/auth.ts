@@ -1,4 +1,5 @@
-import type { NextAuthOptions } from 'next-auth'
+import type { NextAuthOptions, Session } from 'next-auth'
+import { getServerSession } from 'next-auth/next'
 import GithubProvider from 'next-auth/providers/github'
 import type { GithubProfile } from 'next-auth/providers/github'
 import { SupabaseAdapter } from '@next-auth/supabase-adapter'
@@ -168,6 +169,20 @@ export const authOptions: NextAuthOptions = {
 
   callbacks: {
     /**
+     * session callback — runs whenever a session is read (e.g. by
+     * `getServerSession`). With database sessions, NextAuth passes the
+     * DB user row in `user`. We surface its primary-key UUID on
+     * `session.user.id` so route handlers (e.g. /api/uploads) can
+     * scope writes to the signed-in user.
+     */
+    async session({ session, user }) {
+      if (session.user && user?.id) {
+        session.user.id = user.id
+      }
+      return session
+    },
+
+    /**
      * signIn callback — runs on EVERY successful OAuth handshake.
      * Return true to allow, false to deny, or a URL string to redirect.
      *
@@ -237,4 +252,63 @@ export const authOptions: NextAuthOptions = {
       }
     },
   },
+}
+
+// ---------------------------------------------------------------------------
+// E2E auth shim
+//
+// Phase 3, Task 11 (Playwright). With NextAuth's database session strategy
+// (Supabase adapter), the only way to make a signed-in test request is to
+// have a real session row in next_auth.sessions — which CI won't have.
+//
+// `getSession` wraps `getServerSession(authOptions)` with an opt-in bypass
+// gated by THREE conditions, all of which must be true:
+//
+//   1. `process.env.NODE_ENV !== 'production'`
+//      (defence-in-depth: even an accidental env-leak in prod can't enable
+//      the shim)
+//   2. `process.env.E2E_TEST_AUTH_USER_ID` is a non-empty string
+//      (only ever set in `playwright.config.ts`'s `webServer.env`)
+//   3. The current request bears the header `x-e2e-auth: 1`
+//      (allows individual tests to opt OUT — e.g. the unauth-redirect
+//      test omits the header so it sees a real null session and still
+//      gets redirected)
+//
+// We read the request headers off `next/headers`, which works in server
+// components and route handlers — both call sites use this helper.
+//
+// Routes/pages that previously called `getServerSession(authOptions)`
+// directly should use `getSession()` so the shim applies uniformly.
+// ---------------------------------------------------------------------------
+
+const E2E_FAR_FUTURE = '2099-12-31T23:59:59.000Z'
+
+async function readE2EHeader(): Promise<string | null> {
+  try {
+    // Lazy import so non-server contexts (the rare misuse during unit
+    // tests) don't crash on import.
+    const { headers } = await import('next/headers')
+    const h = await headers()
+    return h.get('x-e2e-auth')
+  } catch {
+    return null
+  }
+}
+
+export async function getSession(): Promise<Session | null> {
+  const e2eUserId = process.env.E2E_TEST_AUTH_USER_ID
+  if (e2eUserId && process.env.NODE_ENV !== 'production') {
+    const flag = await readE2EHeader()
+    if (flag === '1') {
+      return {
+        user: {
+          id: e2eUserId,
+          name: 'e2e-user',
+          email: 'e2e-user@example.test',
+        },
+        expires: E2E_FAR_FUTURE,
+      } as Session
+    }
+  }
+  return getServerSession(authOptions)
 }

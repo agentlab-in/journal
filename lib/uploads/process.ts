@@ -1,0 +1,52 @@
+/**
+ * sharp processing pipeline.
+ *
+ *   .rotate()                            — applies EXIF orientation
+ *   .resize({ width: 1600,               — caps width at 1600px
+ *             withoutEnlargement: true })  but never upscales a smaller image
+ *   .webp({ quality: 85 })               — re-encodes (this also strips EXIF)
+ *
+ * Returns the encoded WebP buffer plus the *output* dimensions (after the
+ * resize pass), so the caller can return them in the response and inline
+ * them in <img width height> attributes without re-decoding.
+ */
+import sharp from 'sharp'
+
+export interface ProcessedImage {
+  webp: Buffer
+  width: number
+  height: number
+}
+
+export const MAX_WIDTH = 1600
+export const WEBP_QUALITY = 85
+
+/**
+ * Read width/height from sharp's metadata without consuming the buffer.
+ * Throws if sharp can't parse the input — caller should map this to a 415.
+ */
+export async function readDimensions(
+  input: Buffer,
+): Promise<{ width: number; height: number }> {
+  const metadata = await sharp(input).metadata()
+  const width = metadata.width
+  const height = metadata.height
+  if (typeof width !== 'number' || typeof height !== 'number') {
+    throw new Error('image has no readable dimensions')
+  }
+  return { width, height }
+}
+
+export async function processImage(input: Buffer): Promise<ProcessedImage> {
+  const { data, info } = await sharp(input)
+    .rotate()
+    .resize({ width: MAX_WIDTH, withoutEnlargement: true })
+    .webp({ quality: WEBP_QUALITY })
+    .toBuffer({ resolveWithObject: true })
+
+  return {
+    webp: data,
+    width: info.width,
+    height: info.height,
+  }
+}
