@@ -37,9 +37,10 @@ export default function NavAuth() {
 
   const { user } = session
   const name = user?.name ?? user?.email ?? 'account'
+  const username = user?.username ?? null
 
-  return (
-    <div className="flex items-center gap-3">
+  const identity = (
+    <>
       {user?.image && (
         <Image
           src={user.image}
@@ -50,6 +51,22 @@ export default function NavAuth() {
         />
       )}
       <span className="hidden font-mono text-sm text-fg sm:inline">{name}</span>
+    </>
+  )
+
+  return (
+    <div className="flex items-center gap-3">
+      {username ? (
+        <Link
+          href={`/${username}`}
+          aria-label={`Go to ${name}'s profile`}
+          className="flex items-center gap-3 rounded transition-opacity hover:opacity-80"
+        >
+          {identity}
+        </Link>
+      ) : (
+        <div className="flex items-center gap-3">{identity}</div>
+      )}
       <button
         onClick={() => signOut({ callbackUrl: '/' })}
         className="rounded border border-border px-3 py-1.5 font-mono text-sm text-fg-subtle transition-colors hover:bg-bg-hover hover:text-fg"

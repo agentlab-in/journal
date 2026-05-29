@@ -14,7 +14,19 @@ import Link from 'next/link'
  */
 
 interface PageProps {
-  searchParams: Promise<{ reason?: string }>
+  searchParams: Promise<{ reason?: string; login?: string }>
+}
+
+// GitHub handle shape: 1-39 chars, alphanumeric + hyphen.
+// We sanitise so a hostile redirect can't smuggle "<script>" or other
+// arbitrary strings into the page (React already escapes, but rejecting
+// outright keeps the UI clean and matches the same shape evaluateGate
+// uses when building the redirect URL).
+const GH_LOGIN_RE = /^[a-z0-9-]{1,39}$/i
+
+function sanitiseLogin(raw: string | undefined): string | null {
+  if (!raw || typeof raw !== 'string') return null
+  return GH_LOGIN_RE.test(raw) ? raw.toLowerCase() : null
 }
 
 function parseReason(reason: string | undefined): React.ReactNode {
@@ -88,7 +100,8 @@ function parseReason(reason: string | undefined): React.ReactNode {
 }
 
 export default async function BlockedPage({ searchParams }: PageProps) {
-  const { reason } = await searchParams
+  const { reason, login } = await searchParams
+  const safeLogin = sanitiseLogin(login)
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center px-6 py-24">
@@ -96,6 +109,12 @@ export default async function BlockedPage({ searchParams }: PageProps) {
         <h1 className="font-mono text-2xl font-black lowercase tracking-tight text-fg">
           sign-up blocked
         </h1>
+
+        {safeLogin && (
+          <p className="font-mono text-xs uppercase tracking-wide text-fg-subtle">
+            sign-up blocked for <span className="text-fg">@{safeLogin}</span>
+          </p>
+        )}
 
         <div className="text-sm leading-relaxed">{parseReason(reason)}</div>
 

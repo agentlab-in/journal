@@ -5,7 +5,9 @@ import type { GithubProfile } from 'next-auth/providers/github'
 import { SupabaseAdapter } from '@next-auth/supabase-adapter'
 import { fetchGithubUser } from '@/lib/github'
 import { isReserved } from '@/lib/reserved-names'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
+import { ensurePublicUser } from '@/lib/users/ensure-public-user'
 
 // ---------------------------------------------------------------------------
 // Gate types (exported for unit testing — pure function, no I/O)
@@ -33,25 +35,34 @@ export type GateResult = { ok: true } | { ok: false; redirect: string }
  * @param now    - injectable for unit tests; defaults to new Date()
  */
 export function evaluateGate(input: GateInput, now: Date = new Date()): GateResult {
+  // GitHub handle shape — same regex used by the blocked page when it
+  // sanitises the `login` query param. Anything outside this shape can't
+  // be appended to the redirect URL, so the page never has to render
+  // arbitrary text from the redirect.
+  const safeLogin =
+    typeof input.login === 'string' && /^[a-z0-9-]{1,39}$/i.test(input.login)
+      ? `&login=${encodeURIComponent(input.login.toLowerCase())}`
+      : ''
+
   if (isReserved(input.login)) {
-    return { ok: false, redirect: '/auth/blocked?reason=reserved_name' }
+    return { ok: false, redirect: `/auth/blocked?reason=reserved_name${safeLogin}` }
   }
 
   const createdAt = new Date(input.created_at).getTime()
   if (Number.isNaN(createdAt)) {
     // Malformed timestamp — fail closed so an unparseable date can't bypass
     // the age check (NaN < 30 is false, which would silently allow signup).
-    return { ok: false, redirect: '/auth/blocked?reason=invalid_account_data' }
+    return { ok: false, redirect: `/auth/blocked?reason=invalid_account_data${safeLogin}` }
   }
 
   const ageDays = Math.floor((now.getTime() - createdAt) / 86_400_000)
 
   if (ageDays < 30) {
-    return { ok: false, redirect: `/auth/blocked?reason=age_${ageDays}_days` }
+    return { ok: false, redirect: `/auth/blocked?reason=age_${ageDays}_days${safeLogin}` }
   }
 
   if (input.public_repos < 1) {
-    return { ok: false, redirect: '/auth/blocked?reason=no_public_repos' }
+    return { ok: false, redirect: `/auth/blocked?reason=no_public_repos${safeLogin}` }
   }
 
   return { ok: true }
@@ -180,6 +191,32 @@ function buildGithubProvider() {
   return GithubProvider({ clientId, clientSecret })
 }
 
+// ---------------------------------------------------------------------------
+// public.users profile reader
+//
+// Returns username + display_name + avatar_url for the session callback.
+// Kept as a private helper (not exported) so the session callback can
+// re-read after self-heal without duplicating the chained query.
+// ---------------------------------------------------------------------------
+
+interface PublicUserProfile {
+  username: string
+  display_name: string | null
+  avatar_url: string | null
+}
+
+async function readPublicUserProfile(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<PublicUserProfile | null> {
+  const lookup = await supabase
+    .from('users')
+    .select('username, display_name, avatar_url')
+    .eq('id', userId)
+    .maybeSingle<PublicUserProfile>()
+  return lookup.data ?? null
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [buildGithubProvider()],
 
@@ -199,10 +236,73 @@ export const authOptions: NextAuthOptions = {
      * DB user row in `user`. We surface its primary-key UUID on
      * `session.user.id` so route handlers (e.g. /api/uploads) can
      * scope writes to the signed-in user.
+     *
+     * We also look up `public.users` (username + display_name +
+     * avatar_url) and use it to:
+     *   - attach `session.user.username` so the topbar can link to
+     *     the profile page (Phase 6);
+     *   - OVERRIDE `session.user.name` with display_name, and
+     *     OVERRIDE `session.user.image` with avatar_url when present.
+     *
+     * The override exists because @next-auth/supabase-adapter@0.2.1
+     * ships a broken `format()` helper that coerces ANY date-parseable
+     * string column it finds into a Date object. Many GitHub logins
+     * (e.g. short numeric strings like "317", or strings that look
+     * like partial dates) parse as valid dates, so the adapter
+     * silently rewrites `next_auth.users.name` to a Date, which
+     * NextAuth then ISO-8601-serializes into the session and the
+     * topbar renders as e.g. "0317-12-31T18:06:32.000Z". `public.users`
+     * is populated by a plain Postgres trigger (Phase 2) and read here
+     * with plain text columns, so it's not affected by the bug.
+     *
+     * Email is left alone — email columns aren't parseable as dates,
+     * so the bug doesn't bite there.
+     *
+     * If the row is missing — which happens for users who signed up
+     * before Phase 1.1's audit-cols populator landed — we self-heal
+     * by calling `ensurePublicUser`, then re-read display_name +
+     * avatar_url so the first render after self-heal already has the
+     * correct name (no need to log out + back in).
+     *
+     * All Supabase work is best-effort: if it fails, we surface the
+     * session unchanged and the topbar falls back to whatever the
+     * adapter passed in.
      */
     async session({ session, user }) {
       if (session.user && user?.id) {
         session.user.id = user.id
+
+        try {
+          const supabase = createAdminSupabaseClient()
+          let profile = await readPublicUserProfile(supabase, user.id)
+
+          if (!profile) {
+            // Self-heal: missing public.users row. ensurePublicUser
+            // handles next_auth.users → GitHub REST fallbacks. After
+            // it returns, re-read so name/image overrides apply on
+            // this same session render.
+            const healedUsername = await ensurePublicUser(supabase, user.id)
+            if (healedUsername) {
+              profile = (await readPublicUserProfile(supabase, user.id)) ?? {
+                username: healedUsername,
+                display_name: null,
+                avatar_url: null,
+              }
+            }
+          }
+
+          if (profile?.username) {
+            session.user.username = profile.username
+          }
+          if (profile?.display_name) {
+            session.user.name = profile.display_name
+          }
+          if (profile?.avatar_url) {
+            session.user.image = profile.avatar_url
+          }
+        } catch (err) {
+          console.error('[auth] session username lookup failed:', err)
+        }
       }
       return session
     },
@@ -271,6 +371,16 @@ export const authOptions: NextAuthOptions = {
           .eq('id', user.id)
         if (error) {
           console.error('[auth] audit-column update failed:', error.message)
+        }
+
+        // Defensive backstop: even if the audit-column UPDATE fired the
+        // Phase 2 trigger successfully, call ensurePublicUser so any
+        // surviving missing public.users row gets healed on this sign-in
+        // without forcing a sign-out cycle. Best-effort.
+        try {
+          await ensurePublicUser(supabase, user.id)
+        } catch (innerErr) {
+          console.error('[auth] ensurePublicUser threw:', innerErr)
         }
       } catch (err) {
         console.error('[auth] audit-column update threw:', err)
