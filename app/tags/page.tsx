@@ -1,28 +1,13 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { createAnonServerSupabaseClient } from '@/lib/supabase/server'
+import { FEATURED_TAG_SLUGS } from '@/lib/search/featured-tags'
 
 export const metadata: Metadata = {
   title: 'All tags — agentlab.in',
   description: 'Browse posts on agentlab by topic.',
   alternates: { canonical: '/tags' },
 }
-
-/**
- * Featured tags from the v1 spec. These ship pre-approved in the seed and
- * appear in a dedicated grid at the top of the page (for discoverability)
- * AND in their natural position in the tree (for browsing). No dedupe.
- */
-const FEATURED_TAG_SLUGS = [
-  'security',
-  'local-first',
-  'orchestration',
-  'memory',
-  'evals',
-  'tooling',
-  'prompting',
-  'multi-agent',
-] as const
 
 interface TagRow {
   slug: string
