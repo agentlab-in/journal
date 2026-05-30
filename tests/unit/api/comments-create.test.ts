@@ -152,7 +152,10 @@ function makeHappyClient(opts: {
 function makeRequest(body: unknown) {
   return new Request('http://test/api/comments', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Origin: 'http://localhost:3010',
+    },
     body: typeof body === 'string' ? body : JSON.stringify(body),
   })
 }
@@ -160,7 +163,10 @@ function makeRequest(body: unknown) {
 function makeRawRequest(rawBody: string) {
   return new Request('http://test/api/comments', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Origin: 'http://localhost:3010',
+    },
     body: rawBody,
   })
 }
@@ -464,5 +470,75 @@ describe('POST /api/comments — 201 happy path (reply at depth 4)', () => {
     const body = await res.json()
     expect(body.parent_comment_id).toBe(PARENT_ID)
     expect(body.id).toBe(NEW_COMMENT_ID)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Phase 14 — abuse heuristics on POST /api/comments
+// ---------------------------------------------------------------------------
+
+describe('POST /api/comments — Phase 14 abuse heuristics', () => {
+  beforeEach(() => {
+    sessionState.value = { user: { id: USER_ID } }
+    capturedInserts.length = 0
+    depthState.value = 1
+    depthState.throwError = null
+    currentFakeClient = makeHappyClient()
+  })
+
+  it('returns 400 spam_detected when honeypot field is filled', async () => {
+    const { POST } = await import('@/app/api/comments/route')
+    const res = await POST(
+      makeRequest({
+        post_id: POST_ID,
+        body: 'hello',
+        _h: 'i-am-a-bot',
+      }) as never,
+    )
+    expect(res.status).toBe(400)
+    const body = await res.json()
+    expect(body.error).toBe('spam_detected')
+    // Generic — must NOT leak the reason.
+    expect(JSON.stringify(body)).not.toContain('honeypot')
+    // Must short-circuit before the DB.
+    expect(capturedInserts.length).toBe(0)
+  })
+
+  it('passes through when honeypot field is present but empty', async () => {
+    const { POST } = await import('@/app/api/comments/route')
+    const res = await POST(
+      makeRequest({
+        post_id: POST_ID,
+        body: 'hello',
+        _h: '',
+      }) as never,
+    )
+    expect(res.status).toBe(201)
+  })
+
+  it('returns 400 too_many_urls when body is URL-heavy', async () => {
+    const { POST } = await import('@/app/api/comments/route')
+    const res = await POST(
+      makeRequest({
+        post_id: POST_ID,
+        body: 'https://a.com https://b.com https://c.com hi',
+      }) as never,
+    )
+    expect(res.status).toBe(400)
+    const body = await res.json()
+    expect(body.error).toBe('too_many_urls')
+    expect(capturedInserts.length).toBe(0)
+  })
+
+  it('returns 403 forbidden_origin when Origin header is absent', async () => {
+    const req = new Request('http://test/api/comments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ post_id: POST_ID, body: 'hi' }),
+    })
+    const { POST } = await import('@/app/api/comments/route')
+    const res = await POST(req as never)
+    expect(res.status).toBe(403)
+    expect(await res.json()).toEqual({ error: 'forbidden_origin' })
   })
 })

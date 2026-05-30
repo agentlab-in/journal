@@ -2,6 +2,8 @@ import { getSession } from '@/lib/auth'
 import { requireAdminApi } from '@/lib/admin'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { AdminBanBody } from '@/lib/admin/schema'
+import { guardMutatingRequest } from '@/lib/route-guard'
+import { logRouteError } from '@/lib/logging/error-log'
 
 export const runtime = 'nodejs'
 
@@ -14,6 +16,10 @@ export async function POST(req: Request): Promise<Response> {
   const gate = await requireAdminApi(session)
   if (gate) return gate
   const adminUserId = session!.user.id
+
+  // Origin guard only — admin actions are internal-only; no RL budget.
+  const guard = await guardMutatingRequest(req, { userId: adminUserId })
+  if (guard.failed) return guard.response
 
   // Parse body
   let raw: unknown
@@ -77,7 +83,11 @@ export async function POST(req: Request): Promise<Response> {
     .select('id')
 
   if (sessionsErr) {
-    console.error('[admin/ban] sessions delete failed:', sessionsErr)
+    logRouteError(sessionsErr, {
+      route: '/api/admin/ban',
+      userId: adminUserId,
+      extra: { op: 'sessions_delete', target_user_id: user_id },
+    })
   }
 
   const sessions_deleted = deletedSessions ? (deletedSessions as unknown[]).length : 0
@@ -93,7 +103,11 @@ export async function POST(req: Request): Promise<Response> {
   })
 
   if (modErr) {
-    console.error('[mod_actions] insert failed:', modErr)
+    logRouteError(modErr, {
+      route: '/api/admin/ban',
+      userId: adminUserId,
+      extra: { op: 'mod_actions_insert', target_user_id: user_id },
+    })
   }
 
   return json(200, { ok: true })

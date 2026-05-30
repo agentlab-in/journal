@@ -28,6 +28,7 @@ import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { sniffMime, validateBucket } from '@/lib/uploads/validate'
 import { processImage, readDimensions } from '@/lib/uploads/process'
 import { randomUUID } from 'node:crypto'
+import { guardMutatingRequest } from '@/lib/route-guard'
 
 // Route Handlers run on the Node.js runtime by default (we need it for
 // sharp + node:crypto). Make this explicit so a future change to the
@@ -51,6 +52,10 @@ export async function POST(req: NextRequest): Promise<Response> {
     return json(401, { error: 'unauthorized' })
   }
   const userId = session.user.id
+
+  // 1b. Origin + image_upload bucket rate-limit (Phase 14)
+  const guard = await guardMutatingRequest(req, { bucket: 'image_upload', userId })
+  if (guard.failed) return guard.response
 
   // 2. Bucket
   const bucketParam = req.nextUrl.searchParams.get('bucket')

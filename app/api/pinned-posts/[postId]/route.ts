@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
+import { guardMutatingRequest } from '@/lib/route-guard'
 
 export const runtime = 'nodejs'
 
@@ -12,12 +13,16 @@ function json(status: number, body: Record<string, unknown>): Response {
 }
 
 export async function DELETE(
-  _req: NextRequest | Request,
+  req: NextRequest | Request,
   context: { params: Promise<{ postId: string }> },
 ): Promise<Response> {
   const session = await getSession()
   if (!session?.user?.id) return json(401, { error: 'unauthorized' })
   const userId = session.user.id
+
+  // Origin guard only — pin remove isn't in the bucket list.
+  const guard = await guardMutatingRequest(req, { userId })
+  if (guard.failed) return guard.response
 
   const { postId } = await context.params
 

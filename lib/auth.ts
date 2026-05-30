@@ -8,6 +8,8 @@ import { isReserved } from '@/lib/reserved-names'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { ensurePublicUser } from '@/lib/users/ensure-public-user'
+import { deriveSignupFlags } from '@/lib/auth/soft-flag'
+import { logRouteError } from '@/lib/logging/error-log'
 
 // ---------------------------------------------------------------------------
 // Gate types (exported for unit testing — pure function, no I/O)
@@ -430,6 +432,41 @@ export const authOptions: NextAuthOptions = {
           await ensurePublicUser(supabase, user.id)
         } catch (innerErr) {
           console.error('[auth] ensurePublicUser threw:', innerErr)
+        }
+
+        // Phase 14: derive signup_flags from the GitHub profile and write
+        // to public.users. Best-effort — moderators read this column as a
+        // soft-signal triage hint; failure must NEVER block login.
+        try {
+          // The raw GitHub profile NextAuth passes here includes `bio`,
+          // `email`, and `followers` on top of the typed GithubProfile.
+          // We cast minimally to read those without losing type safety.
+          const raw = profile as GithubProfile & {
+            bio?: string | null
+            email?: string | null
+            followers?: number
+          }
+          const flags = deriveSignupFlags({
+            bio: raw.bio ?? null,
+            email: raw.email ?? null,
+            followers: typeof raw.followers === 'number' ? raw.followers : 0,
+          })
+          const username = gh.login.toLowerCase()
+          const { error: flagsErr } = await supabase
+            .from('users')
+            .update({ signup_flags: flags })
+            .eq('username', username)
+          if (flagsErr) {
+            logRouteError(flagsErr, {
+              route: 'events.signIn:signup_flags',
+              userId: user.id,
+            })
+          }
+        } catch (flagsThrew) {
+          logRouteError(flagsThrew, {
+            route: 'events.signIn:signup_flags',
+            userId: user.id,
+          })
         }
       } catch (err) {
         console.error('[auth] audit-column update threw:', err)

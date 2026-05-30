@@ -16,6 +16,7 @@
  */
 import type { NextRequest } from 'next/server'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
+import { logRouteError } from '@/lib/logging/error-log'
 
 export const runtime = 'nodejs'
 
@@ -63,11 +64,13 @@ export async function GET(req: NextRequest | Request): Promise<Response> {
     .limit(LIMIT)
 
   if (error) {
-    console.error('[tags/search] supabase query failed:', {
-      message: error.message,
-      code: error.code,
-      details: error.details,
-      hint: error.hint,
+    logRouteError(error, {
+      route: '/api/tags/search',
+      extra: {
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+      },
     })
     return json(500, { error: 'query_failed', detail: error.message })
   }

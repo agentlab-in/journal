@@ -191,7 +191,10 @@ const VALID_POST_PAYLOAD = {
 function makeRequest(body: unknown) {
   return new Request('http://test/api/posts', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Origin: 'http://localhost:3010',
+    },
     body: JSON.stringify(body),
   })
 }

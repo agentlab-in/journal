@@ -48,12 +48,14 @@ export function BookmarkButton({
       })
       if (!res.ok) {
         setBookmarked(prev)
-        setRevert((r) => ({
-          msg: next
-            ? 'Bookmark failed, reverted.'
-            : 'Bookmark removal failed, reverted.',
-          n: r.n + 1,
-        }))
+        let msg = next
+          ? 'Bookmark failed, reverted.'
+          : 'Bookmark removal failed, reverted.'
+        if (res.status === 429) {
+          const seconds = await readRetryAfter(res)
+          msg = `Too many clicks — try again in ${seconds}s.`
+        }
+        setRevert((r) => ({ msg, n: r.n + 1 }))
         console.error('[BookmarkButton] toggle failed:', res.status)
         return
       }
@@ -123,4 +125,18 @@ export function BookmarkButton({
       </span>
     </>
   )
+}
+
+async function readRetryAfter(res: Response): Promise<number> {
+  try {
+    const j = (await res.clone().json()) as { retry_after?: number }
+    if (typeof j.retry_after === 'number' && Number.isFinite(j.retry_after) && j.retry_after > 0) {
+      return Math.ceil(j.retry_after)
+    }
+  } catch {
+    // fallthrough
+  }
+  const header = res.headers.get('Retry-After')
+  const parsed = header ? Number(header) : NaN
+  return Number.isFinite(parsed) && parsed > 0 ? Math.ceil(parsed) : 30
 }

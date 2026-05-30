@@ -72,7 +72,10 @@ function makeClient(row: UsersRow) {
 function makeRequest(body: unknown, opts: { raw?: boolean } = {}) {
   return new Request('http://test/api/users/me', {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Origin: 'http://localhost:3010',
+    },
     body: opts.raw ? (body as string) : JSON.stringify(body),
   })
 }

@@ -108,6 +108,7 @@ function makeDeleteClient(opts: {
 function makeRequest(commentId: string, body?: string) {
   return new Request(`http://test/api/comments/${commentId}`, {
     method: 'DELETE',
+    headers: { Origin: 'http://localhost:3010' },
     body: body ?? undefined,
   })
 }

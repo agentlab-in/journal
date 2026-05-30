@@ -4,6 +4,13 @@ import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { CommentCreateBody } from '@/lib/comments/schema'
 import { sanitizeCommentBody } from '@/lib/comments/sanitize'
 import { getNewCommentDepth } from '@/lib/comments/depth'
+import { guardMutatingRequest } from '@/lib/route-guard'
+import {
+  HONEYPOT_FIELD,
+  isHoneypotTripped,
+  isUrlHeavy,
+} from '@/lib/comments/abuse'
+import { logRouteError } from '@/lib/logging/error-log'
 
 export const runtime = 'nodejs'
 
@@ -22,12 +29,36 @@ export async function POST(req: NextRequest | Request): Promise<Response> {
   if (!session?.user?.id) return json(401, { error: 'unauthorized' })
   const userId = session.user.id
 
+  // Step 1b: origin + rate-limit guard (Phase 14)
+  const guard = await guardMutatingRequest(req, { bucket: 'comment', userId })
+  if (guard.failed) return guard.response
+
   // Step 2: JSON parse
   let raw: unknown
   try {
     raw = await req.json()
   } catch {
     return json(400, { error: 'invalid_json' })
+  }
+
+  // Step 2a: honeypot — bots that auto-fill all form fields (including
+  // visually-hidden ones) trip this. Real users never see the field, so
+  // the body never includes it. Generic 400 keeps the reason opaque.
+  if (isHoneypotTripped(raw)) {
+    logRouteError(new Error('honeypot tripped'), {
+      route: '/api/comments',
+      userId,
+      extra: { reason: 'honeypot' },
+    })
+    return json(400, { error: 'spam_detected' })
+  }
+
+  // Strip the honeypot field BEFORE Zod parse — CommentCreateBody is
+  // `.strict()` and would otherwise reject a body that includes `_h`.
+  if (raw && typeof raw === 'object' && HONEYPOT_FIELD in (raw as Record<string, unknown>)) {
+    const cleaned = { ...(raw as Record<string, unknown>) }
+    delete cleaned[HONEYPOT_FIELD]
+    raw = cleaned
   }
 
   // Step 3: Zod parse
@@ -43,6 +74,12 @@ export async function POST(req: NextRequest | Request): Promise<Response> {
   }
 
   const { post_id, parent_comment_id, body } = parsed.data
+
+  // Step 3a: URL-ratio check on the raw body (pre-sanitize) — bots dumping
+  // ten URLs in a comment trip this. Surfaced verbatim to real users.
+  if (isUrlHeavy(body)) {
+    return json(400, { error: 'too_many_urls' })
+  }
 
   // Step 4: sanitize body — empty after strip means there was no real content
   const sanitizedBody = sanitizeCommentBody(body)

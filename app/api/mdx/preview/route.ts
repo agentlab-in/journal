@@ -25,6 +25,7 @@
  */
 import { getSession } from '@/lib/auth'
 import { compileMdx } from '@/lib/mdx/compile'
+import { guardMutatingRequest } from '@/lib/route-guard'
 
 // Route Handlers default to the Node runtime, but compileMdx hard-requires
 // Node (next-mdx-remote/serialize uses node:vm). Be explicit so a future
@@ -51,6 +52,11 @@ export async function POST(req: Request): Promise<Response> {
   if (!session?.user?.id) {
     return json(401, { error: 'unauthorized' })
   }
+
+  // 1b. Origin guard — preview isn't bucketed (editor compiles on every
+  // keystroke; an RL would only frustrate authors).
+  const guard = await guardMutatingRequest(req, { userId: session.user.id })
+  if (guard.failed) return guard.response
 
   // 2. Parse JSON
   let payload: unknown

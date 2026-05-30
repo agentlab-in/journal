@@ -3,6 +3,8 @@ import { getSession, resolveIsAdmin } from '@/lib/auth'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { CommentPatchBody } from '@/lib/comments/schema'
 import { sanitizeCommentBody } from '@/lib/comments/sanitize'
+import { guardMutatingRequest } from '@/lib/route-guard'
+import { logRouteError } from '@/lib/logging/error-log'
 
 export const runtime = 'nodejs'
 
@@ -35,6 +37,11 @@ export async function PATCH(
   const session = await getSession()
   if (!session?.user?.id) return json(401, { error: 'unauthorized' })
   const userId = session.user.id
+
+  // Step 1b: origin guard (Phase 14) — no app-level RL on comment edit;
+  // the 24h window + author gate below already keep abuse bounded.
+  const guard = await guardMutatingRequest(req, { userId })
+  if (guard.failed) return guard.response
 
   const { id } = await context.params
 
@@ -120,6 +127,10 @@ export async function DELETE(
   if (!session?.user?.id) return json(401, { error: 'unauthorized' })
   const userId = session.user.id
 
+  // Step 1b: origin guard (Phase 14) — no app-level RL on comment delete.
+  const guard = await guardMutatingRequest(req, { userId })
+  if (guard.failed) return guard.response
+
   const { id } = await context.params
 
   const admin = createAdminSupabaseClient()
@@ -189,7 +200,11 @@ export async function DELETE(
       metadata: { author_id: comment.author_id },
     })
     if (modErr) {
-      console.error('[mod_actions] insert failed:', modErr)
+      logRouteError(modErr, {
+        route: '/api/comments/[id]',
+        userId,
+        extra: { op: 'mod_actions_insert', commentId: id },
+      })
       // soft failure — deletion already succeeded, do not roll back
     }
   }

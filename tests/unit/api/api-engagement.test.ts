@@ -64,7 +64,10 @@ const BAD_ID = 'not-a-uuid'
 // Tiny request + params helpers
 // ---------------------------------------------------------------------------
 function makeReq(method: 'POST' | 'DELETE', path: string) {
-  return new Request(`http://test${path}`, { method })
+  return new Request(`http://test${path}`, {
+    method,
+    headers: { Origin: 'http://localhost:3010' },
+  })
 }
 
 function postIdParams(id: string) {

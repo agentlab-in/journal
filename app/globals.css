@@ -1731,6 +1731,23 @@ a {
   color: #fca5a5;
 }
 
+/* Phase 14 inline error banner (rate-limit / spam / url-heavy). Reuses
+ * the same red palette as the over-limit counter for theme parity. */
+.comment-form__error {
+  font-size: 0.8125rem;
+  color: #b91c1c;
+  padding: 0.375rem 0.5rem;
+  background: rgba(185, 28, 28, 0.08);
+  border: 1px solid rgba(185, 28, 28, 0.25);
+  border-radius: 0.375rem;
+}
+
+[data-theme='dark'] .comment-form__error {
+  color: #fca5a5;
+  background: rgba(252, 165, 165, 0.08);
+  border-color: rgba(252, 165, 165, 0.3);
+}
+
 .comment-form__actions {
   display: flex;
   gap: 0.5rem;

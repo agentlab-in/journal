@@ -11,6 +11,7 @@ import { resolveAnchor } from '@/lib/posts/wikilinks-resolve'
 import { renderToHtml } from '@/lib/posts/render'
 import { findUniqueSlug } from '@/lib/posts/slug-collision'
 import { postUrl, type PostType } from '@/lib/posts/url'
+import { guardMutatingRequest } from '@/lib/route-guard'
 
 export const runtime = 'nodejs'
 
@@ -32,6 +33,10 @@ export async function POST(req: NextRequest | Request): Promise<Response> {
   const session = await getSession()
   if (!session?.user?.id) return json(401, { error: 'unauthorized' })
   const userId = session.user.id
+
+  // Step 1b: origin + rate-limit guard (Phase 14)
+  const guard = await guardMutatingRequest(req, { bucket: 'publish', userId })
+  if (guard.failed) return guard.response
 
   // Step 2: JSON parse
   let raw: unknown
