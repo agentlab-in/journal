@@ -237,6 +237,13 @@ export function EditorShell({
   const splitRef = useRef<HTMLDivElement | null>(null)
   const draggingRef = useRef(false)
 
+  // ---- mobile pane switcher ----------------------------------------------
+  // Below the `lg` breakpoint the split-pane stacks into a single column
+  // and the author flips between editing and previewing with a tab
+  // control. On `lg` and up both panes show side-by-side and `view` is
+  // ignored (the CSS `lg:` modifier overrides the `hidden` toggles).
+  const [view, setView] = useState<'edit' | 'preview'>('edit')
+
   const handleDividerPointerDown = useCallback((e: React.PointerEvent) => {
     draggingRef.current = true
     ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
@@ -576,15 +583,68 @@ export function EditorShell({
         />
       </div>
 
-      {/* ---- split: editor | divider | preview ----------------------- */}
+      {/* ---- mobile tabs: Write / Preview (hidden on lg+) ----------- */}
+      {/* Tailwind's default `lg` breakpoint (1024px) is the closest match
+          to the spec's ~900px target. Discussion #23 notes the deviation
+          — we prefer staying on default breakpoints over a custom one. */}
+      <div
+        role="tablist"
+        aria-label="Editor view"
+        className="flex gap-1 border-b border-border lg:hidden"
+        data-testid="editor-view-tabs"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === 'edit'}
+          aria-controls="editor-pane-write"
+          onClick={() => setView('edit')}
+          className={`px-3 py-2 text-sm font-medium ${
+            view === 'edit'
+              ? 'border-b-2 border-fg text-fg'
+              : 'text-fg-subtle hover:text-fg'
+          }`}
+        >
+          Write
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === 'preview'}
+          aria-controls="editor-pane-preview"
+          onClick={() => setView('preview')}
+          className={`px-3 py-2 text-sm font-medium ${
+            view === 'preview'
+              ? 'border-b-2 border-fg text-fg'
+              : 'text-fg-subtle hover:text-fg'
+          }`}
+        >
+          Preview
+        </button>
+      </div>
+
+      {/* ---- split: editor | divider | preview -----------------------
+          Below `lg` (1024px) the layout collapses to a single column;
+          the tabs above flip the `view` state which toggles `hidden` on
+          each pane. On `lg` and up the grid restores its draggable
+          two-column layout and `view` is irrelevant. */}
       <div
         ref={splitRef}
-        className="grid w-full gap-0"
+        className="flex w-full flex-col gap-0 lg:grid"
         style={{
+          // The inline style only applies once `lg:grid` activates the
+          // grid display mode — CSS resolves `gridTemplateColumns` against
+          // a flex parent as a no-op. Keep the style inline so the
+          // draggable divider can mutate it without a media-query dance.
           gridTemplateColumns: `${editorFraction}fr 6px ${1 - editorFraction}fr`,
         }}
       >
-        <div className="min-w-0">
+        <div
+          id="editor-pane-write"
+          role="tabpanel"
+          aria-labelledby="editor-tab-write"
+          className={`min-w-0 ${view === 'edit' ? '' : 'hidden'} lg:block`}
+        >
           <CodeMirrorEditor
             value={bodyMd}
             onChange={setBodyMd}
@@ -601,11 +661,18 @@ export function EditorShell({
           onPointerDown={handleDividerPointerDown}
           onPointerMove={handleDividerPointerMove}
           onPointerUp={handleDividerPointerUp}
-          className="cursor-col-resize bg-border hover:bg-fg-subtle"
+          className="hidden cursor-col-resize bg-border hover:bg-fg-subtle lg:block"
           data-testid="split-divider"
         />
 
-        <div className="relative min-w-0 overflow-auto border-l border-border pl-4">
+        <div
+          id="editor-pane-preview"
+          role="tabpanel"
+          aria-labelledby="editor-tab-preview"
+          className={`relative min-w-0 overflow-auto lg:border-l lg:border-border lg:pl-4 ${
+            view === 'preview' ? '' : 'hidden'
+          } lg:block`}
+        >
           <PreviewPane body_md={bodyMd} />
         </div>
       </div>
