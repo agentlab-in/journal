@@ -35,8 +35,14 @@ export function computeHeatScore(
   const tagAffinityBoost = tag_affinity > 0 ? 5 : 0
   const numerator = like_count + 2 * bookmark_count + tagAffinityBoost
 
-  const hoursSincePublished =
-    (now.getTime() - Date.parse(published_at)) / 3_600_000
+  const rawHours = (now.getTime() - Date.parse(published_at)) / 3_600_000
+  // Clamp to >= 0 so a future-dated post is treated as freshly published,
+  // and fall back to 0 when not finite (e.g. Date.parse returned NaN for a
+  // malformed string). Without this, the score becomes NaN or Infinity and
+  // silently breaks Array.sort comparators downstream.
+  const hoursSincePublished = Number.isFinite(rawHours)
+    ? Math.max(rawHours, 0)
+    : 0
 
   // +2 floor matches the SQL formulation so very fresh posts (and the
   // pathological "future post" case) don't blow up to Infinity.

@@ -126,6 +126,43 @@ describe('computeHeatScore', () => {
     expect(many).toBe(one)
   })
 
+  it('clamps future-dated posts to the freshest bucket (0 hours)', () => {
+    const engagement = {
+      like_count: 10,
+      bookmark_count: 2,
+      tag_affinity: 0,
+    }
+    const fresh = computeHeatScore(
+      { ...engagement, published_at: hoursAgo(0) },
+      NOW,
+    )
+    // published_at is 2 days in the future relative to NOW.
+    const future = computeHeatScore(
+      { ...engagement, published_at: hoursAgo(-48) },
+      NOW,
+    )
+    expect(Number.isFinite(future)).toBe(true)
+    expect(future).toBe(fresh)
+  })
+
+  it('treats a malformed published_at as freshly published (no NaN/Infinity)', () => {
+    const engagement = {
+      like_count: 10,
+      bookmark_count: 2,
+      tag_affinity: 0,
+    }
+    const fresh = computeHeatScore(
+      { ...engagement, published_at: hoursAgo(0) },
+      NOW,
+    )
+    const malformed = computeHeatScore(
+      { ...engagement, published_at: 'not-a-date' },
+      NOW,
+    )
+    expect(Number.isFinite(malformed)).toBe(true)
+    expect(malformed).toBe(fresh)
+  })
+
   it('is pure — same inputs return the same output', () => {
     const input = {
       published_at: hoursAgo(7),
