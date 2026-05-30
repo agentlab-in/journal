@@ -3,11 +3,13 @@
  * Generate prefers-color-scheme icon variants from public/logo.svg.
  *
  * Output:
- *   - public/icon-light.png  (dark mark on white bg) — for light UI chrome
- *   - public/icon-dark.png   (white mark on near-black bg) — for dark UI chrome
+ *   - public/icon-light.png  (dark mark on white circle) — for light UI chrome
+ *   - public/icon-dark.png   (white mark on near-black circle) — for dark UI chrome
  *
- * Both are 256x256, PNG. Wired into <link rel="icon" media="…"> in
- * app/layout.tsx so browsers that honor prefers-color-scheme media
+ * Both are 256x256, PNG. The logo glyph is composited onto a circular
+ * disc; the corners outside the circle are transparent so the browser
+ * tab chrome shows through cleanly. Wired into <link rel="icon" media="…">
+ * in app/layout.tsx so browsers that honor prefers-color-scheme media
  * queries pick the right contrast for the user's OS / browser theme.
  *
  * Why a script instead of `app/icon.tsx` (programmatic):
@@ -45,10 +47,30 @@ function svgWithFill(color) {
   return SOURCE_SVG.replace('fill="currentColor"', `fill="${color}"`)
 }
 
+// Circular alpha mask: white inside the circle, transparent outside.
+// Sharp's `dest-in` composite keeps the destination pixels where the
+// mask alpha is non-zero, giving us a clean transparent corner cutout
+// without anti-aliasing artifacts at the edge.
+const CIRCLE_MASK = Buffer.from(
+  `<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}">` +
+    `<circle cx="${SIZE / 2}" cy="${SIZE / 2}" r="${SIZE / 2}" fill="white"/>` +
+    `</svg>`,
+)
+
 async function render(svg, bgHex, outPath) {
-  await sharp(Buffer.from(svg))
+  // Render the logo with chosen fill onto a solid bg square first, then
+  // mask through the circle. Done in two passes because sharp can't
+  // composite a fill background and an alpha mask in one chain — the
+  // mask has to apply to a fully-painted buffer.
+  const square = await sharp(Buffer.from(svg))
     .resize(SIZE, SIZE, { fit: 'contain', background: bgHex })
     .flatten({ background: bgHex })
+    .png()
+    .toBuffer()
+
+  await sharp(square)
+    .ensureAlpha()
+    .composite([{ input: CIRCLE_MASK, blend: 'dest-in' }])
     .png()
     .toFile(outPath)
   console.log(`wrote ${outPath}`)
