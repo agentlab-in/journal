@@ -132,6 +132,113 @@ body {
     color 0.15s ease;
 }
 
+/* ============================================================
+   Phase 13 — Polish: snappy 150ms transitions
+   Theme switch needs to crossfade the page surface — applying the
+   transition on <body> alone leaves the html background as a hard
+   cut between paints. Pair both so the toggle feels coherent.
+   ============================================================ */
+html {
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+/* Default-ease for color/border on interactive controls. Components
+   that need a different transition (e.g. transition-opacity) already
+   override via Tailwind utilities, which sit in a later cascade layer
+   and win. The point of this rule is to cover the long tail of
+   `hover:bg-bg-hover` buttons in admin/editor surfaces that never
+   declared an explicit transition — without it, hovers are a hard cut
+   that fights the snappy-but-coherent feel the rest of the app has. */
+button,
+a {
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+/* ============================================================
+   Phase 13 — Modal fade-in (report dialog + draft-restore prompt)
+   Both use a fixed overlay with `bg-black/40`. Without an entrance
+   animation, modals snap into existence on click — feels harsh.
+   This applies a 150ms ease fade to anything with the role="dialog"
+   pattern we use across the app, and to the overlay-darkening layer.
+   Kept at 150ms to stay inside the "snappy" budget the brief sets.
+   Reduced-motion users skip the fade — see the prefers-reduced-motion
+   block lower down.
+   ============================================================ */
+@keyframes modal-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+[role='dialog'][aria-modal='true'] {
+  animation: modal-fade-in 150ms ease;
+}
+
+/* ============================================================
+   Phase 13 — Shake-on-revert
+   Visual treatment paired with the existing sr-only aria-live
+   announcement on optimistic engagement reverts (LikeButton,
+   BookmarkButton, FollowButton). Triggered by toggling the
+   `shake-on-revert` class on the button via a re-key bump.
+   Chose shake over toast: no global container/portal/queue needed —
+   the animation is colocated on the failing element, and the
+   aria-live region already covers the screen-reader path.
+   Duration: ~400ms. Amplitude: ~6px. Mirrors the well-worn macOS
+   "wrong password" shake.
+   ============================================================ */
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-6px);
+  }
+  40% {
+    transform: translateX(6px);
+  }
+  60% {
+    transform: translateX(-4px);
+  }
+  80% {
+    transform: translateX(4px);
+  }
+}
+
+.shake-on-revert {
+  animation: shake 400ms ease;
+}
+
+/* ============================================================
+   Phase 13 — Reduced-motion fallback
+   WCAG 2.3.3 (animation from interactions). Users who set
+   prefers-reduced-motion get instant transitions and no shake —
+   the sr-only aria-live announcement still fires, so the
+   feedback path stays intact for assistive tech and motion-averse
+   sighted users alike.
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  html,
+  body {
+    transition: none;
+  }
+  [role='dialog'][aria-modal='true'] {
+    animation: none;
+  }
+  .shake-on-revert {
+    animation: none;
+  }
+}
+
 /* CodeMirror failsafe: even if the package's bundled theme misses a
    selector, force the editor to use our theme tokens so text is always
    readable against the editor background. */
