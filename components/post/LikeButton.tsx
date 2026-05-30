@@ -27,9 +27,12 @@ export function LikeButton({
   const [count, setCount] = useState(initialCount)
   const [pending, setPending] = useState(false)
   // Phase 13 a11y: assistive-tech announcement when an optimistic update
-  // gets reverted (network or 5xx). Empty string on initial render so we
-  // don't speak anything spurious. Kept in sr-only span below.
-  const [revertMessage, setRevertMessage] = useState('')
+  // gets reverted (network or 5xx). We pair the message with a monotonic
+  // counter `n` so consecutive identical reverts still produce unique DOM
+  // text — screen readers de-dupe identical sibling text changes, so two
+  // back-to-back "Like failed" messages would be announced only once
+  // without the suffix. Kept in sr-only span below.
+  const [revert, setRevert] = useState<{ msg: string; n: number }>({ msg: '', n: 0 })
 
   async function onClick() {
     if (!isSignedIn) {
@@ -48,8 +51,9 @@ export function LikeButton({
     setLiked(nextLiked)
     setCount(nextCount)
     setPending(true)
-    // Clear any prior revert message when we kick off a new attempt.
-    setRevertMessage('')
+    // Clear any prior revert message at the start of a new attempt; keep the
+    // counter so the next failure bumps to a unique value.
+    setRevert((r) => ({ msg: '', n: r.n }))
 
     try {
       const res = await fetch(`/api/likes/${postId}`, {
@@ -58,7 +62,10 @@ export function LikeButton({
       if (!res.ok) {
         setLiked(prevLiked)
         setCount(prevCount)
-        setRevertMessage(nextLiked ? 'Like failed, reverted.' : 'Unlike failed, reverted.')
+        setRevert((r) => ({
+          msg: nextLiked ? 'Like failed, reverted.' : 'Unlike failed, reverted.',
+          n: r.n + 1,
+        }))
         console.error('[LikeButton] toggle failed:', res.status)
         return
       }
@@ -69,7 +76,10 @@ export function LikeButton({
     } catch (err) {
       setLiked(prevLiked)
       setCount(prevCount)
-      setRevertMessage(nextLiked ? 'Like failed, reverted.' : 'Unlike failed, reverted.')
+      setRevert((r) => ({
+        msg: nextLiked ? 'Like failed, reverted.' : 'Unlike failed, reverted.',
+        n: r.n + 1,
+      }))
       console.error('[LikeButton] network error:', err)
     } finally {
       setPending(false)
@@ -104,9 +114,11 @@ export function LikeButton({
       </button>
       {/* aria-live region for optimistic-revert announcements. Empty on
           initial render so screen-readers stay silent until a revert
-          actually happens. sr-only keeps it visually hidden. */}
+          actually happens. The `(attempt N)` suffix keeps each DOM text
+          change unique so consecutive identical reverts re-announce.
+          sr-only keeps it visually hidden. */}
       <span role="status" aria-live="polite" className="sr-only">
-        {revertMessage}
+        {revert.msg ? `${revert.msg} (attempt ${revert.n})` : ''}
       </span>
     </>
   )

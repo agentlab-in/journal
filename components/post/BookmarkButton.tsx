@@ -24,7 +24,9 @@ export function BookmarkButton({
   const [bookmarked, setBookmarked] = useState(initialBookmarked)
   const [pending, setPending] = useState(false)
   // Phase 13 a11y: revert announcement (see LikeButton for context).
-  const [revertMessage, setRevertMessage] = useState('')
+  // The counter `n` makes consecutive identical reverts unique so SRs
+  // re-announce instead of de-duping.
+  const [revert, setRevert] = useState<{ msg: string; n: number }>({ msg: '', n: 0 })
 
   async function onClick() {
     if (!isSignedIn) {
@@ -38,7 +40,7 @@ export function BookmarkButton({
 
     setBookmarked(next)
     setPending(true)
-    setRevertMessage('')
+    setRevert((r) => ({ msg: '', n: r.n }))
 
     try {
       const res = await fetch(`/api/bookmarks/${postId}`, {
@@ -46,9 +48,12 @@ export function BookmarkButton({
       })
       if (!res.ok) {
         setBookmarked(prev)
-        setRevertMessage(
-          next ? 'Bookmark failed, reverted.' : 'Bookmark removal failed, reverted.',
-        )
+        setRevert((r) => ({
+          msg: next
+            ? 'Bookmark failed, reverted.'
+            : 'Bookmark removal failed, reverted.',
+          n: r.n + 1,
+        }))
         console.error('[BookmarkButton] toggle failed:', res.status)
         return
       }
@@ -56,9 +61,12 @@ export function BookmarkButton({
       setBookmarked(data.bookmarked)
     } catch (err) {
       setBookmarked(prev)
-      setRevertMessage(
-        next ? 'Bookmark failed, reverted.' : 'Bookmark removal failed, reverted.',
-      )
+      setRevert((r) => ({
+        msg: next
+          ? 'Bookmark failed, reverted.'
+          : 'Bookmark removal failed, reverted.',
+        n: r.n + 1,
+      }))
       console.error('[BookmarkButton] network error:', err)
     } finally {
       setPending(false)
@@ -93,7 +101,7 @@ export function BookmarkButton({
         </svg>
       </button>
       <span role="status" aria-live="polite" className="sr-only">
-        {revertMessage}
+        {revert.msg ? `${revert.msg} (attempt ${revert.n})` : ''}
       </span>
     </>
   )

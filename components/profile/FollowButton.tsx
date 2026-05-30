@@ -32,7 +32,9 @@ export function FollowButton({
   const [following, setFollowing] = useState(initialFollowing)
   const [pending, setPending] = useState(false)
   // Phase 13 a11y: revert announcement (see LikeButton for context).
-  const [revertMessage, setRevertMessage] = useState('')
+  // The counter `n` makes consecutive identical reverts unique so SRs
+  // re-announce instead of de-duping.
+  const [revert, setRevert] = useState<{ msg: string; n: number }>({ msg: '', n: 0 })
 
   async function onClick() {
     if (!isSignedIn) {
@@ -46,7 +48,7 @@ export function FollowButton({
 
     setFollowing(nextFollowing)
     setPending(true)
-    setRevertMessage('')
+    setRevert((r) => ({ msg: '', n: r.n }))
 
     try {
       const res = await fetch(`/api/follows/${targetUserId}`, {
@@ -54,9 +56,12 @@ export function FollowButton({
       })
       if (!res.ok) {
         setFollowing(prevFollowing)
-        setRevertMessage(
-          nextFollowing ? 'Follow failed, reverted.' : 'Unfollow failed, reverted.',
-        )
+        setRevert((r) => ({
+          msg: nextFollowing
+            ? 'Follow failed, reverted.'
+            : 'Unfollow failed, reverted.',
+          n: r.n + 1,
+        }))
         console.error('[FollowButton] toggle failed:', res.status)
         return
       }
@@ -64,9 +69,12 @@ export function FollowButton({
       setFollowing(data.following)
     } catch (err) {
       setFollowing(prevFollowing)
-      setRevertMessage(
-        nextFollowing ? 'Follow failed, reverted.' : 'Unfollow failed, reverted.',
-      )
+      setRevert((r) => ({
+        msg: nextFollowing
+          ? 'Follow failed, reverted.'
+          : 'Unfollow failed, reverted.',
+        n: r.n + 1,
+      }))
       console.error('[FollowButton] network error:', err)
     } finally {
       setPending(false)
@@ -88,7 +96,7 @@ export function FollowButton({
         {following ? 'Following' : 'Follow'}
       </button>
       <span role="status" aria-live="polite" className="sr-only">
-        {revertMessage}
+        {revert.msg ? `${revert.msg} (attempt ${revert.n})` : ''}
       </span>
     </>
   )
