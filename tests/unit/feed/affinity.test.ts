@@ -38,6 +38,7 @@ function makeStub(responses: Record<string, ChainResponse | ChainResponse[]>) {
       select: (...args: unknown[]) => typeof builder
       eq: (...args: unknown[]) => typeof builder
       in: (...args: unknown[]) => typeof builder
+      is: (...args: unknown[]) => typeof builder
       order: (...args: unknown[]) => typeof builder
       limit: (...args: unknown[]) => typeof builder
       then: (
@@ -48,6 +49,7 @@ function makeStub(responses: Record<string, ChainResponse | ChainResponse[]>) {
       select: () => builder,
       eq: () => builder,
       in: () => builder,
+      is: () => builder,
       order: () => builder,
       limit: () => builder,
       then: (onFulfilled, onRejected) =>

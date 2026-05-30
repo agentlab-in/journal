@@ -116,6 +116,7 @@ export async function getLatestFeed(
       'id, author_id, type, slug, title, summary, cover_image_url, published_at, like_count, bookmark_count, comment_count',
     )
     .is('deleted_at', null)
+    .lte('published_at', new Date().toISOString())
     .order('published_at', { ascending: false })
     .limit(limit)
 

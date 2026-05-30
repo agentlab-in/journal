@@ -58,6 +58,7 @@ AS $$
         p.comment_count
     FROM public.posts p
     WHERE p.deleted_at IS NULL
+      AND p.published_at <= now()
     ORDER BY
         (p.like_count + 2 * p.bookmark_count)::float8
         / pow(extract(epoch FROM (now() - p.published_at)) / 3600 + 2, 1.5)

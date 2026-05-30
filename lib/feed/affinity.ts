@@ -175,6 +175,7 @@ export async function getViewerTagAffinity(
         .from('posts')
         .select('published_at, post_tags(tag_slug, tags(slug, is_approved))')
         .in('author_id', followedIds)
+        .is('deleted_at', null)
         .order('published_at', { ascending: false })
         .limit(SOURCE_ROW_CAP)
 
