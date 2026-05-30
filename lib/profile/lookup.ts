@@ -11,6 +11,8 @@ export interface ProfileUser {
   avatar_url: string | null
   github_login: string | null
   created_at: string
+  follower_count: number
+  following_count: number
 }
 
 export interface ProfilePostTag {
@@ -44,6 +46,8 @@ interface UserRow {
   avatar_url: string | null
   github_login: string | null
   created_at: string
+  follower_count: number | null
+  following_count: number | null
 }
 
 interface PostTagRow {
@@ -117,7 +121,9 @@ export async function lookupProfileByUsername(
 
   const { data, error } = await db
     .from('users')
-    .select('id, username, display_name, bio, avatar_url, github_login, created_at')
+    .select(
+      'id, username, display_name, bio, avatar_url, github_login, created_at, follower_count, following_count',
+    )
     .eq('username', username)
     .maybeSingle()
 
@@ -132,6 +138,8 @@ export async function lookupProfileByUsername(
     avatar_url: row.avatar_url,
     github_login: row.github_login,
     created_at: row.created_at,
+    follower_count: row.follower_count ?? 0,
+    following_count: row.following_count ?? 0,
   }
 }
 
