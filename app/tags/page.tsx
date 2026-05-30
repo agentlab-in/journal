@@ -104,7 +104,7 @@ export default async function TagsDirectoryPage() {
   )
 
   return (
-    <main className="tags-page">
+    <main id="main-content" className="tags-page">
       <header className="tags-page__header">
         <h1 className="tags-page__title">All tags</h1>
         <p className="tags-page__tagline">Browse posts by topic.</p>

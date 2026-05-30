@@ -97,7 +97,7 @@ export default async function ProfilePage({
   const pinnedIds = pinned.map((p) => p.id)
 
   return (
-    <main className="profile-page">
+    <main id="main-content" className="profile-page">
       <ProfileHeader
         username={profile.username}
         displayName={profile.display_name}

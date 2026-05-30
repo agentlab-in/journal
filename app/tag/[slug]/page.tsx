@@ -270,7 +270,7 @@ export default async function TagPage({
       : null
 
   return (
-    <main className="home-feed tag-page">
+    <main id="main-content" className="home-feed tag-page">
       <header className="home-feed__header tag-page__header">
         {parentTag && (
           <nav aria-label="Breadcrumb" className="tag-page__breadcrumb">

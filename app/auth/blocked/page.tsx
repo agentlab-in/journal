@@ -156,7 +156,7 @@ export default async function BlockedPage({ searchParams }: PageProps) {
   }
 
   return (
-    <main className="flex flex-1 flex-col items-center justify-center px-6 py-24">
+    <main id="main-content" className="flex flex-1 flex-col items-center justify-center px-6 py-24">
       <div className="w-full max-w-sm space-y-6">
         <h1 className="font-mono text-2xl font-black lowercase tracking-tight text-fg">
           {reason === 'banned' ? 'account suspended' : 'sign-up blocked'}

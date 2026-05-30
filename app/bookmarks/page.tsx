@@ -20,7 +20,7 @@ export default async function BookmarksPage() {
   const bookmarks = await listUserBookmarks(admin, session.user.id)
 
   return (
-    <main className="profile-follow-page">
+    <main id="main-content" className="profile-follow-page">
       <header className="profile-follow-page__header">
         <h1 className="profile-follow-page__title">Your bookmarks</h1>
       </header>

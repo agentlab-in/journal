@@ -15,7 +15,7 @@ export default function Error({
   }, [error])
 
   return (
-    <main className="flex flex-1 flex-col items-center justify-center px-6 py-24 text-center">
+    <main id="main-content" className="flex flex-1 flex-col items-center justify-center px-6 py-24 text-center">
       <p className="font-mono text-sm text-fg-subtle">500</p>
       <h1 className="mt-2 font-mono text-2xl font-black lowercase tracking-tight text-fg">
         something went wrong

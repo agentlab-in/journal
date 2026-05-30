@@ -40,7 +40,7 @@ export default async function ProfileSettingsPage() {
   const row = data as UserRow
 
   return (
-    <main className="settings-page">
+    <main id="main-content" className="settings-page">
       <h1 className="settings-heading">Profile settings</h1>
       <ProfileSettingsForm
         username={row.username}

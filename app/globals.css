@@ -74,6 +74,41 @@
   border-radius: 2px;
 }
 
+/* ============================================================
+   Skip-to-content link — visible only when focused via keyboard
+   tab. Pinned top-left with a high z-index so it sits above the
+   nav. WCAG 2.4.1 (Bypass Blocks).
+   ============================================================ */
+.skip-to-content {
+  position: fixed;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 100;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  /* Visually hidden but available to assistive tech and keyboard focus.
+     `clip: rect(0,0,0,0)` is the modern sr-only pattern. */
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+.skip-to-content:focus,
+.skip-to-content:focus-visible {
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+}
+
 html {
   height: 100%;
 }

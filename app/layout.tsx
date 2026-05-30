@@ -40,6 +40,12 @@ export default function RootLayout({
   return (
     <html lang="en" className={jetbrainsMono.variable}>
       <body className="flex min-h-screen flex-col">
+        {/* Skip-to-content link: invisible until keyboard focus, then
+            pinned to the top-left so a sighted keyboard user can jump
+            past the nav. WCAG 2.4.1 (Bypass Blocks). */}
+        <a href="#main-content" className="skip-to-content">
+          Skip to content
+        </a>
         <AuthProvider>
           <Nav />
           {/* Pages render their own <main> so there's exactly one main

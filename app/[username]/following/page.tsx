@@ -53,7 +53,7 @@ export default async function FollowingPage({
   const following = await listFollowEdges(admin, profile.id, 'following')
 
   return (
-    <main className="profile-follow-page">
+    <main id="main-content" className="profile-follow-page">
       <header className="profile-follow-page__header">
         <h1 className="profile-follow-page__title">
           {profile.following_count} users{' '}

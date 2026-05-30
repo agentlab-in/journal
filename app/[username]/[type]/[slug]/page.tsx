@@ -106,7 +106,7 @@ export default async function PostPage({
   const canonicalPath = postUrl(post.author.username, post.type, post.slug)
 
   return (
-    <main>
+    <main id="main-content">
       <article className="post-page">
       {post.cover_image_url && (
         // eslint-disable-next-line @next/next/no-img-element

@@ -141,7 +141,7 @@ export default async function HomePage() {
   const showingForYou = viewerId !== null && usedAuthedPath
 
   return (
-    <main className="home-feed">
+    <main id="main-content" className="home-feed">
       <header className="home-feed__header">
         <h1 className="home-feed__title">{showingForYou ? 'For you' : 'Latest'}</h1>
         <p className="home-feed__tagline">

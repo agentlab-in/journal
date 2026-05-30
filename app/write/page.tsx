@@ -39,7 +39,7 @@ export default async function WritePage() {
       : undefined
 
   return (
-    <main className="flex flex-1 flex-col">
+    <main id="main-content" className="flex flex-1 flex-col">
       <EditorShell
         mode="new"
         currentUsername={username}

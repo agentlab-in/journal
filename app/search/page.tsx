@@ -167,7 +167,7 @@ export default async function SearchPage({
   ]
 
   return (
-    <main className="search-page">
+    <main id="main-content" className="search-page">
       <header className="search-page__header">
         <h1 className="search-page__title">Search</h1>
 

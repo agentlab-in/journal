@@ -104,7 +104,7 @@ export default async function EditPostPage({
   }
 
   return (
-    <main className="flex flex-1 flex-col">
+    <main id="main-content" className="flex flex-1 flex-col">
       <EditorShell
         mode="edit"
         editPostId={postId}

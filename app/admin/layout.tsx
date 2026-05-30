@@ -15,7 +15,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const session = await getSession()
   await requireAdmin(session) // throws notFound() on non-admin
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-8">
+    <main id="main-content" className="mx-auto w-full max-w-5xl px-4 py-8">
       <h1 className="font-mono text-2xl font-black lowercase tracking-tight text-fg mb-4">
         admin
       </h1>
