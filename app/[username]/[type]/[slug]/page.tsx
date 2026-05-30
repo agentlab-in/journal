@@ -14,6 +14,8 @@ import { Backlinks } from '@/components/posts/Backlinks'
 import { CommentsSection } from '@/components/post/CommentsSection'
 import { LikeButton } from '@/components/post/LikeButton'
 import { BookmarkButton } from '@/components/post/BookmarkButton'
+import { FollowButton } from '@/components/profile/FollowButton'
+import { getFollowState } from '@/lib/profile/follow-state'
 
 interface PageParams {
   username: string
@@ -90,13 +92,15 @@ export default async function PostPage({
     isAdminUser = await resolveIsAdmin(session.user.id)
   }
 
-  // Resolve viewer's like + bookmark state for this post. Anon viewers
-  // short-circuit to {false,false} without touching the DB.
-  const engagement = await getEngagementState({
-    admin: createAdminSupabaseClient(),
-    postId: post.id,
-    userId: session?.user?.id,
-  })
+  const admin = createAdminSupabaseClient()
+  const [engagement, viewerFollowsAuthor] = await Promise.all([
+    getEngagementState({ admin, postId: post.id, userId: session?.user?.id }),
+    getFollowState({
+      admin,
+      targetUserId: post.author_id,
+      viewerUserId: session?.user?.id ?? null,
+    }),
+  ])
 
   const canonicalPath = postUrl(post.author.username, post.type, post.slug)
 
@@ -118,9 +122,14 @@ export default async function PostPage({
             @{post.author.username}
           </Link>
           <span className="author-display">{post.author.display_name}</span>
-          <button type="button" className="follow-stub" disabled aria-disabled>
-            Follow
-          </button>
+          {!isOwner && (
+            <FollowButton
+              targetUserId={post.author_id}
+              initialFollowing={viewerFollowsAuthor}
+              isSignedIn={isSignedIn}
+              currentPath={canonicalPath}
+            />
+          )}
         </div>
         {post.tags.length > 0 && (
           <ul className="post-tags">

@@ -157,18 +157,6 @@ body {
   color: var(--fg-subtle);
 }
 
-.follow-stub {
-  margin-left: auto;
-  padding: 0.25rem 0.75rem;
-  font-size: 0.75rem;
-  font-family: inherit;
-  background: transparent;
-  color: var(--fg-subtle);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  cursor: not-allowed;
-}
-
 .follow-button {
   display: inline-block;
   font-family: inherit;

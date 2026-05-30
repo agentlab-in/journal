@@ -59,6 +59,12 @@ vi.mock('@/components/post/BookmarkButton', () => ({
 vi.mock('@/lib/posts/engagement', () => ({
   getEngagementState: vi.fn(async () => ({ liked: false, bookmarked: false })),
 }))
+vi.mock('@/lib/profile/follow-state', () => ({
+  getFollowState: vi.fn(async () => false),
+}))
+vi.mock('@/components/profile/FollowButton', () => ({
+  FollowButton: () => React.createElement('div', { 'data-testid': 'follow-button' }),
+}))
 vi.mock('@/lib/supabase/admin', () => ({
   createAdminSupabaseClient: vi.fn(() => ({})),
 }))
