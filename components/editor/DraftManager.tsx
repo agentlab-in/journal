@@ -39,6 +39,12 @@ export interface DraftManagerHandle {
   clearOnSubmit: () => void
   /** Alias for clearOnSubmit — used by the Phase 4 publish handler. */
   clearDraft: () => void
+  /**
+   * Force-save the current form state immediately, then reset the
+   * autosave debounce. Wired to the editor's cmd/ctrl+s shortcut so the
+   * author doesn't have to wait 30s for the next debounced flush.
+   */
+  saveNow: () => void
 }
 
 const DEFAULT_AUTOSAVE_DELAY_MS = 30_000
@@ -145,6 +151,15 @@ export const DraftManager = forwardRef<DraftManagerHandle, DraftManagerProps>(
       setModal(null)
     }, [pendingDraft, onRestore])
 
+    // Stash the latest form state in a ref so saveNow() always saves the
+    // up-to-date snapshot without forcing the imperative handle to
+    // re-create on every keystroke (which would re-attach the ref on the
+    // parent every render and is hostile to React 19 strict mode).
+    const formStateRef = useRef(formState)
+    useEffect(() => {
+      formStateRef.current = formState
+    }, [formState])
+
     useImperativeHandle(
       ref,
       () => ({
@@ -155,6 +170,14 @@ export const DraftManager = forwardRef<DraftManagerHandle, DraftManagerProps>(
         clearDraft: () => {
           clearDraft(storageKey)
           setLastSavedAt(null)
+        },
+        saveNow: () => {
+          // Cancel the in-flight autosave so we don't double-write, then
+          // flush the current snapshot synchronously. The status label
+          // updates immediately as feedback.
+          if (timerRef.current) clearTimeout(timerRef.current)
+          const saved = saveDraft(storageKey, formStateRef.current)
+          setLastSavedAt(saved.savedAt)
         },
       }),
       [storageKey],

@@ -121,6 +121,10 @@ export function EditorShell({
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [publishing, setPublishing] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
+  // Ref to the latest handlePublish so the keyboard listener never
+  // captures a stale closure (deps change every keystroke).
+  const handlePublishRef = useRef<() => Promise<void> | void>(() => {})
+  const canPublishRef = useRef<boolean>(false)
 
   const handleEditorReady = useCallback((api: CodeMirrorEditorApi) => {
     editorApiRef.current = api
@@ -373,6 +377,41 @@ export function EditorShell({
   useEffect(() => {
     // no-op; the inline style below already binds to editorFraction.
   }, [editorFraction])
+
+  // Keep the keyboard shortcut closure pointing at the freshest
+  // handlePublish + validity. Refs avoid re-attaching the window
+  // listener on every keystroke, which is hot in CodeMirror.
+  useEffect(() => {
+    handlePublishRef.current = handlePublish
+    canPublishRef.current = validation.valid && !publishing
+  }, [handlePublish, validation.valid, publishing])
+
+  // Global cmd/ctrl + Enter (publish) and cmd/ctrl + s (save draft now).
+  // Mounted on `window` so the shortcut works even when focus is inside
+  // CodeMirror (which swallows its own keydowns at the DOM-content
+  // level). The handler is intentionally lightweight — all the real
+  // logic lives behind refs so this listener mounts exactly once.
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      const mod = e.metaKey || e.ctrlKey
+      if (!mod) return
+      // Enter → publish (when valid + not already publishing).
+      if (e.key === 'Enter') {
+        if (!canPublishRef.current) return
+        e.preventDefault()
+        void handlePublishRef.current()
+        return
+      }
+      // s → manual draft save. Use lowercase compare so it fires for
+      // both cmd+s and cmd+shift+s consistently.
+      if (e.key === 's' || e.key === 'S') {
+        e.preventDefault()
+        draftRef.current?.saveNow()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
 
   return (
     <div className="flex w-full flex-col gap-4 p-4">
