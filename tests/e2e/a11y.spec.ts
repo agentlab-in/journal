@@ -1,0 +1,47 @@
+import { test, expect } from '@playwright/test'
+import AxeBuilder from '@axe-core/playwright'
+
+/**
+ * Axe-core a11y checks across every public route.
+ *
+ * Spec: Phase 13 — target zero serious/critical violations on the public
+ * surface. Auth-gated routes (/write, /bookmarks, /admin/*, /settings/*)
+ * are skipped in CI because the E2E auth shim only activates with the
+ * `x-e2e-auth: 1` header, which Playwright's `page.goto` doesn't send.
+ * They're covered by their own per-feature E2E specs.
+ */
+
+const PUBLIC_ROUTES: Array<{ path: string; label: string }> = [
+  { path: '/', label: 'home' },
+  { path: '/latest', label: 'latest feed' },
+  { path: '/tags', label: 'tags index' },
+  { path: '/tag/agents', label: 'tag landing (likely empty)' },
+  { path: '/search', label: 'search (empty)' },
+  { path: '/search?q=agent', label: 'search with query' },
+  { path: '/auth/signin', label: 'sign-in' },
+  { path: '/auth/blocked', label: 'blocked notice' },
+]
+
+for (const { path, label } of PUBLIC_ROUTES) {
+  test(`a11y: ${label} (${path}) — zero serious/critical violations`, async ({ page }) => {
+    const response = await page.goto(path, { waitUntil: 'domcontentloaded' })
+    // Tag/profile routes may 404 when seed data is absent — axe still runs on the 404 page,
+    // which is itself part of the surface we want clean.
+    expect(response?.status(), `${path} responded with a server error`).toBeLessThan(500)
+
+    const results = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+      .analyze()
+
+    const blocking = results.violations.filter(
+      (v) => v.impact === 'serious' || v.impact === 'critical',
+    )
+
+    if (blocking.length > 0) {
+      const summary = blocking
+        .map((v) => `- [${v.impact}] ${v.id}: ${v.help} (${v.nodes.length} node${v.nodes.length === 1 ? '' : 's'})`)
+        .join('\n')
+      throw new Error(`Axe found serious/critical violations on ${path}:\n${summary}`)
+    }
+  })
+}
