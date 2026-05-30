@@ -157,6 +157,44 @@ body {
   color: var(--fg-subtle);
 }
 
+.like-button,
+.bookmark-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.5rem;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  color: var(--fg-subtle);
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.like-button:hover:not(:disabled),
+.bookmark-button:hover:not(:disabled) {
+  color: var(--fg);
+  background: var(--bg-hover);
+}
+
+.like-button:disabled,
+.bookmark-button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.like-button--active,
+.bookmark-button--active {
+  color: var(--fg);
+}
+
+.like-button__icon,
+.bookmark-button__icon {
+  display: block;
+}
+
 .follow-button {
   display: inline-block;
   font-family: inherit;
