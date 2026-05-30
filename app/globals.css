@@ -1490,3 +1490,71 @@ body {
   font-size: 0.75rem;
   color: var(--fg-subtle);
 }
+
+/* ============================================================
+   Home feed (/) — For You (authed) / Latest (anon)
+   ============================================================ */
+
+.home-feed {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: 2rem 1rem 4rem;
+  width: 100%;
+}
+
+.home-feed__header {
+  margin-bottom: 1.5rem;
+}
+
+.home-feed__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0 0 0.25rem;
+}
+
+.home-feed__tagline {
+  color: var(--fg-subtle);
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.home-feed__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.home-feed__item {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 1rem;
+}
+
+.home-feed__item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.home-feed__empty {
+  color: var(--fg-subtle);
+  font-size: 0.9375rem;
+  margin: 1rem 0;
+}
+
+.home-feed__more {
+  margin: 2rem 0 0;
+  font-size: 0.875rem;
+}
+
+.home-feed__more a {
+  color: var(--fg-subtle);
+  text-decoration: none;
+}
+
+.home-feed__more a:hover {
+  color: var(--fg);
+  text-decoration: underline;
+}
