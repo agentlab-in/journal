@@ -73,7 +73,7 @@ export async function POST(req: Request): Promise<Response> {
     .schema('next_auth')
     .from('sessions')
     .delete()
-    .eq('"userId"', user_id)
+    .eq('userId', user_id)
     .select('id')
 
   if (sessionsErr) {
