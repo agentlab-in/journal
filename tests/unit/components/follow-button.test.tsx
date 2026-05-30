@@ -36,7 +36,6 @@ describe('<FollowButton>', () => {
       <FollowButton
         targetUserId="user-2"
         initialFollowing={false}
-        initialFollowerCount={5}
         isSignedIn={false}
         currentPath="/alice"
       />,
@@ -59,7 +58,6 @@ describe('<FollowButton>', () => {
       <FollowButton
         targetUserId="user-2"
         initialFollowing={false}
-        initialFollowerCount={5}
         isSignedIn
         currentPath="/alice"
       />,
@@ -99,7 +97,6 @@ describe('<FollowButton>', () => {
       <FollowButton
         targetUserId="user-2"
         initialFollowing={true}
-        initialFollowerCount={5}
         isSignedIn
         currentPath="/alice"
       />,
@@ -135,7 +132,6 @@ describe('<FollowButton>', () => {
       <FollowButton
         targetUserId="user-2"
         initialFollowing={false}
-        initialFollowerCount={5}
         isSignedIn
         currentPath="/alice"
       />,
@@ -158,7 +154,6 @@ describe('<FollowButton>', () => {
       <FollowButton
         targetUserId="user-2"
         initialFollowing={true}
-        initialFollowerCount={5}
         isSignedIn
         currentPath="/alice"
       />,

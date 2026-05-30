@@ -83,7 +83,6 @@ export function ProfileHeader({
             <FollowButton
               targetUserId={targetUserId}
               initialFollowing={initialFollowing}
-              initialFollowerCount={followerCount}
               isSignedIn={isSignedIn}
               currentPath={currentPath}
             />
