@@ -104,12 +104,14 @@ export default async function EditPostPage({
   }
 
   return (
-    <EditorShell
-      mode="edit"
-      editPostId={postId}
-      currentUsername={username}
-      initialPost={initialPost}
-      initialTags={initialTags}
-    />
+    <main className="flex flex-1 flex-col">
+      <EditorShell
+        mode="edit"
+        editPostId={postId}
+        currentUsername={username}
+        initialPost={initialPost}
+        initialTags={initialTags}
+      />
+    </main>
   )
 }

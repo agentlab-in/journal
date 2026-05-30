@@ -42,7 +42,10 @@ export default function RootLayout({
       <body className="flex min-h-screen flex-col">
         <AuthProvider>
           <Nav />
-          <main className="flex flex-1 flex-col">{children}</main>
+          {/* Pages render their own <main> so there's exactly one main
+              landmark per route (axe: landmark-no-duplicate-main).
+              This wrapper is just a flex container. */}
+          <div className="flex flex-1 flex-col">{children}</div>
           <Footer />
         </AuthProvider>
       </body>

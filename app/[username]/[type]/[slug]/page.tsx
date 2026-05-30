@@ -106,7 +106,8 @@ export default async function PostPage({
   const canonicalPath = postUrl(post.author.username, post.type, post.slug)
 
   return (
-    <article className="post-page">
+    <main>
+      <article className="post-page">
       {post.cover_image_url && (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={post.cover_image_url} alt="" className="post-cover" />
@@ -195,6 +196,7 @@ export default async function PostPage({
       <CommentsSection postId={post.id} />
 
       <ViewBeacon postId={post.id} />
-    </article>
+      </article>
+    </main>
   )
 }

@@ -39,10 +39,12 @@ export default async function WritePage() {
       : undefined
 
   return (
-    <EditorShell
-      mode="new"
-      currentUsername={username}
-      autoSaveMs={autoSaveMsProp}
-    />
+    <main className="flex flex-1 flex-col">
+      <EditorShell
+        mode="new"
+        currentUsername={username}
+        autoSaveMs={autoSaveMsProp}
+      />
+    </main>
   )
 }

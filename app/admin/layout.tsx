@@ -15,12 +15,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const session = await getSession()
   await requireAdmin(session) // throws notFound() on non-admin
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-8">
+    <main className="mx-auto w-full max-w-5xl px-4 py-8">
       <h1 className="font-mono text-2xl font-black lowercase tracking-tight text-fg mb-4">
         admin
       </h1>
       <AdminTabs />
       <div className="mt-6">{children}</div>
-    </div>
+    </main>
   )
 }
