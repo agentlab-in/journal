@@ -13,11 +13,18 @@ import { MdxFailedFallback } from '@/components/error/MdxFailedFallback'
 
 export type CalloutType = 'info' | 'tip' | 'warning' | 'danger'
 
+// Phase 13 dark-mode audit: each semantic palette needs a dark-friendly
+// counterpart so the surface still reads as info/tip/warning/danger
+// without burning eyes. The light palette uses the 300/50/900 shades that
+// previously shipped; dark layers a darker tinted bg + light text + a
+// stronger border accent over the same hue so the semantic meaning
+// survives the theme flip. `dark:` is wired to data-theme="dark" via the
+// @custom-variant declaration in app/globals.css.
 const CALLOUT_STYLES: Record<CalloutType, string> = {
-  info: 'border-blue-300 bg-blue-50 text-blue-900',
-  tip: 'border-emerald-300 bg-emerald-50 text-emerald-900',
-  warning: 'border-amber-300 bg-amber-50 text-amber-900',
-  danger: 'border-red-300 bg-red-50 text-red-900',
+  info: 'border-blue-300 bg-blue-50 text-blue-900 dark:border-blue-700 dark:bg-blue-950 dark:text-blue-100',
+  tip: 'border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-700 dark:bg-emerald-950 dark:text-emerald-100',
+  warning: 'border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100',
+  danger: 'border-red-300 bg-red-50 text-red-900 dark:border-red-700 dark:bg-red-950 dark:text-red-100',
 }
 
 export interface CalloutProps {
@@ -46,13 +53,16 @@ export interface EmbedProps {
 }
 
 function Fallback({ url }: { url: string }) {
+  // Phase 13: theme tokens for surface/border/text so the fallback reads
+  // in both themes. The link keeps the blue accent (it's still a link)
+  // with a lighter shade in dark mode for contrast against bg-subtle.
   return (
-    <blockquote className="my-4 border-l-4 border-neutral-300 bg-neutral-50 px-4 py-3 italic text-neutral-700">
+    <blockquote className="my-4 border-l-4 border-border bg-bg-subtle px-4 py-3 italic text-fg-subtle">
       <a
         href={url}
         rel="noopener noreferrer"
         target="_blank"
-        className="text-blue-700 underline"
+        className="text-blue-700 underline dark:text-blue-300"
       >
         {url}
       </a>
@@ -105,7 +115,7 @@ export function Figure({ src, alt = '', caption }: FigureProps) {
         loading="lazy"
       />
       {caption ? (
-        <figcaption className="mt-2 text-center text-sm text-neutral-600">
+        <figcaption className="mt-2 text-center text-sm text-fg-subtle">
           {caption}
         </figcaption>
       ) : null}
@@ -120,8 +130,11 @@ export interface AsideProps {
 }
 
 export function Aside({ children }: AsideProps) {
+  // Phase 13: was hardcoded neutral-200/50/800; theme tokens render the
+  // aside as a soft surface in both themes (bg-subtle is light grey in
+  // light, near-black in dark).
   return (
-    <aside className="my-6 border-l-4 border-neutral-200 bg-neutral-50 px-4 py-3 text-neutral-800">
+    <aside className="my-6 border-l-4 border-border bg-bg-subtle px-4 py-3 text-fg">
       {children}
     </aside>
   )
@@ -135,12 +148,14 @@ export interface DetailProps {
 }
 
 export function Detail({ summary = 'Details', children }: DetailProps) {
+  // Phase 13: bg-white was unreadable in dark mode. Theme tokens render
+  // the disclosure as a bordered card on the page background.
   return (
-    <details className="my-4 rounded-md border border-neutral-200 bg-white p-3">
-      <summary className="cursor-pointer font-medium text-neutral-900">
+    <details className="my-4 rounded-md border border-border bg-bg p-3">
+      <summary className="cursor-pointer font-medium text-fg">
         {summary}
       </summary>
-      <div className="mt-2 text-neutral-700">{children}</div>
+      <div className="mt-2 text-fg-subtle">{children}</div>
     </details>
   )
 }
@@ -200,10 +215,15 @@ function PreWithMermaid({ children, ...rest }: PreProps) {
       </ErrorBoundary>
     )
   }
+  // Phase 13: previously hardcoded bg-neutral-950 / text-neutral-100 which
+  // looked fine on a dark page but inverted-light on a light page. Theme
+  // tokens defer to globals.css `.post-body pre` (bg-subtle + border) when
+  // mounted under .post-body and stay legible elsewhere (e.g. editor
+  // preview pane that lacks the .post-body wrapper).
   return (
     <pre
       {...rest}
-      className={`overflow-x-auto rounded-md bg-neutral-950 p-4 text-sm text-neutral-100 ${
+      className={`overflow-x-auto rounded-md border border-border bg-bg-subtle p-4 text-sm text-fg ${
         rest.className ?? ''
       }`.trim()}
     >

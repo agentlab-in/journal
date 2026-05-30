@@ -1,5 +1,12 @@
 @import 'tailwindcss';
 
+/* Tailwind 4: wire the `dark:` variant to our data-theme attribute (set by
+ * the pre-hydration script in app/layout.tsx). Phase 13 audit needs this so
+ * MDX surfaces with semantic palettes (Callout info/tip/warning/danger,
+ * Mermaid error fallback) can express a dark-mode counterpart inline
+ * without writing a parallel selector for every shade. */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
 /* ============================================================
    Theme tokens — toggled by data-theme="light|dark" on <html>
    Default: light
@@ -1605,8 +1612,16 @@ body {
   color: var(--fg-subtle);
 }
 
+/* Phase 13 dark-mode audit: red-700 (#b91c1c) reads on the light bg but
+ * burns out on dark. Light tone in dark theme keeps the over-limit warning
+ * visible without screaming. Both shades clear 4.5:1 against their
+ * surrounding surface. */
 .comment-form__counter--over {
   color: #b91c1c;
+}
+
+[data-theme='dark'] .comment-form__counter--over {
+  color: #fca5a5;
 }
 
 .comment-form__actions {
