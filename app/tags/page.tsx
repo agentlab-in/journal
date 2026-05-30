@@ -9,6 +9,11 @@ export const metadata: Metadata = {
   alternates: { canonical: '/tags' },
 }
 
+// Page renders live post counts and the full approved-tag list — there's
+// no static snapshot worth pre-rendering, and a static prerender would
+// fail at build time if env vars aren't injected for the build step.
+export const dynamic = 'force-dynamic'
+
 interface TagRow {
   slug: string
   name: string
