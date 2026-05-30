@@ -3,7 +3,6 @@ import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import Image from 'next/image'
-import dynamic from 'next/dynamic'
 import { getSession, resolveIsAdmin } from '@/lib/auth'
 import { getCachedPost } from '@/lib/posts/lookup'
 import { getEngagementState } from '@/lib/posts/engagement'
@@ -11,6 +10,7 @@ import { postUrl } from '@/lib/posts/url'
 import { hasMermaid } from '@/lib/posts/has-mermaid'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { PostBodyStatic } from '@/components/posts/PostBodyStatic'
+import { MermaidHydratorClient } from '@/components/posts/MermaidHydratorClient'
 import { StructuredSections } from '@/components/posts/StructuredSections'
 import { ErrorBoundary } from '@/components/error/ErrorBoundary'
 import { MdxFailedFallback } from '@/components/error/MdxFailedFallback'
@@ -32,20 +32,6 @@ import { logRouteError } from '@/lib/logging/error-log'
 // of HTML is already an extreme outlier: a typical long-form post body
 // fits in ~30-80 KB.
 const BODY_HTML_WARN_BYTES = 500_000
-
-// Code-split the client `<PostBody>` (whose useEffect lazy-imports
-// `mermaid` on mount). Defined at module scope per react-hooks rules —
-// recreating the dynamic wrapper on every render would defeat chunk
-// caching and trip `react-hooks/static-components`. We keep SSR on
-// (default) so the body HTML still server-renders for SEO/FCP on
-// mermaid pages; the win is that the PostBody chunk + the
-// mermaid-init module are only included in the bundle graph of pages
-// whose tree actually contains `<PostBodyDynamic>` (i.e. mermaid pages).
-// Non-mermaid posts render `<PostBodyStatic>` and ship zero client JS
-// for the body region.
-const PostBodyDynamic = dynamic(() =>
-  import('@/components/posts/PostBody').then((m) => ({ default: m.PostBody })),
-)
 
 interface PageParams {
   username: string
@@ -154,10 +140,11 @@ export default async function PostPage({
     })
   }
 
-  // Server-side detect: only mount the client `<PostBody>` (which pulls
-  // in mermaid on mount) on posts that actually contain a Mermaid block.
-  // Everything else gets `<PostBodyStatic>` with zero client JS for the
-  // body region.
+  // Server-side detect: only mount the client `<MermaidHydratorClient>`
+  // (which dynamic-imports mermaid on mount) on posts that actually
+  // contain a Mermaid block. Every post renders `<PostBodyStatic>`
+  // (zero client JS for the body region) — mermaid pages additionally
+  // mount the hydrator which mutates the static HTML in place.
   const postHasMermaid = hasMermaid(post.body_html)
 
   return (
@@ -194,6 +181,7 @@ export default async function PostPage({
               className="author-avatar"
               width={64}
               height={64}
+              sizes="32px"
             />
           )}
           <Link href={`/${post.author.username}`} className="author-handle">
@@ -271,24 +259,17 @@ export default async function PostPage({
           should degrade to a small inline notice instead of bubbling
           up to the route-level error page.
 
-          Two branches:
-          - Mermaid present → dynamic-import the client `<PostBody>` so
-            its bundle (which lazy-imports mermaid on mount) only loads
-            on posts that need it. The `loading` fallback paints
-            `<PostBodyStatic>` immediately so SSR + first paint show
-            the body without waiting on the chunk.
-          - Mermaid absent → render the zero-JS `<PostBodyStatic>`
-            directly. The mermaid hydration code never reaches the
-            browser. */}
+          The static HTML always renders server-side (zero client JS for
+          the body region). Mermaid pages additionally mount
+          `<MermaidHydratorClient>`, which dynamic-imports the hydrator
+          (and via it the `mermaid` library) so neither chunk ships to
+          non-mermaid posts. */}
       <ErrorBoundary
         resetKey={post.body_html}
         fallback={<MdxFailedFallback context="post body" />}
       >
-        {postHasMermaid ? (
-          <PostBodyDynamic html={post.body_html} />
-        ) : (
-          <PostBodyStatic html={post.body_html} />
-        )}
+        <PostBodyStatic html={post.body_html} />
+        {postHasMermaid && <MermaidHydratorClient scopeId={post.id} />}
       </ErrorBoundary>
 
       <Backlinks postId={post.id} />

@@ -15,8 +15,9 @@
  * the string in text content cannot trigger a false positive.
  *
  * This is the server-side gate used by the post page to decide whether
- * to ship the client-side `<PostBody>` hydration (which pulls in
- * `mermaid`) or render a static `<PostBodyStatic>` with zero client JS.
+ * to additionally mount `<MermaidHydratorClient>` (which dynamic-imports
+ * the `mermaid` library and mutates the post body in place). When false,
+ * neither the hydrator chunk nor mermaid enter the page's bundle graph.
  */
 const MERMAID_CODE_RE = /<code[^>]*class="[^"]*\blanguage-mermaid\b/i
 
