@@ -4,8 +4,9 @@ test.describe('Homepage', () => {
   test('responds 200 and shows wordmark', async ({ page }) => {
     const response = await page.goto('/')
     expect(response?.status()).toBe(200)
-    // The wordmark "agentlab" appears in the hero heading
-    await expect(page.locator('h1').filter({ hasText: 'agentlab' })).toBeVisible()
+    // Phase 9 moved the wordmark from the (now feed-headlined) <h1> to
+    // the nav. Look for it there by accessible name.
+    await expect(page.getByRole('link', { name: 'agentlab — home' })).toBeVisible()
   })
 
   test('theme toggle changes data-theme attribute', async ({ page }) => {
