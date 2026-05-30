@@ -71,7 +71,7 @@ export function BookmarkButton({
         type="button"
         onClick={onClick}
         disabled={pending}
-        aria-label={bookmarked ? 'Remove bookmark' : 'Bookmark post'}
+        aria-label="Bookmark post"
         aria-pressed={bookmarked}
         className={
           bookmarked ? 'bookmark-button bookmark-button--active' : 'bookmark-button'

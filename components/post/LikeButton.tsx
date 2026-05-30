@@ -82,7 +82,7 @@ export function LikeButton({
         type="button"
         onClick={onClick}
         disabled={pending}
-        aria-label={liked ? 'Unlike post' : 'Like post'}
+        aria-label="Like post"
         aria-pressed={liked}
         className={liked ? 'like-button like-button--active' : 'like-button'}
       >

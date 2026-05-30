@@ -5,6 +5,13 @@ import { useRouter } from 'next/navigation'
 
 export interface FollowButtonProps {
   targetUserId: string
+  /**
+   * Handle (without leading @) of the profile being followed. Used to build
+   * a stable aria-label like "Follow @alice" so screen readers always
+   * announce the action verb plus the target, while aria-pressed conveys
+   * the toggle state. See ARIA Authoring Practices toggle pattern.
+   */
+  username: string
   initialFollowing: boolean
   isSignedIn: boolean
   /**
@@ -16,6 +23,7 @@ export interface FollowButtonProps {
 
 export function FollowButton({
   targetUserId,
+  username,
   initialFollowing,
   isSignedIn,
   currentPath,
@@ -71,7 +79,7 @@ export function FollowButton({
         type="button"
         onClick={onClick}
         disabled={pending}
-        aria-label={following ? 'Unfollow' : 'Follow'}
+        aria-label={`Follow @${username}`}
         aria-pressed={following}
         className={
           following ? 'follow-button follow-button--active' : 'follow-button'

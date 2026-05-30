@@ -73,10 +73,12 @@ describe('<LikeButton>', () => {
     )
 
     const btn = screen.getByRole('button', { name: /like/i })
+    expect(btn).toHaveAttribute('aria-pressed', 'false')
     fireEvent.click(btn)
 
-    // Optimistic state applied immediately
-    expect(screen.getByRole('button', { name: /unlike/i })).toHaveAttribute(
+    // Optimistic state applied immediately. Label is stable ("Like post"
+    // per ARIA toggle pattern); pressed-state conveys the toggle.
+    expect(screen.getByRole('button', { name: /like/i })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
@@ -86,7 +88,7 @@ describe('<LikeButton>', () => {
 
     await waitFor(() =>
       expect(
-        screen.getByRole('button', { name: /unlike/i }),
+        screen.getByRole('button', { name: /like/i }),
       ).not.toBeDisabled(),
     )
     expect(screen.getByText('4')).toBeInTheDocument()
@@ -109,9 +111,11 @@ describe('<LikeButton>', () => {
       />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: /unlike/i }))
+    const btn = screen.getByRole('button', { name: /like/i })
+    expect(btn).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(btn)
 
-    // Optimistic flip
+    // Optimistic flip — label stays "Like post", aria-pressed flips to false.
     expect(screen.getByRole('button', { name: /like/i })).toHaveAttribute(
       'aria-pressed',
       'false',
@@ -169,11 +173,11 @@ describe('<LikeButton>', () => {
       />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: /unlike/i }))
+    fireEvent.click(screen.getByRole('button', { name: /like/i }))
 
     await waitFor(() =>
       expect(
-        screen.getByRole('button', { name: /unlike/i }),
+        screen.getByRole('button', { name: /like/i }),
       ).toHaveAttribute('aria-pressed', 'true'),
     )
     expect(screen.getByText('5')).toBeInTheDocument()
@@ -221,10 +225,13 @@ describe('<BookmarkButton>', () => {
       />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: /^bookmark post$/i }))
+    const btn = screen.getByRole('button', { name: /^bookmark post$/i })
+    expect(btn).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(btn)
 
+    // Stable label per ARIA toggle pattern; aria-pressed conveys state.
     expect(
-      screen.getByRole('button', { name: /remove bookmark/i }),
+      screen.getByRole('button', { name: /^bookmark post$/i }),
     ).toHaveAttribute('aria-pressed', 'true')
     expect(mockFetch).toHaveBeenCalledWith('/api/bookmarks/post-1', {
       method: 'POST',
@@ -232,7 +239,7 @@ describe('<BookmarkButton>', () => {
 
     await waitFor(() =>
       expect(
-        screen.getByRole('button', { name: /remove bookmark/i }),
+        screen.getByRole('button', { name: /^bookmark post$/i }),
       ).not.toBeDisabled(),
     )
   })
@@ -254,14 +261,17 @@ describe('<BookmarkButton>', () => {
       />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: /remove bookmark/i }))
+    const btn = screen.getByRole('button', { name: /^bookmark post$/i })
+    expect(btn).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(btn)
     expect(mockFetch).toHaveBeenCalledWith('/api/bookmarks/post-1', {
       method: 'DELETE',
     })
 
+    // Server returned 5xx, so we revert back to pressed=true.
     await waitFor(() =>
       expect(
-        screen.getByRole('button', { name: /remove bookmark/i }),
+        screen.getByRole('button', { name: /^bookmark post$/i }),
       ).toHaveAttribute('aria-pressed', 'true'),
     )
   })

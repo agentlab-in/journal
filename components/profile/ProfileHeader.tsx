@@ -84,6 +84,7 @@ export function ProfileHeader({
             <>
               <FollowButton
                 targetUserId={targetUserId}
+                username={username}
                 initialFollowing={initialFollowing}
                 isSignedIn={isSignedIn}
                 currentPath={currentPath}

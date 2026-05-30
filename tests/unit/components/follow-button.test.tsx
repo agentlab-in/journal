@@ -4,6 +4,12 @@
  * Mirrors the LikeButton test pattern: stub `useRouter` so anon-click
  * routing is observable, stub global.fetch per-test so we can assert
  * method + reconciled state.
+ *
+ * Phase 13 a11y note: the button label is stable ("Follow @<username>")
+ * per the ARIA Authoring Practices toggle pattern. Toggle state lives in
+ * `aria-pressed`, not in the accessible name, so screen readers don't
+ * announce conflicting verbs ("Unfollow, pressed"). Assertions below
+ * check aria-pressed, not the label, for state changes.
  */
 import React from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -35,13 +41,14 @@ describe('<FollowButton>', () => {
     render(
       <FollowButton
         targetUserId="user-2"
+        username="alice"
         initialFollowing={false}
         isSignedIn={false}
         currentPath="/alice"
       />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: /follow/i }))
+    fireEvent.click(screen.getByRole('button', { name: /follow @alice/i }))
 
     expect(mockPush).toHaveBeenCalledWith('/auth/signin?callbackUrl=%2Falice')
     expect(mockFetch).not.toHaveBeenCalled()
@@ -57,21 +64,24 @@ describe('<FollowButton>', () => {
     render(
       <FollowButton
         targetUserId="user-2"
+        username="alice"
         initialFollowing={false}
         isSignedIn
         currentPath="/alice"
       />,
     )
 
-    const btn = screen.getByRole('button', { name: /^follow$/i })
+    const btn = screen.getByRole('button', { name: /follow @alice/i })
+    expect(btn).toHaveAttribute('aria-pressed', 'false')
     fireEvent.click(btn)
 
-    // Optimistic: label flips to Unfollow and aria-pressed=true immediately
-    expect(screen.getByRole('button', { name: /unfollow/i })).toHaveAttribute(
+    // Optimistic: aria-pressed flips to true immediately; the visible
+    // text switches from "Follow" to "Following" (still the same label).
+    expect(screen.getByRole('button', { name: /follow @alice/i })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
-    expect(screen.getByRole('button', { name: /unfollow/i })).toHaveTextContent(
+    expect(screen.getByRole('button', { name: /follow @alice/i })).toHaveTextContent(
       /following/i,
     )
 
@@ -81,7 +91,7 @@ describe('<FollowButton>', () => {
 
     await waitFor(() =>
       expect(
-        screen.getByRole('button', { name: /unfollow/i }),
+        screen.getByRole('button', { name: /follow @alice/i }),
       ).not.toBeDisabled(),
     )
   })
@@ -96,16 +106,19 @@ describe('<FollowButton>', () => {
     render(
       <FollowButton
         targetUserId="user-2"
+        username="alice"
         initialFollowing={true}
         isSignedIn
         currentPath="/alice"
       />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: /unfollow/i }))
+    const btn = screen.getByRole('button', { name: /follow @alice/i })
+    expect(btn).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(btn)
 
-    // Optimistic: label flips back to Follow
-    expect(screen.getByRole('button', { name: /^follow$/i })).toHaveAttribute(
+    // Optimistic: aria-pressed flips to false.
+    expect(screen.getByRole('button', { name: /follow @alice/i })).toHaveAttribute(
       'aria-pressed',
       'false',
     )
@@ -115,7 +128,7 @@ describe('<FollowButton>', () => {
 
     await waitFor(() =>
       expect(
-        screen.getByRole('button', { name: /^follow$/i }),
+        screen.getByRole('button', { name: /follow @alice/i }),
       ).not.toBeDisabled(),
     )
   })
@@ -131,17 +144,18 @@ describe('<FollowButton>', () => {
     render(
       <FollowButton
         targetUserId="user-2"
+        username="alice"
         initialFollowing={false}
         isSignedIn
         currentPath="/alice"
       />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: /^follow$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /follow @alice/i }))
 
     await waitFor(() =>
       expect(
-        screen.getByRole('button', { name: /^follow$/i }),
+        screen.getByRole('button', { name: /follow @alice/i }),
       ).toHaveAttribute('aria-pressed', 'false'),
     )
   })
@@ -153,17 +167,18 @@ describe('<FollowButton>', () => {
     render(
       <FollowButton
         targetUserId="user-2"
+        username="alice"
         initialFollowing={true}
         isSignedIn
         currentPath="/alice"
       />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: /unfollow/i }))
+    fireEvent.click(screen.getByRole('button', { name: /follow @alice/i }))
 
     await waitFor(() =>
       expect(
-        screen.getByRole('button', { name: /unfollow/i }),
+        screen.getByRole('button', { name: /follow @alice/i }),
       ).toHaveAttribute('aria-pressed', 'true'),
     )
   })

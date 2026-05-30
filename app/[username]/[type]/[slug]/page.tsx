@@ -127,6 +127,7 @@ export default async function PostPage({
           {!isOwner && (
             <FollowButton
               targetUserId={post.author_id}
+              username={post.author.username}
               initialFollowing={viewerFollowsAuthor}
               isSignedIn={isSignedIn}
               currentPath={canonicalPath}
