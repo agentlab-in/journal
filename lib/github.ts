@@ -10,11 +10,14 @@ export interface GitHubUser {
   name: string | null
   bio: string | null
   avatar_url: string
+  email: string | null
+  followers: number
 }
 
 /**
  * Fetch the authenticated GitHub user via their OAuth access token.
- * Uses `read:user` scope, which is included in NextAuth's default GitHub scope.
+ * Uses `read:user` scope, which is included in NextAuth's default GitHub
+ * scope and is sufficient for `email` (public profile email) and `followers`.
  */
 export async function fetchGithubUser(accessToken: string): Promise<GitHubUser> {
   const res = await fetch('https://api.github.com/user', {
