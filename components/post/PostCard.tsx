@@ -59,9 +59,19 @@ export function PostCard({ post }: PostCardProps) {
   // schema or a fixture that hand-rolls a PostCardData.
   const profileHref = `/${encodeURIComponent(author.username)}`
   const initial = author.display_name.trim().charAt(0).toUpperCase() || '?'
+  const cardHref = postUrl(author.username, post.type, post.slug)
 
   return (
-    <article className="post-card">
+    // `data-feed-card` + `data-href` opt this card into the j/k/Enter
+    // keyboard nav (see <KeyboardFeedNav />). `tabIndex={-1}` keeps the
+    // card out of the normal Tab order — it only gains focus via the
+    // wrapper's programmatic focus() call.
+    <article
+      className="post-card"
+      data-feed-card
+      data-href={cardHref}
+      tabIndex={-1}
+    >
       <header className="post-card__header">
         <Link href={profileHref} className="post-card__avatar-link" aria-label={author.display_name}>
           {author.avatar_url ? (
@@ -102,7 +112,7 @@ export function PostCard({ post }: PostCardProps) {
       {/* h2 (not h3) so the document outline goes h1 (page title) → h2
           (card title) without skipping a level — axe heading-order. */}
       <h2 className="post-card__title">
-        <Link href={postUrl(author.username, post.type, post.slug)}>{post.title}</Link>
+        <Link href={cardHref}>{post.title}</Link>
       </h2>
 
       {post.summary && <p className="post-card__summary">{post.summary}</p>}

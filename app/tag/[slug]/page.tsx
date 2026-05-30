@@ -14,6 +14,7 @@ import {
   type TimeFilter,
 } from '@/lib/feed/tag-filters'
 import { PostCard, type PostCardData } from '@/components/post/PostCard'
+import { KeyboardFeedNav } from '@/components/keyboard/KeyboardFeedNav'
 
 const PAGE_SIZE = 30
 /**
@@ -320,13 +321,15 @@ export default async function TagPage({
           {isFirstPage ? 'No posts tagged this yet.' : 'No more posts.'}
         </p>
       ) : (
-        <ul className="home-feed__list">
-          {cards.map((c) => (
-            <li key={c.id} className="home-feed__item">
-              <PostCard post={c} />
-            </li>
-          ))}
-        </ul>
+        <KeyboardFeedNav>
+          <ul className="home-feed__list">
+            {cards.map((c) => (
+              <li key={c.id} className="home-feed__item">
+                <PostCard post={c} />
+              </li>
+            ))}
+          </ul>
+        </KeyboardFeedNav>
       )}
 
       {olderHref && (

@@ -18,6 +18,7 @@ import {
   type TagInfo,
 } from '@/lib/feed/hydrate'
 import { PostCard, type PostCardData } from '@/components/post/PostCard'
+import { KeyboardFeedNav } from '@/components/keyboard/KeyboardFeedNav'
 
 export const metadata: Metadata = {
   title: 'agentlab.in',
@@ -154,13 +155,15 @@ export default async function HomePage() {
       {cards.length === 0 ? (
         <p className="home-feed__empty">Nothing here yet. Be the first to publish.</p>
       ) : (
-        <ul className="home-feed__list">
-          {cards.map((c) => (
-            <li key={c.id} className="home-feed__item">
-              <PostCard post={c} />
-            </li>
-          ))}
-        </ul>
+        <KeyboardFeedNav>
+          <ul className="home-feed__list">
+            {cards.map((c) => (
+              <li key={c.id} className="home-feed__item">
+                <PostCard post={c} />
+              </li>
+            ))}
+          </ul>
+        </KeyboardFeedNav>
       )}
 
       <p className="home-feed__more">

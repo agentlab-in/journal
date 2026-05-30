@@ -4,6 +4,7 @@ import { getSession } from '@/lib/auth'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { listUserBookmarks } from '@/lib/bookmarks/list'
 import { ProfilePostCard } from '@/components/profile/ProfilePostCard'
+import { KeyboardFeedNav } from '@/components/keyboard/KeyboardFeedNav'
 
 export const metadata: Metadata = {
   title: 'Bookmarks — agentlab.in',
@@ -30,27 +31,29 @@ export default async function BookmarksPage() {
           Bookmark posts to revisit them here.
         </p>
       ) : (
-        <ul className="profile-follow-page__list">
-          {bookmarks.map((b) => (
-            <li key={b.id}>
-              <ProfilePostCard
-                username={b.author.username}
-                post={{
-                  id: b.id,
-                  type: b.type,
-                  slug: b.slug,
-                  title: b.title,
-                  summary: b.summary,
-                  cover_image_url: b.cover_image_url,
-                  published_at: b.published_at,
-                  view_count: b.view_count,
-                  comment_count: b.comment_count,
-                  tags: [],
-                }}
-              />
-            </li>
-          ))}
-        </ul>
+        <KeyboardFeedNav>
+          <ul className="profile-follow-page__list">
+            {bookmarks.map((b) => (
+              <li key={b.id}>
+                <ProfilePostCard
+                  username={b.author.username}
+                  post={{
+                    id: b.id,
+                    type: b.type,
+                    slug: b.slug,
+                    title: b.title,
+                    summary: b.summary,
+                    cover_image_url: b.cover_image_url,
+                    published_at: b.published_at,
+                    view_count: b.view_count,
+                    comment_count: b.comment_count,
+                    tags: [],
+                  }}
+                />
+              </li>
+            ))}
+          </ul>
+        </KeyboardFeedNav>
       )}
     </main>
   )
