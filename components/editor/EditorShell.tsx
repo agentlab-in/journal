@@ -595,6 +595,7 @@ export function EditorShell({
       >
         <button
           type="button"
+          id="editor-tab-write"
           role="tab"
           aria-selected={view === 'edit'}
           aria-controls="editor-pane-write"
@@ -609,6 +610,7 @@ export function EditorShell({
         </button>
         <button
           type="button"
+          id="editor-tab-preview"
           role="tab"
           aria-selected={view === 'preview'}
           aria-controls="editor-pane-preview"
