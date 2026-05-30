@@ -1577,3 +1577,66 @@ body {
   color: var(--fg);
   text-decoration: underline;
 }
+
+/* ============================================================
+   /tag/[slug] — tag page header, breadcrumb, filter chips
+   ============================================================ */
+
+.tag-page__header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.tag-page__breadcrumb {
+  font-size: 0.8125rem;
+  color: var(--fg-subtle);
+}
+
+.tag-page__breadcrumb a {
+  color: var(--fg-subtle);
+  text-decoration: none;
+}
+
+.tag-page__breadcrumb a:hover {
+  color: var(--fg);
+  text-decoration: underline;
+}
+
+.tag-page__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-top: 0.25rem;
+}
+
+.filter-chip {
+  display: inline-block;
+  padding: 0.1875rem 0.625rem;
+  font-size: 0.8125rem;
+  color: var(--fg-subtle);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  text-decoration: none;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.filter-chip:hover {
+  background: var(--bg-hover);
+  color: var(--fg);
+}
+
+.filter-chip--active {
+  background: var(--fg);
+  color: var(--bg);
+  border-color: var(--fg);
+  font-weight: 600;
+}
+
+.filter-chip--active:hover {
+  background: var(--fg);
+  color: var(--bg);
+}
