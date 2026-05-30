@@ -1,9 +1,10 @@
 'use client'
 
 /**
- * Root route-level error boundary. Catches anything that escapes the
- * per-segment error.tsx files (or anything thrown above them). Renders
- * friendly copy + try-again + home link.
+ * Route-level error boundary for /[username]/* — profile pages,
+ * followers/following lists, and any other segment nested under a
+ * profile route. Renders friendly copy + a try-again button without
+ * surfacing the underlying Error message or stack trace.
  *
  * Note: never render `error.message` / `error.stack`. The `digest` is
  * the Next.js correlation id and is safe to expose for support.
@@ -12,7 +13,7 @@
 import { useEffect } from 'react'
 import Link from 'next/link'
 
-export default function Error({
+export default function ProfileError({
   error,
   reset,
 }: {
@@ -20,7 +21,6 @@ export default function Error({
   reset: () => void
 }) {
   useEffect(() => {
-    // Log to console for now — error tracking (Sentry etc.) is out of scope for v1.
     console.error(error)
   }, [error])
 
@@ -28,10 +28,10 @@ export default function Error({
     <main id="main-content" className="flex flex-1 flex-col items-center justify-center px-6 py-24 text-center">
       <p className="font-mono text-sm text-fg-subtle">500</p>
       <h1 className="mt-2 font-mono text-2xl font-black lowercase tracking-tight text-fg">
-        something went wrong
+        couldn&apos;t load this profile
       </h1>
       <p className="mt-3 text-sm text-fg-subtle">
-        An unexpected error occurred. Please try again.
+        Something went wrong while loading this profile. Please try again.
       </p>
       <div className="mt-6 flex items-center gap-4">
         <button
