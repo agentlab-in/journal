@@ -25,7 +25,7 @@
  * We inject an explicit fill color into a clone of the SVG before
  * rasterizing each variant so the contrast lands where we want it.
  */
-import { readFile, writeFile } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 import sharp from 'sharp'
