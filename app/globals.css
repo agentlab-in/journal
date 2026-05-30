@@ -708,6 +708,14 @@ body {
 
 .post-body {
   font-size: 1rem;
+  /* Phase 13 mobile audit: explicit prose line-length cap. The article
+   * container already maxes at 720px, but a stricter 70ch keeps long-form
+   * paragraphs in the comfortable 50-75ch readability zone on viewports
+   * where 720px is the full width. Centered so wide ancestors still feel
+   * balanced. */
+  max-width: 70ch;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .post-body > * + * {
