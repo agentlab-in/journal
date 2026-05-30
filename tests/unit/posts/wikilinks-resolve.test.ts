@@ -18,8 +18,8 @@ function rowToDbShape(r: Row) {
     slug: r.slug,
     type: r.type,
     published_at: r.published_at,
+    like_count: r.like_count,
     users: { username: r.username },
-    likes: [{ count: r.like_count }],
   }
 }
 
