@@ -137,6 +137,36 @@ describe('searchUsers()', () => {
     expect(usersChain.ilike).toHaveBeenCalledWith('username', '%test%')
   })
 
+  it('escapes LIKE metacharacters in the query', async () => {
+    const usersChain = {
+      select: vi.fn().mockReturnThis(),
+      ilike: vi.fn().mockReturnThis(),
+      order: vi.fn().mockReturnThis(),
+      limit: vi.fn(async () => ({ data: [], error: null })),
+      in: vi.fn(async () => ({ data: [], error: null })),
+    }
+
+    currentFakeClient = {
+      from: vi.fn((table: string) => {
+        if (table === 'users') return usersChain
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          in: vi.fn().mockReturnThis(),
+          order: vi.fn().mockReturnThis(),
+          limit: vi.fn(async () => ({ data: [], error: null })),
+        }
+      }),
+    }
+
+    await searchUsers({ q: 'a_b%c\\d' })
+
+    expect(usersChain.ilike).toHaveBeenCalledWith(
+      'username',
+      '%a\\_b\\%c\\\\d%',
+    )
+  })
+
   it('returns user rows with correct shape', async () => {
     currentFakeClient = makeFakeClient()
 

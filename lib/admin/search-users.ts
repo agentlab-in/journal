@@ -41,11 +41,13 @@ export async function searchUsers(
   const admin = createAdminSupabaseClient()
 
   // Search by username ILIKE — username = lower(github_login) at sync time
-  // so this covers github_login as well.
+  // so this covers github_login as well. Escape SQL LIKE metacharacters so
+  // an admin search like "user_name" doesn't widen to "user<any>name".
+  const escaped = q.replace(/[\\%_]/g, (m) => `\\${m}`)
   const { data, error } = await admin
     .from('users')
     .select('id, username, display_name, banned_at, banned_reason, created_at')
-    .ilike('username', `%${q}%`)
+    .ilike('username', `%${escaped}%`)
     .order('username', { ascending: true })
     .limit(limit)
 

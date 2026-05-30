@@ -140,14 +140,12 @@ export default async function AdminAuditPage({
                   </td>
                   <td className="py-2 pr-4 font-mono">{row.action}</td>
                   <td className="py-2 pr-4">
-                    <button
-                      onClick={undefined}
+                    <Link
+                      href={`/admin/audit?target_type=${encodeURIComponent(row.target_type)}${actor ? `&actor=${encodeURIComponent(actor)}` : ''}`}
                       className="underline text-fg-subtle hover:text-fg"
                     >
-                      <Link href={`/admin/audit?target_type=${encodeURIComponent(row.target_type)}`}>
-                        {row.target_type}
-                      </Link>
-                    </button>
+                      {row.target_type}
+                    </Link>
                   </td>
                   <td className="py-2 pr-4 font-mono text-fg-subtle">
                     {row.target_id.slice(0, 12)}…
