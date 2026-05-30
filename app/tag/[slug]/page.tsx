@@ -253,7 +253,7 @@ async function TagPostsList({
     <>
       {cards.length === 0 ? (
         <p className="home-feed__empty">
-          {isFirstPage ? 'No posts tagged this yet.' : 'No more posts.'}
+          {isFirstPage ? 'No posts tagged here yet.' : 'No more posts.'}
         </p>
       ) : (
         <KeyboardFeedNav>

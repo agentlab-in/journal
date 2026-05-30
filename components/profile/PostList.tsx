@@ -100,7 +100,7 @@ export function PostList({
       </div>
 
       {visible.length === 0 ? (
-        <p className="profile-posts__empty">No posts to show.</p>
+        <p className="profile-posts__empty">No posts yet.</p>
       ) : (
         <KeyboardFeedNav>
           <ul className="profile-posts__list">

@@ -62,7 +62,7 @@ export default async function AdminReportsPage({
       <h2 className="font-mono text-lg font-semibold mb-4">Unresolved reports</h2>
 
       {rows.length === 0 ? (
-        <p className="text-fg-subtle text-sm">No unresolved reports.</p>
+        <p className="text-fg-subtle text-sm">All caught up. No open reports.</p>
       ) : (
         <div className="flex flex-col gap-4">
           {rows.map((r: ReportListRow) => {

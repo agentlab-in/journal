@@ -147,7 +147,12 @@ async function FeedList({ viewerId }: { viewerId: string | null }) {
   const cards = buildCards(rows, authorMap, tagNameMap, anonTagMap)
 
   if (cards.length === 0) {
-    return <p className="home-feed__empty">Nothing here yet. Be the first to publish.</p>
+    return (
+      <p className="home-feed__empty">
+        Follow people or wait while the feed warms up. Start with{' '}
+        <Link href="/tags">/tags</Link>.
+      </p>
+    )
   }
 
   return (

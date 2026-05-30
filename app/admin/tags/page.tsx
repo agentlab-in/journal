@@ -37,7 +37,7 @@ export default async function AdminTagsPage({
       <h2 className="font-mono text-lg font-semibold mb-4">Pending tags</h2>
 
       {rows.length === 0 ? (
-        <p className="text-fg-subtle text-sm">No pending tags.</p>
+        <p className="text-fg-subtle text-sm">No tags pending approval.</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
