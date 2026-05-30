@@ -33,6 +33,10 @@ vi.mock('@/components/posts/PostBody', () => ({
   PostBody: ({ html }: { html: string }) =>
     React.createElement('div', { 'data-testid': 'post-body', dangerouslySetInnerHTML: { __html: html } }),
 }))
+vi.mock('@/components/posts/PostBodyStatic', () => ({
+  PostBodyStatic: ({ html }: { html: string }) =>
+    React.createElement('div', { 'data-testid': 'post-body-static', dangerouslySetInnerHTML: { __html: html } }),
+}))
 vi.mock('@/components/posts/StructuredSections', () => ({
   StructuredSections: () => React.createElement('div', { 'data-testid': 'structured-sections' }),
 }))
