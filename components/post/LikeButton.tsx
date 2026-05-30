@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 export interface LikeButtonProps {
@@ -86,9 +86,34 @@ export function LikeButton({
     }
   }
 
+  // Phase 13 polish: pair the sr-only revert announcement with a
+  // visual shake on the button itself. Toggling a class for ~400ms
+  // (the shake's duration) and then removing it re-arms the animation
+  // for the next failure. Direct DOM manipulation via a ref avoids
+  // remounting the button (which would steal keyboard focus on every
+  // retry and lose `disabled` state mid-flight).
+  // Reduced-motion users get the no-op fallback declared in
+  // app/globals.css (the class still toggles, but the animation
+  // rule resolves to `animation: none`).
+  const buttonRef = useRef<HTMLButtonElement | null>(null)
+  useEffect(() => {
+    if (revert.n === 0) return
+    const node = buttonRef.current
+    if (!node) return
+    node.classList.add('shake-on-revert')
+    const id = window.setTimeout(() => {
+      node.classList.remove('shake-on-revert')
+    }, 400)
+    return () => {
+      window.clearTimeout(id)
+      node.classList.remove('shake-on-revert')
+    }
+  }, [revert.n])
+
   return (
     <>
       <button
+        ref={buttonRef}
         type="button"
         onClick={onClick}
         disabled={pending}

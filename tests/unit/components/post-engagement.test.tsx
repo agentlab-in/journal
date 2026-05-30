@@ -188,6 +188,113 @@ describe('<LikeButton>', () => {
 // BookmarkButton
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Shake-on-revert visual treatment (Phase 13 polish)
+// ---------------------------------------------------------------------------
+
+describe('Phase 13: shake-on-revert visual', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('LikeButton: failed click adds .shake-on-revert and removes it after ~400ms', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => ({ error: 'like_failed' }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    render(
+      <LikeButton
+        postId="post-1"
+        initialLiked={false}
+        initialCount={3}
+        isSignedIn
+        currentPath="/alice/post/hello"
+      />,
+    )
+
+    const btn = screen.getByRole('button', { name: /like/i })
+    expect(btn).not.toHaveClass('shake-on-revert')
+
+    fireEvent.click(btn)
+
+    // The revert path runs after the fetch settles. Drain microtasks to
+    // let the awaited fetch + useEffect schedule the class toggle.
+    await vi.waitFor(
+      () => expect(btn).toHaveClass('shake-on-revert'),
+      { timeout: 1000 },
+    )
+
+    // Advance past the shake duration; class is removed.
+    vi.advanceTimersByTime(401)
+    expect(btn).not.toHaveClass('shake-on-revert')
+  })
+
+  it('BookmarkButton: failed click adds .shake-on-revert and removes it after ~400ms', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => ({ error: 'bookmark_failed' }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    render(
+      <BookmarkButton
+        postId="post-1"
+        initialBookmarked={false}
+        isSignedIn
+        currentPath="/alice/post/hello"
+      />,
+    )
+
+    const btn = screen.getByRole('button', { name: /^bookmark post$/i })
+    expect(btn).not.toHaveClass('shake-on-revert')
+
+    fireEvent.click(btn)
+
+    await vi.waitFor(
+      () => expect(btn).toHaveClass('shake-on-revert'),
+      { timeout: 1000 },
+    )
+
+    vi.advanceTimersByTime(401)
+    expect(btn).not.toHaveClass('shake-on-revert')
+  })
+
+  it('LikeButton: successful click does NOT shake', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ liked: true, like_count: 4 }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    render(
+      <LikeButton
+        postId="post-1"
+        initialLiked={false}
+        initialCount={3}
+        isSignedIn
+        currentPath="/alice/post/hello"
+      />,
+    )
+
+    const btn = screen.getByRole('button', { name: /like/i })
+    fireEvent.click(btn)
+
+    // Settle any pending fetch + microtasks.
+    await Promise.resolve()
+    await Promise.resolve()
+    vi.advanceTimersByTime(500)
+    expect(btn).not.toHaveClass('shake-on-revert')
+  })
+})
+
 describe('<BookmarkButton>', () => {
   it('anon click routes to /auth/signin with the encoded callbackUrl and does NOT call fetch', () => {
     const mockFetch = vi.fn()

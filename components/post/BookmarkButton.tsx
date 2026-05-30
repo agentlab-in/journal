@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 export interface BookmarkButtonProps {
@@ -73,9 +73,27 @@ export function BookmarkButton({
     }
   }
 
+  // Phase 13 polish: shake-on-revert visual. See LikeButton for the
+  // rationale on direct DOM toggling vs. re-key remounting.
+  const buttonRef = useRef<HTMLButtonElement | null>(null)
+  useEffect(() => {
+    if (revert.n === 0) return
+    const node = buttonRef.current
+    if (!node) return
+    node.classList.add('shake-on-revert')
+    const id = window.setTimeout(() => {
+      node.classList.remove('shake-on-revert')
+    }, 400)
+    return () => {
+      window.clearTimeout(id)
+      node.classList.remove('shake-on-revert')
+    }
+  }, [revert.n])
+
   return (
     <>
       <button
+        ref={buttonRef}
         type="button"
         onClick={onClick}
         disabled={pending}

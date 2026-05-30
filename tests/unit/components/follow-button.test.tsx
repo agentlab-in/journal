@@ -183,3 +183,49 @@ describe('<FollowButton>', () => {
     )
   })
 })
+
+// ---------------------------------------------------------------------------
+// Shake-on-revert visual treatment (Phase 13 polish)
+// ---------------------------------------------------------------------------
+
+describe('<FollowButton> shake-on-revert', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('failed click adds .shake-on-revert and removes it after ~400ms', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => ({ error: 'follow_failed' }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    render(
+      <FollowButton
+        targetUserId="user-2"
+        username="alice"
+        initialFollowing={false}
+        isSignedIn
+        currentPath="/alice"
+      />,
+    )
+
+    const btn = screen.getByRole('button', { name: /follow @alice/i })
+    expect(btn).not.toHaveClass('shake-on-revert')
+
+    fireEvent.click(btn)
+
+    await vi.waitFor(
+      () => expect(btn).toHaveClass('shake-on-revert'),
+      { timeout: 1000 },
+    )
+
+    vi.advanceTimersByTime(401)
+    expect(btn).not.toHaveClass('shake-on-revert')
+  })
+})
