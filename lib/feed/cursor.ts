@@ -27,15 +27,23 @@ export interface FeedCursor {
 }
 
 /**
- * Characters that are safe to drop into a PostgREST `.or(...)` filter
- * string without any further escaping. UUIDs (`[0-9a-f-]`) and ISO
- * timestamps (`[0-9T:.+-Z]`) both fit comfortably inside this set; any
- * cursor with a character outside it is treated as poisoned and rejected.
+ * The cursor encodes a `posts.id` (UUID) and a `posts.published_at`
+ * (ISO-8601 timestamp). We validate each against its strict shape so that
+ * a poisoned cursor can't smuggle a comma, parenthesis, or operator token
+ * into the PostgREST `.or(...)` filter string we build in `applyCursor`.
+ * UUID-only / ISO-only is stricter than necessary for raw safety, but it
+ * matches what `encodeCursor`'s callers ever produce, and the doc claim
+ * ("PostgREST filter smuggling impossible") is then literally true.
  */
-const CURSOR_FIELD_SAFE_RE = /^[A-Za-z0-9:.\-T+Z]+$/
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const ISO_TS_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})$/
 
-function isSafeCursorField(value: string): boolean {
-  return CURSOR_FIELD_SAFE_RE.test(value)
+function isSafeId(value: string): boolean {
+  return UUID_RE.test(value)
+}
+
+function isSafePublishedAt(value: string): boolean {
+  return ISO_TS_RE.test(value)
 }
 
 /** Base64url-encode a cursor for use as a URL query param. */
@@ -70,7 +78,7 @@ export function decodeCursor(raw: string): FeedCursor | null {
   if (typeof published_at !== 'string' || typeof id !== 'string') return null
   if (id.length === 0) return null
   if (Number.isNaN(new Date(published_at).getTime())) return null
-  if (!isSafeCursorField(published_at) || !isSafeCursorField(id)) return null
+  if (!isSafePublishedAt(published_at) || !isSafeId(id)) return null
   return { published_at, id }
 }
 
@@ -94,7 +102,7 @@ export function applyCursor<T extends { or: (...args: unknown[]) => T }>(
   cursor: FeedCursor | null | undefined,
 ): T {
   if (!cursor) return chain
-  if (!isSafeCursorField(cursor.published_at) || !isSafeCursorField(cursor.id)) {
+  if (!isSafePublishedAt(cursor.published_at) || !isSafeId(cursor.id)) {
     throw new Error('applyCursor: cursor contains unsafe characters')
   }
   return chain.or(

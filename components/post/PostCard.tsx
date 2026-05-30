@@ -54,7 +54,10 @@ export interface PostCardProps {
 
 export function PostCard({ post }: PostCardProps) {
   const { author } = post
-  const profileHref = `/${author.username}`
+  // Defense-in-depth: usernames are DB-validated to a strict regex, but
+  // encoding here makes PostCard safe against any future loosening of the
+  // schema or a fixture that hand-rolls a PostCardData.
+  const profileHref = `/${encodeURIComponent(author.username)}`
   const initial = author.display_name.trim().charAt(0).toUpperCase() || '?'
 
   return (
@@ -106,7 +109,7 @@ export function PostCard({ post }: PostCardProps) {
         <ul className="post-card__tags">
           {post.tags.slice(0, 2).map((t) => (
             <li key={t.slug}>
-              <Link href={`/tag/${t.slug}`} className="tag-chip">
+              <Link href={`/tag/${encodeURIComponent(t.slug)}`} className="tag-chip">
                 #{t.name}
               </Link>
             </li>
