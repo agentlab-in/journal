@@ -50,6 +50,18 @@ vi.mock('@/components/posts/AuthorActions', () => ({
   AuthorActions: ({ postId }: { postId: string }) =>
     React.createElement('div', { 'data-testid': 'author-actions', 'data-post-id': postId }),
 }))
+vi.mock('@/components/post/LikeButton', () => ({
+  LikeButton: () => React.createElement('div', { 'data-testid': 'like-button' }),
+}))
+vi.mock('@/components/post/BookmarkButton', () => ({
+  BookmarkButton: () => React.createElement('div', { 'data-testid': 'bookmark-button' }),
+}))
+vi.mock('@/lib/posts/engagement', () => ({
+  getEngagementState: vi.fn(async () => ({ liked: false, bookmarked: false })),
+}))
+vi.mock('@/lib/supabase/admin', () => ({
+  createAdminSupabaseClient: vi.fn(() => ({})),
+}))
 vi.mock('next/link', () => ({
   default: ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) =>
     React.createElement('a', { href, className }, children),
@@ -111,6 +123,7 @@ const BASE_POST: LookedUpPost = {
   structured_sections: null,
   view_count: 10,
   comment_count: 0,
+  like_count: 0,
   published_at: '2026-01-01T00:00:00Z',
   edited_at: null,
   author: {

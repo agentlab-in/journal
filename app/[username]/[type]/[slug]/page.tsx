@@ -3,13 +3,17 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { getSession, resolveIsAdmin } from '@/lib/auth'
 import { getCachedPost } from '@/lib/posts/lookup'
+import { getEngagementState } from '@/lib/posts/engagement'
 import { postUrl } from '@/lib/posts/url'
+import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { PostBody } from '@/components/posts/PostBody'
 import { StructuredSections } from '@/components/posts/StructuredSections'
 import { ViewBeacon } from '@/components/posts/ViewBeacon'
 import { AuthorActions } from '@/components/posts/AuthorActions'
 import { Backlinks } from '@/components/posts/Backlinks'
 import { CommentsSection } from '@/components/post/CommentsSection'
+import { LikeButton } from '@/components/post/LikeButton'
+import { BookmarkButton } from '@/components/post/BookmarkButton'
 
 interface PageParams {
   username: string
@@ -78,12 +82,23 @@ export default async function PostPage({
 
   const session = await getSession()
   const isOwner = session?.user?.id === post.author_id
+  const isSignedIn = !!session?.user?.id
 
   // Admin check: if signed in but not owner, resolve via helper
   let isAdminUser = false
   if (session?.user?.id && !isOwner) {
     isAdminUser = await resolveIsAdmin(session.user.id)
   }
+
+  // Resolve viewer's like + bookmark state for this post. Anon viewers
+  // short-circuit to {false,false} without touching the DB.
+  const engagement = await getEngagementState({
+    admin: createAdminSupabaseClient(),
+    postId: post.id,
+    userId: session?.user?.id,
+  })
+
+  const canonicalPath = postUrl(post.author.username, post.type, post.slug)
 
   return (
     <article className="post-page">
@@ -134,6 +149,20 @@ export default async function PostPage({
             {post.comment_count}{' '}
             {post.comment_count === 1 ? 'comment' : 'comments'}
           </span>
+          <span aria-hidden="true"> · </span>
+          <LikeButton
+            postId={post.id}
+            initialLiked={engagement.liked}
+            initialCount={post.like_count}
+            isSignedIn={isSignedIn}
+            currentPath={canonicalPath}
+          />
+          <BookmarkButton
+            postId={post.id}
+            initialBookmarked={engagement.bookmarked}
+            isSignedIn={isSignedIn}
+            currentPath={canonicalPath}
+          />
         </div>
         {(isOwner || isAdminUser) && <AuthorActions postId={post.id} />}
       </header>

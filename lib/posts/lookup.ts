@@ -22,6 +22,7 @@ export interface LookedUpPost {
   structured_sections: Record<string, string | null> | null
   view_count: number
   comment_count: number
+  like_count: number
   published_at: string
   edited_at: string | null
   author: {
@@ -63,6 +64,7 @@ interface PostRow {
   structured_sections: Record<string, string | null> | null
   view_count: number
   comment_count: number
+  like_count: number
   published_at: string
   edited_at: string | null
   deleted_at: string | null
@@ -107,7 +109,7 @@ export async function lookupPost(
     .from('posts')
     .select(
       `id, author_id, type, slug, title, summary, body_html,
-      cover_image_url, structured_sections, view_count, comment_count,
+      cover_image_url, structured_sections, view_count, comment_count, like_count,
       published_at, edited_at, deleted_at,
       post_tags(tag_slug, tags(slug, name, is_approved))`,
     )
@@ -142,6 +144,7 @@ export async function lookupPost(
     structured_sections: post.structured_sections,
     view_count: post.view_count,
     comment_count: post.comment_count ?? 0,
+    like_count: post.like_count ?? 0,
     published_at: post.published_at,
     edited_at: post.edited_at,
     author: {
