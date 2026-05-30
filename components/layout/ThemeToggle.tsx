@@ -4,6 +4,11 @@ import { useCallback, useSyncExternalStore } from 'react'
 
 type Theme = 'light' | 'dark'
 
+// Shared with the pre-hydration script in app/layout.tsx — kept literal in
+// both spots so this file has no runtime dependency on the layout import
+// graph (which would make it harder to test in isolation).
+const THEME_STORAGE_KEY = 'theme'
+
 function getThemeSnapshot(): Theme {
   const current = document.documentElement.getAttribute('data-theme') as Theme | null
   if (current === 'light' || current === 'dark') return current
@@ -34,7 +39,15 @@ export default function ThemeToggle() {
   const toggle = useCallback(() => {
     const next: Theme = theme === 'light' ? 'dark' : 'light'
     document.documentElement.setAttribute('data-theme', next)
-    // Note: localStorage persistence is deferred to Phase 13.
+    // Persist so the next visit / next page reload picks up the choice
+    // and the pre-hydration script in app/layout.tsx skips the system
+    // fallback. Wrapped in try/catch because Safari private mode and
+    // some embedded webviews throw on localStorage access.
+    try {
+      window.localStorage.setItem(THEME_STORAGE_KEY, next)
+    } catch {
+      // Ignore — toggling still works in-session via the data-theme attr.
+    }
   }, [theme])
 
   // Render a stable placeholder during SSR and before hydration to avoid

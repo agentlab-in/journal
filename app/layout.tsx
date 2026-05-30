@@ -32,13 +32,42 @@ export const metadata: Metadata = {
   },
 }
 
+// Pre-hydration theme script — runs synchronously in <head> before React
+// mounts so the correct `data-theme` lands on <html> on the very first
+// paint. Without it, a returning dark-mode user briefly flashes the
+// system/default theme (FOUC) until <ThemeToggle> re-reads localStorage.
+// Phase 13: localStorage key is `theme` (kept short so it reads cleanly
+// in devtools and isn't tied to the app's marketing name).
+const THEME_INIT_SCRIPT = `(function(){
+  try {
+    var t = localStorage.getItem('theme');
+    if (t !== 'light' && t !== 'dark') {
+      t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    document.documentElement.setAttribute('data-theme', t);
+  } catch (e) {}
+})();`
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={jetbrainsMono.variable}>
+    <html
+      lang="en"
+      className={jetbrainsMono.variable}
+      // The pre-hydration script below sets data-theme on <html> before
+      // React mounts. Without suppressHydrationWarning, React would flag
+      // the server (no data-theme) vs. client (data-theme="light"|"dark")
+      // mismatch on every page load. The mismatch is intentional and the
+      // attribute change is invisible to the React tree.
+      suppressHydrationWarning
+    >
+      <head>
+        {/* Must run before paint to avoid theme flash. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="flex min-h-screen flex-col">
         {/* Skip-to-content link: invisible until keyboard focus, then
             pinned to the top-left so a sighted keyboard user can jump
