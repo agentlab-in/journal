@@ -40,6 +40,19 @@ export function ReportModal({ targetType, targetId, onClose }: ReportModalProps)
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [isSubmitting, onClose])
 
+  // Restore focus to whichever element opened the modal once it
+  // unmounts. Captures the active element at mount time and refocuses
+  // on cleanup. Defensive `instanceof HTMLElement` so we don't crash
+  // if focus moved to an SVG / non-element node in the interim.
+  useEffect(() => {
+    const trigger = document.activeElement
+    return () => {
+      if (trigger instanceof HTMLElement) {
+        trigger.focus()
+      }
+    }
+  }, [])
+
   function handleOverlayClick(e: React.MouseEvent<HTMLDivElement>) {
     if (!isSubmitting && e.target === overlayRef.current) {
       onClose()

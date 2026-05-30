@@ -151,6 +151,27 @@ export const DraftManager = forwardRef<DraftManagerHandle, DraftManagerProps>(
       setModal(null)
     }, [pendingDraft, onRestore])
 
+    // Esc closes whichever modal is open. We pick the *non-destructive*
+    // outcome by default — restore prompt: keep the existing draft on
+    // disk and dismiss the prompt (equivalent to clicking the X on a
+    // typical dialog); conflict prompt: keep the local draft (the user
+    // hasn't told us they want to lose it).
+    useEffect(() => {
+      if (modal === null) return
+      function onKeyDown(e: KeyboardEvent) {
+        if (e.key !== 'Escape') return
+        if (modal === 'restore') {
+          // Dismiss without clearing — they may want to restore later
+          // in the same session if they reload again.
+          setModal(null)
+        } else if (modal === 'conflict') {
+          handleKeepLocal()
+        }
+      }
+      document.addEventListener('keydown', onKeyDown)
+      return () => document.removeEventListener('keydown', onKeyDown)
+    }, [modal, handleKeepLocal])
+
     // Stash the latest form state in a ref so saveNow() always saves the
     // up-to-date snapshot without forcing the imperative handle to
     // re-create on every keystroke (which would re-attach the ref on the
