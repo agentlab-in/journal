@@ -99,9 +99,11 @@ export function PostCard({ post }: PostCardProps) {
         <span className={`type-chip type-chip--${post.type} post-card__type`}>{post.type}</span>
       </header>
 
-      <h3 className="post-card__title">
+      {/* h2 (not h3) so the document outline goes h1 (page title) → h2
+          (card title) without skipping a level — axe heading-order. */}
+      <h2 className="post-card__title">
         <Link href={postUrl(author.username, post.type, post.slug)}>{post.title}</Link>
-      </h3>
+      </h2>
 
       {post.summary && <p className="post-card__summary">{post.summary}</p>}
 
