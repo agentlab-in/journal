@@ -36,6 +36,11 @@ vi.mock('next/link', () => ({
   }) => React.createElement('a', { href, className }, children),
 }))
 
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => '/test-post',
+}))
+
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { CommentsSection } from '@/components/post/CommentsSection'
 

@@ -77,6 +77,7 @@ export async function CommentsSection({ postId }: CommentsSectionProps) {
 
   const session = await getSession()
   const currentUserId = session?.user?.id ?? null
+  const isSignedIn = currentUserId !== null
   const isAdminUser =
     currentUserId != null ? await resolveIsAdmin(currentUserId) : false
 
@@ -94,6 +95,7 @@ export async function CommentsSection({ postId }: CommentsSectionProps) {
               initialComments={[]}
               currentUserId={currentUserId}
               isAdmin={isAdminUser}
+              isSignedIn={isSignedIn}
               postId={postId}
             />
           </>
@@ -118,6 +120,7 @@ export async function CommentsSection({ postId }: CommentsSectionProps) {
         initialComments={rows}
         currentUserId={currentUserId}
         isAdmin={isAdminUser}
+        isSignedIn={isSignedIn}
         postId={postId}
       />
     </section>

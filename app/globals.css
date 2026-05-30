@@ -195,6 +195,220 @@ body {
   display: block;
 }
 
+/* ---- Report button (flag icon) ---- */
+
+.report-button {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.375rem;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  color: var(--fg-subtle);
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.report-button:hover {
+  color: var(--fg);
+  background: var(--bg-hover);
+}
+
+.report-button__icon {
+  display: block;
+}
+
+/* ---- Report modal ---- */
+
+.report-modal {
+  width: 100%;
+  max-width: 28rem;
+  border-radius: 0.375rem;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  padding: 1.25rem;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+}
+
+.report-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+
+.report-modal__title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--fg);
+}
+
+.report-modal__close {
+  font-family: inherit;
+  font-size: 1.25rem;
+  line-height: 1;
+  padding: 0.125rem 0.375rem;
+  background: transparent;
+  color: var(--fg-subtle);
+  border: none;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.report-modal__close:hover:not(:disabled) {
+  color: var(--fg);
+}
+
+.report-modal__close:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.report-modal__form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.report-modal__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.report-modal__label {
+  font-size: 0.8125rem;
+  color: var(--fg-subtle);
+}
+
+.report-modal__select {
+  font-family: inherit;
+  font-size: 0.875rem;
+  padding: 0.5rem 0.625rem;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  cursor: pointer;
+  width: 100%;
+}
+
+.report-modal__select:focus {
+  outline: none;
+  border-color: var(--fg);
+}
+
+.report-modal__select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.report-modal__textarea {
+  font-family: inherit;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  padding: 0.5rem 0.625rem;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  resize: vertical;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.report-modal__textarea:focus {
+  border-color: var(--fg);
+}
+
+.report-modal__textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.report-modal__char-count {
+  font-size: 0.75rem;
+  color: var(--fg-subtle);
+  margin: 0;
+  text-align: right;
+}
+
+.report-modal__field-error {
+  font-size: 0.75rem;
+  color: var(--fg);
+  margin: 0;
+}
+
+.report-modal__error {
+  font-size: 0.8125rem;
+  color: var(--fg);
+  border: 1px solid var(--border);
+  background: var(--bg-subtle);
+  padding: 0.375rem 0.625rem;
+  border-radius: 0.375rem;
+  margin: 0;
+}
+
+.report-modal__success {
+  font-size: 0.9375rem;
+  color: var(--fg-subtle);
+  margin: 0;
+  padding: 0.5rem 0;
+}
+
+.report-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.report-modal__cancel {
+  font-family: inherit;
+  font-size: 0.8125rem;
+  padding: 0.375rem 0.875rem;
+  background: transparent;
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.report-modal__cancel:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.report-modal__cancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.report-modal__submit {
+  font-family: inherit;
+  font-size: 0.8125rem;
+  padding: 0.375rem 0.875rem;
+  background: var(--fg);
+  color: var(--bg);
+  border: 1px solid var(--fg);
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.report-modal__submit:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.report-modal__submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .follow-button {
   display: inline-block;
   font-family: inherit;
@@ -656,6 +870,7 @@ body {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
+  gap: 0.375rem;
 }
 
 .profile-avatar {

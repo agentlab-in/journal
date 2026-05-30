@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { FollowButton } from './FollowButton'
+import { ReportButton } from '@/components/report/ReportButton'
 
 const DATE_FMT = new Intl.DateTimeFormat('en-US', {
   year: 'numeric',
@@ -80,12 +81,21 @@ export function ProfileHeader({
               Edit Profile
             </Link>
           ) : (
-            <FollowButton
-              targetUserId={targetUserId}
-              initialFollowing={initialFollowing}
-              isSignedIn={isSignedIn}
-              currentPath={currentPath}
-            />
+            <>
+              <FollowButton
+                targetUserId={targetUserId}
+                initialFollowing={initialFollowing}
+                isSignedIn={isSignedIn}
+                currentPath={currentPath}
+              />
+              <ReportButton
+                targetType="user"
+                targetId={targetUserId}
+                isSignedIn={isSignedIn}
+                currentPath={currentPath}
+                isSelf={isOwner}
+              />
+            </>
           )}
         </div>
       </div>

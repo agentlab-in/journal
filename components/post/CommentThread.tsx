@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { buildCommentTree } from '@/lib/comments/tree'
 import type { TreeNode } from '@/lib/comments/tree'
 import { formatRelativeTime } from '@/lib/comments/format-time'
@@ -10,6 +11,7 @@ import type {
   CommentFormCreatedResult,
   CommentFormEditedResult,
 } from './CommentForm'
+import { ReportButton } from '@/components/report/ReportButton'
 
 const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000
 
@@ -38,6 +40,7 @@ export interface CommentThreadProps {
   currentUserId: string | null
   isAdmin: boolean
   postId: string
+  isSignedIn?: boolean
   // Inject `now` for deterministic tests of the 24h edit window.
   nowMs?: number
 }
@@ -47,6 +50,7 @@ export function CommentThread({
   currentUserId,
   isAdmin,
   postId,
+  isSignedIn = false,
   nowMs,
 }: CommentThreadProps) {
   const [comments, setComments] = useState<ThreadComment[]>(initialComments)
@@ -132,6 +136,7 @@ export function CommentThread({
               postId={postId}
               currentUserId={currentUserId}
               isAdmin={isAdmin}
+              isSignedIn={isSignedIn}
               nowMs={renderNow}
               onCreated={handleCreated}
               onEdited={handleEdited}
@@ -155,6 +160,7 @@ interface CommentNodeProps {
   postId: string
   currentUserId: string | null
   isAdmin: boolean
+  isSignedIn: boolean
   nowMs: number
   onCreated: (r: CommentFormCreatedResult) => void
   onEdited: (r: CommentFormEditedResult) => void
@@ -166,6 +172,7 @@ function CommentNode({
   postId,
   currentUserId,
   isAdmin,
+  isSignedIn,
   nowMs,
   onCreated,
   onEdited,
@@ -174,6 +181,7 @@ function CommentNode({
   const [replying, setReplying] = useState(false)
   const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const pathname = usePathname()
 
   const c = node.comment
   const isDeleted = c.deleted_at != null
@@ -296,6 +304,13 @@ function CommentNode({
               {deleting ? 'Deleting…' : 'Delete'}
             </button>
           )}
+          <ReportButton
+            targetType="comment"
+            targetId={c.id}
+            isSignedIn={isSignedIn}
+            currentPath={pathname ?? '/'}
+            isSelf={isAuthor}
+          />
         </div>
       )}
 
@@ -324,6 +339,7 @@ function CommentNode({
               postId={postId}
               currentUserId={currentUserId}
               isAdmin={isAdmin}
+              isSignedIn={isSignedIn}
               nowMs={nowMs}
               onCreated={onCreated}
               onEdited={onEdited}
