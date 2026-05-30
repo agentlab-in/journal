@@ -9,6 +9,8 @@ import { postUrl } from '@/lib/posts/url'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { PostBody } from '@/components/posts/PostBody'
 import { StructuredSections } from '@/components/posts/StructuredSections'
+import { ErrorBoundary } from '@/components/error/ErrorBoundary'
+import { MdxFailedFallback } from '@/components/error/MdxFailedFallback'
 import { ViewBeacon } from '@/components/posts/ViewBeacon'
 import { AuthorActions } from '@/components/posts/AuthorActions'
 import { Backlinks } from '@/components/posts/Backlinks'
@@ -192,7 +194,16 @@ export default async function PostPage({
 
       <StructuredSections type={post.type} sections={post.structured_sections} />
 
-      <PostBody html={post.body_html} />
+      {/* Narrow boundary around the post body MDX render — a broken
+          dangerouslySetInnerHTML payload or a mermaid hydration failure
+          should degrade to a small inline notice instead of bubbling
+          up to the route-level error page. */}
+      <ErrorBoundary
+        resetKey={post.body_html}
+        fallback={<MdxFailedFallback context="post body" />}
+      >
+        <PostBody html={post.body_html} />
+      </ErrorBoundary>
 
       <Backlinks postId={post.id} />
 

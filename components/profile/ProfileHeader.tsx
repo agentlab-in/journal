@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { FollowButton } from './FollowButton'
 import { ReportButton } from '@/components/report/ReportButton'
+import { ErrorBoundary } from '@/components/error/ErrorBoundary'
+import { MdxFailedFallback } from '@/components/error/MdxFailedFallback'
 
 const DATE_FMT = new Intl.DateTimeFormat('en-US', {
   year: 'numeric',
@@ -102,10 +104,17 @@ export function ProfileHeader({
       </div>
 
       {bioHtml && (
-        <div
-          className="profile-bio"
-          dangerouslySetInnerHTML={{ __html: bioHtml }}
-        />
+        // Narrow boundary around the rendered bio HTML — a malformed
+        // payload shouldn't take down the rest of the profile header.
+        <ErrorBoundary
+          resetKey={bioHtml}
+          fallback={<MdxFailedFallback context="bio" />}
+        >
+          <div
+            className="profile-bio"
+            dangerouslySetInnerHTML={{ __html: bioHtml }}
+          />
+        </ErrorBoundary>
       )}
 
       <div className="profile-meta">

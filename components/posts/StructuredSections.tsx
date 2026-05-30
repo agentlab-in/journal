@@ -1,5 +1,7 @@
 import type { PostType } from '@/lib/posts/url'
 import { renderToHtml } from '@/lib/posts/render'
+import { ErrorBoundary } from '@/components/error/ErrorBoundary'
+import { MdxFailedFallback } from '@/components/error/MdxFailedFallback'
 
 export interface StructuredSectionsProps {
   type: PostType
@@ -47,7 +49,15 @@ export async function StructuredSections({
       {rendered.map(({ key, label, html }) => (
         <section key={key}>
           <h2>{label}</h2>
-          <div dangerouslySetInnerHTML={{ __html: html }} />
+          {/* Per-section boundary — one broken MDX payload shouldn't
+              take down its siblings. The label scopes the fallback
+              copy ("Couldn't render this <label>"). */}
+          <ErrorBoundary
+            resetKey={html}
+            fallback={<MdxFailedFallback context={label.toLowerCase()} />}
+          >
+            <div dangerouslySetInnerHTML={{ __html: html }} />
+          </ErrorBoundary>
         </section>
       ))}
     </aside>

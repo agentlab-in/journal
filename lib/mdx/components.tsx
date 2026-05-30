@@ -6,6 +6,8 @@
 import { isValidElement, type ReactElement, type ReactNode } from 'react'
 import { fetchOEmbed } from './oembed'
 import { MermaidBlock } from './MermaidBlock'
+import { ErrorBoundary } from '@/components/error/ErrorBoundary'
+import { MdxFailedFallback } from '@/components/error/MdxFailedFallback'
 
 // ---------- Callout -----------------------------------------------------
 
@@ -184,7 +186,19 @@ function PreWithMermaid({ children, ...rest }: PreProps) {
   const codeProps = extractCodeFromPre(children)
   const cls = codeProps?.className ?? ''
   if (cls.split(/\s+/).includes('language-mermaid')) {
-    return <MermaidBlock code={nodeToString(codeProps?.children)} />
+    const code = nodeToString(codeProps?.children)
+    // MermaidBlock has internal try/catch around mermaid.render, but a
+    // sync error (failed dynamic import of mermaid, state init crash)
+    // would still bubble. Wrap so a broken diagram can never take down
+    // the surrounding MDX render.
+    return (
+      <ErrorBoundary
+        resetKey={code}
+        fallback={<MdxFailedFallback context="diagram" />}
+      >
+        <MermaidBlock code={code} />
+      </ErrorBoundary>
+    )
   }
   return (
     <pre
