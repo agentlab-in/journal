@@ -1,5 +1,14 @@
 import Link from 'next/link'
+import type { Metadata } from 'next'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
+
+// Title resolves to `Blocked — agentlab.in` via the root layout template.
+// Deliberately a single word so the suffix carries the brand reference;
+// the body copy disambiguates between sign-up vs. suspension.
+export const metadata: Metadata = {
+  title: 'Blocked',
+  robots: { index: false },
+}
 
 /**
  * Blocked page — shown when the sign-up gate rejects a GitHub account.

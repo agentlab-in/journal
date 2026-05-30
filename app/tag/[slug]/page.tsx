@@ -79,11 +79,13 @@ export async function generateMetadata({
 
   const tag = data as Pick<TagRow, 'slug' | 'name' | 'is_approved'> | null
   if (!tag || !tag.is_approved) {
-    return { title: 'Not found' }
+    return { title: { absolute: 'Not found — agentlab.in' } }
   }
 
   return {
-    title: `#${tag.name} — agentlab.in`,
+    // `title.absolute` so the layout template doesn't append a second
+    // " — agentlab.in" after the `#name — agentlab.in` we build here.
+    title: { absolute: `#${tag.name} — agentlab.in` },
     description: `Posts tagged #${tag.name} on agentlab.`,
     alternates: { canonical: `/tag/${tag.slug}` },
   }

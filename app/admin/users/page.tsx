@@ -5,7 +5,8 @@ import type { AdminUserRow, AdminModActionRow } from '@/lib/admin/search-users'
 import UserActions from '@/components/admin/UserActions'
 
 export const metadata: Metadata = {
-  title: 'Users — Admin',
+  // Resolves to `Users · Admin — agentlab.in` via the admin layout's template.
+  title: 'Users',
 }
 
 const DATE_FMT = new Intl.DateTimeFormat('en-US', {

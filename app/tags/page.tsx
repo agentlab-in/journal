@@ -4,7 +4,8 @@ import { createAnonServerSupabaseClient } from '@/lib/supabase/server'
 import { FEATURED_TAG_SLUGS } from '@/lib/search/featured-tags'
 
 export const metadata: Metadata = {
-  title: 'All tags — agentlab.in',
+  // Title resolves to `All tags — agentlab.in` via the layout template.
+  title: 'All tags',
   description: 'Browse posts on agentlab by topic.',
   alternates: { canonical: '/tags' },
 }

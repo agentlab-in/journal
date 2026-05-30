@@ -5,7 +5,8 @@ import type { ReportListRow, ReportTarget } from '@/lib/admin/list-reports'
 import ReportActions from '@/components/admin/ReportActions'
 
 export const metadata: Metadata = {
-  title: 'Reports — Admin',
+  // Resolves to `Reports · Admin — agentlab.in` via the admin layout's template.
+  title: 'Reports',
 }
 
 const DATE_FMT = new Intl.DateTimeFormat('en-US', {

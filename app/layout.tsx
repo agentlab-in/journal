@@ -15,10 +15,21 @@ const SITE_DESCRIPTION = 'Community publishing for AI agent infrastructure.'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://agentlab.in'),
-  title: 'agentlab',
+  // Phase 13 title format: `{page label} — agentlab.in` everywhere
+  // EXCEPT the home page (which uses `title.absolute: 'agentlab.in'`
+  // to bypass the template — the site name alone is the title there).
+  //
+  // Em-dash (U+2014) with one space on each side. Routes that need
+  // a multi-level hierarchy (admin sub-pages, dynamic post / profile
+  // pages) override via `title.absolute` to build their own string
+  // and avoid double-dash chains like "Tags — Admin — agentlab.in".
+  title: {
+    template: '%s — agentlab.in',
+    default: 'agentlab.in',
+  },
   description: SITE_DESCRIPTION,
   openGraph: {
-    title: 'agentlab',
+    title: 'agentlab.in',
     description: SITE_DESCRIPTION,
     siteName: 'agentlab.in',
     images: ['/og.png'],
@@ -26,7 +37,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'agentlab',
+    title: 'agentlab.in',
     description: SITE_DESCRIPTION,
     images: ['/og.png'],
   },

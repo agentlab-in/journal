@@ -23,7 +23,11 @@ import { KeyboardFeedNav } from '@/components/keyboard/KeyboardFeedNav'
 import { PostCardSkeleton } from '@/components/skeleton/PostCardSkeleton'
 
 export const metadata: Metadata = {
-  title: 'agentlab.in',
+  // Home is the one route that ISN'T `{label} — agentlab.in`. It's
+  // just the site name. `title.absolute` bypasses the layout-level
+  // `'%s — agentlab.in'` template so we don't get the awkward
+  // `'agentlab.in — agentlab.in'`.
+  title: { absolute: 'agentlab.in' },
   description: 'Community publishing for AI agent infrastructure.',
   alternates: { canonical: '/' },
 }

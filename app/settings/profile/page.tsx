@@ -5,7 +5,8 @@ import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { ProfileSettingsForm } from '@/components/profile/ProfileSettingsForm'
 
 export const metadata: Metadata = {
-  title: 'Profile settings — agentlab.in',
+  // Title resolves to `Profile settings — agentlab.in` via the layout template.
+  title: 'Profile settings',
   robots: { index: false, follow: false },
 }
 

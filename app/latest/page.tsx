@@ -9,7 +9,8 @@ import { KeyboardFeedNav } from '@/components/keyboard/KeyboardFeedNav'
 import { PostCardSkeleton } from '@/components/skeleton/PostCardSkeleton'
 
 export const metadata: Metadata = {
-  title: 'Latest — agentlab.in',
+  // Title resolves to `Latest — agentlab.in` via the layout template.
+  title: 'Latest',
   description: 'The newest posts on agentlab.',
   alternates: { canonical: '/latest' },
 }

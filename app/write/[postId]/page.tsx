@@ -11,6 +11,7 @@
  * node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/page.md.
  */
 import { redirect, notFound } from 'next/navigation'
+import type { Metadata } from 'next'
 import { getSession } from '@/lib/auth'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { ensurePublicUser } from '@/lib/users/ensure-public-user'
@@ -19,6 +20,14 @@ import type { TagOption } from '@/components/editor/TagPicker'
 import type { DraftType } from '@/lib/drafts'
 
 export const dynamic = 'force-dynamic'
+
+// Title resolves to `Edit post — agentlab.in` via the layout template.
+// We don't fetch the post title for the document title because this
+// route is no-index anyway and the editor body shows the title inline.
+export const metadata: Metadata = {
+  title: 'Edit post',
+  robots: { index: false },
+}
 
 interface PostRow {
   id: string

@@ -30,11 +30,11 @@ export async function generateMetadata({
   const { username } = await params
 
   if (username !== username.toLowerCase()) {
-    return { title: 'Redirecting…' }
+    return { title: { absolute: 'Redirecting… — agentlab.in' } }
   }
 
   const profile = await getCachedProfile(username)
-  if (!profile) return { title: 'Not found' }
+  if (!profile) return { title: { absolute: 'Not found — agentlab.in' } }
 
   const title = `${profile.display_name} (@${profile.username}) — agentlab.in`
   const description = profile.bio
@@ -43,7 +43,10 @@ export async function generateMetadata({
   const ogImage = profile.avatar_url ?? '/og.png'
 
   return {
-    title,
+    // `title.absolute` bypasses the layout-level template — we already
+    // built the canonical "… — agentlab.in" form above and don't want
+    // a second suffix.
+    title: { absolute: title },
     description,
     openGraph: {
       title,

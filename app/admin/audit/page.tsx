@@ -4,7 +4,8 @@ import { listAuditActions } from '@/lib/admin/list-audit'
 import type { AuditActionRow } from '@/lib/admin/list-audit'
 
 export const metadata: Metadata = {
-  title: 'Audit — Admin',
+  // Resolves to `Audit · Admin — agentlab.in` via the admin layout's template.
+  title: 'Audit',
 }
 
 const DATE_FMT = new Intl.DateTimeFormat('en-US', {

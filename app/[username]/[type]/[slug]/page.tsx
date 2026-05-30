@@ -49,13 +49,19 @@ export async function generateMetadata({
   const post = await getCachedPost({ username, type, slug })
 
   if (!post) {
-    return { title: 'Not found' }
+    // Bypasses the layout-level template; rendered title is just "Not found".
+    return { title: { absolute: 'Not found — agentlab.in' } }
   }
 
   const canonicalPath = postUrl(post.author.username, post.type, post.slug)
 
   return {
-    title: `${post.title} — ${post.author.display_name}`,
+    // `title.absolute` bypasses the layout-level `'%s — agentlab.in'`
+    // template — without it we'd get
+    // `"<title> — <author> — agentlab.in"` from the template plus the
+    // author suffix, which is awkward. Author byline lives in the
+    // body header where it's discoverable.
+    title: { absolute: `${post.title} — agentlab.in` },
     description: post.summary,
     openGraph: {
       title: post.title,

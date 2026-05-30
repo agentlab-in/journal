@@ -5,7 +5,9 @@ import type { PendingTagRow } from '@/lib/admin/list-tags'
 import TagActions from '@/components/admin/TagActions'
 
 export const metadata: Metadata = {
-  title: 'Tags — Admin',
+  // Resolves to `Tags · Admin — agentlab.in` via the admin layout's
+  // `'%s · Admin — agentlab.in'` template.
+  title: 'Tags',
 }
 
 const DATE_FMT = new Intl.DateTimeFormat('en-US', {

@@ -9,6 +9,7 @@
  * login.
  */
 import { redirect } from 'next/navigation'
+import type { Metadata } from 'next'
 import { getSession } from '@/lib/auth'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { ensurePublicUser } from '@/lib/users/ensure-public-user'
@@ -17,6 +18,12 @@ import { EditorShell } from '@/components/editor/EditorShell'
 // The editor is a thick client component; rendering the server shell as
 // a dynamic route saves us from caching draft-bearing markup.
 export const dynamic = 'force-dynamic'
+
+// Title resolves to `Write — agentlab.in` via the layout template.
+export const metadata: Metadata = {
+  title: 'Write',
+  robots: { index: false },
+}
 
 export default async function WritePage() {
   const session = await getSession()

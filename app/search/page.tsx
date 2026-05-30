@@ -50,8 +50,10 @@ export async function generateMetadata({
   searchParams: Promise<PageSearchParams>
 }): Promise<Metadata> {
   const parsed = parseSearchParams(await searchParams)
+  // Title resolves to `Search — agentlab.in` or `Search: <q> — agentlab.in`
+  // via the layout-level `'%s — agentlab.in'` template.
   return {
-    title: parsed.q ? `Search: ${parsed.q} — agentlab.in` : 'Search — agentlab.in',
+    title: parsed.q ? `Search: ${parsed.q}` : 'Search',
     description: 'Search posts on agentlab.',
     // Search result pages shouldn't be indexed — every variation is a
     // pseudo-page and indexing them creates infinite crawl surface.

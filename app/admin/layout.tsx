@@ -4,7 +4,15 @@ import AdminTabs from '@/components/admin/AdminTabs'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Admin — agentlab.in',
+  // Admin has its own template so children get
+  // `{section} · Admin — agentlab.in` without re-suffixing the site
+  // name twice. `title.absolute` on the layout itself bypasses the
+  // root layout's `'%s — agentlab.in'` template; the child template
+  // here applies to admin sub-pages.
+  title: {
+    absolute: 'Admin — agentlab.in',
+    template: '%s · Admin — agentlab.in',
+  },
   robots: { index: false },
 }
 

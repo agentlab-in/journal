@@ -7,7 +7,8 @@ import { ProfilePostCard } from '@/components/profile/ProfilePostCard'
 import { KeyboardFeedNav } from '@/components/keyboard/KeyboardFeedNav'
 
 export const metadata: Metadata = {
-  title: 'Bookmarks — agentlab.in',
+  // Title resolves to `Bookmarks — agentlab.in` via the layout template.
+  title: 'Bookmarks',
   robots: { index: false },
 }
 
