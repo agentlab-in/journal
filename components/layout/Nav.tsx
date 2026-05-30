@@ -2,11 +2,12 @@ import Link from 'next/link'
 import Logo from '@/components/brand/Logo'
 import ThemeToggle from './ThemeToggle'
 import NavAuth from './NavAuth'
+import NavSearch from './NavSearch'
 
 export default function Nav() {
   return (
     <nav
-      className="flex items-center justify-between border-b border-border px-6 py-4"
+      className="flex items-center justify-between gap-4 border-b border-border px-6 py-4"
       aria-label="Main navigation"
     >
       <Link
@@ -19,6 +20,8 @@ export default function Nav() {
           agentlab
         </span>
       </Link>
+
+      <NavSearch />
 
       <div className="flex items-center gap-4">
         <ThemeToggle />

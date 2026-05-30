@@ -1913,3 +1913,56 @@ body {
   padding: 0 0.125rem;
   border-radius: 0.125rem;
 }
+
+/* -----------------------------------------------------------------------------
+ * NavSearch — top-nav search input
+ *
+ * Sits between the logo and the right-hand cluster. The form is the flex item
+ * so the gap utility on <nav> still controls horizontal spacing.
+ *
+ * Desktop: fixed 12rem width, expands to 24rem on focus-within so a long
+ *          query has room to breathe without permanently dominating the bar.
+ * Mobile (<=640px): collapses to an icon-sized input (2.5rem). Tapping it
+ *          triggers :focus-within, which expands it to fill the available row.
+ * -------------------------------------------------------------------------- */
+.nav-search {
+  display: flex;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.nav-search__input {
+  font: inherit;
+  font-size: 0.875rem;
+  width: 12rem;
+  padding: 0.375rem 0.75rem;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  outline: none;
+  transition: width 150ms ease, border-color 150ms ease;
+}
+
+.nav-search__input::placeholder {
+  color: var(--fg-subtle);
+}
+
+.nav-search:focus-within .nav-search__input {
+  width: min(100%, 24rem);
+  border-color: var(--fg);
+}
+
+@media (max-width: 640px) {
+  .nav-search__input {
+    width: 2.5rem;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+
+  .nav-search:focus-within .nav-search__input {
+    width: min(100%, 18rem);
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+}
