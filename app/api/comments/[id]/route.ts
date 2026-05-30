@@ -112,7 +112,7 @@ export async function PATCH(
 // ---------------------------------------------------------------------------
 
 export async function DELETE(
-  _req: NextRequest | Request,
+  req: NextRequest | Request,
   context: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   // Step 1: auth
@@ -148,10 +148,24 @@ export async function DELETE(
     return json(403, { error: 'forbidden' })
   }
 
+  // Step 4: parse optional reason from body (defensive — empty/invalid body is fine)
+  let reason: string | null = null
+  try {
+    const raw = await req.text()
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (parsed && typeof parsed === 'object' && typeof parsed.reason === 'string') {
+        reason = parsed.reason.slice(0, 1000)
+      }
+    }
+  } catch {
+    // ignore — author self-delete commonly has no body
+  }
+
   // Author takes precedence over admin (matches posts DELETE pattern)
   const deletion_reason: 'author' | 'moderation' = isAuthor ? 'author' : 'moderation'
 
-  // Step 4: soft delete — body is retained for audit; render layer shows placeholder
+  // Step 5: soft delete — body is retained for audit; render layer shows placeholder
   const { error: updateErr } = await admin
     .from('comments')
     .update({
@@ -162,6 +176,22 @@ export async function DELETE(
 
   if (updateErr) {
     return json(500, { error: 'delete_failed', detail: updateErr.message })
+  }
+
+  // Step 6: if moderation delete, write a mod_actions audit row
+  if (deletion_reason === 'moderation') {
+    const { error: modErr } = await admin.from('mod_actions').insert({
+      mod_user_id: userId,
+      action: 'delete_comment',
+      target_type: 'comment',
+      target_id: String(id),
+      reason,
+      metadata: { author_id: comment.author_id },
+    })
+    if (modErr) {
+      console.error('[mod_actions] insert failed:', modErr)
+      // soft failure — deletion already succeeded, do not roll back
+    }
   }
 
   return json(200, { ok: true, deletion_reason })

@@ -16,6 +16,7 @@ import { LikeButton } from '@/components/post/LikeButton'
 import { BookmarkButton } from '@/components/post/BookmarkButton'
 import { FollowButton } from '@/components/profile/FollowButton'
 import { getFollowState } from '@/lib/profile/follow-state'
+import { ReportButton } from '@/components/report/ReportButton'
 
 interface PageParams {
   username: string
@@ -172,6 +173,15 @@ export default async function PostPage({
             isSignedIn={isSignedIn}
             currentPath={canonicalPath}
           />
+          {!isOwner && (
+            <ReportButton
+              targetType="post"
+              targetId={post.id}
+              isSignedIn={isSignedIn}
+              currentPath={canonicalPath}
+              isSelf={isOwner}
+            />
+          )}
         </div>
         {(isOwner || isAdminUser) && <AuthorActions postId={post.id} />}
       </header>

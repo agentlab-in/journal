@@ -66,6 +66,11 @@ export default defineConfig({
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? 'placeholder-anon-key',
       SUPABASE_SERVICE_ROLE_KEY:
         process.env.SUPABASE_SERVICE_ROLE_KEY ?? 'placeholder-service-key',
+      // Phase 12 admin E2E: forward the caller-supplied login list so the
+      // `isAdmin(login)` check in `lib/auth.ts` recognises the shim user.
+      // Leave unset in CI — admin tests skip when this is absent.
+      ADMIN_GITHUB_LOGINS:
+        process.env.ADMIN_GITHUB_LOGINS_FOR_E2E ?? '',
     },
   },
 })

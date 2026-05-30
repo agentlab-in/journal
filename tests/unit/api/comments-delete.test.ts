@@ -81,18 +81,35 @@ function commentsHandler(commentRow: CommentRow | null) {
   }
 }
 
-function makeDeleteClient(opts: { commentRow?: CommentRow | null } = {}) {
-  const { commentRow = LIVE_COMMENT } = opts
+function modActionsHandler(opts: { insertError?: { message: string } | null } = {}) {
+  const { insertError = null } = opts
+  return {
+    insert: vi.fn((payload: unknown) => {
+      capturedOps.push({ table: 'mod_actions', op: 'insert', payload })
+      return Promise.resolve({ data: null, error: insertError })
+    }),
+  }
+}
+
+function makeDeleteClient(opts: {
+  commentRow?: CommentRow | null
+  modActionsInsertError?: { message: string } | null
+} = {}) {
+  const { commentRow = LIVE_COMMENT, modActionsInsertError = null } = opts
   return {
     from: vi.fn((table: string) => {
       if (table === 'comments') return commentsHandler(commentRow)
+      if (table === 'mod_actions') return modActionsHandler({ insertError: modActionsInsertError })
       return {}
     }),
   }
 }
 
-function makeRequest(commentId: string) {
-  return new Request(`http://test/api/comments/${commentId}`, { method: 'DELETE' })
+function makeRequest(commentId: string, body?: string) {
+  return new Request(`http://test/api/comments/${commentId}`, {
+    method: 'DELETE',
+    body: body ?? undefined,
+  })
 }
 
 function makeContext(id: string) {
@@ -188,6 +205,14 @@ describe("DELETE /api/comments/[id] — author delete sets deletion_reason='auth
     // body must be retained for audit (placeholder is render-layer concern)
     expect(payload).not.toHaveProperty('body')
   })
+
+  it('does NOT insert a mod_actions row on author delete', async () => {
+    const { DELETE } = await import('@/app/api/comments/[id]/route')
+    await DELETE(makeRequest(COMMENT_ID) as never, makeContext(COMMENT_ID))
+
+    const modOp = capturedOps.find((op) => op.table === 'mod_actions')
+    expect(modOp).toBeUndefined()
+  })
 })
 
 describe("DELETE /api/comments/[id] — admin (non-author) delete sets deletion_reason='moderation'", () => {
@@ -212,6 +237,48 @@ describe("DELETE /api/comments/[id] — admin (non-author) delete sets deletion_
     const payload = updateOp!.payload as Record<string, unknown>
     expect(payload.deletion_reason).toBe('moderation')
   })
+
+  it('inserts a mod_actions row with correct fields on admin delete', async () => {
+    const { DELETE } = await import('@/app/api/comments/[id]/route')
+    const res = await DELETE(
+      makeRequest(COMMENT_ID, JSON.stringify({ reason: 'harassment' })) as never,
+      makeContext(COMMENT_ID),
+    )
+    expect(res.status).toBe(200)
+
+    const modOp = capturedOps.find((op) => op.table === 'mod_actions' && op.op === 'insert')
+    expect(modOp).toBeDefined()
+    const modPayload = modOp!.payload as Record<string, unknown>
+    expect(modPayload.mod_user_id).toBe('admin-user')
+    expect(modPayload.action).toBe('delete_comment')
+    expect(modPayload.target_type).toBe('comment')
+    expect(modPayload.target_id).toBe(COMMENT_ID)
+    expect(modPayload.reason).toBe('harassment')
+    expect(modPayload.metadata).toEqual({ author_id: AUTHOR_ID })
+  })
+
+  it('inserts mod_actions row with reason=null when no body provided', async () => {
+    const { DELETE } = await import('@/app/api/comments/[id]/route')
+    const res = await DELETE(makeRequest(COMMENT_ID) as never, makeContext(COMMENT_ID))
+    expect(res.status).toBe(200)
+
+    const modOp = capturedOps.find((op) => op.table === 'mod_actions' && op.op === 'insert')
+    expect(modOp).toBeDefined()
+    const modPayload = modOp!.payload as Record<string, unknown>
+    expect(modPayload.reason).toBeNull()
+  })
+
+  it('returns 200 even when mod_actions insert fails (soft failure)', async () => {
+    currentFakeClient = makeDeleteClient({
+      modActionsInsertError: { message: 'insert error' },
+    })
+    const { DELETE } = await import('@/app/api/comments/[id]/route')
+    const res = await DELETE(makeRequest(COMMENT_ID) as never, makeContext(COMMENT_ID))
+    // Deletion succeeded; audit insert failed but we still return 200
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.ok).toBe(true)
+  })
 })
 
 describe("DELETE /api/comments/[id] — author who is also admin gets 'author' (precedence)", () => {
@@ -235,5 +302,13 @@ describe("DELETE /api/comments/[id] — author who is also admin gets 'author' (
     expect(updateOp).toBeDefined()
     const payload = updateOp!.payload as Record<string, unknown>
     expect(payload.deletion_reason).toBe('author')
+  })
+
+  it('does NOT insert mod_actions when author-admin deletes their own comment', async () => {
+    const { DELETE } = await import('@/app/api/comments/[id]/route')
+    await DELETE(makeRequest(COMMENT_ID) as never, makeContext(COMMENT_ID))
+
+    const modOp = capturedOps.find((op) => op.table === 'mod_actions')
+    expect(modOp).toBeUndefined()
   })
 })

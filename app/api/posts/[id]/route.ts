@@ -278,7 +278,7 @@ export async function PATCH(
 // ---------------------------------------------------------------------------
 
 export async function DELETE(
-  _req: NextRequest | Request,
+  req: NextRequest | Request,
   context: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   // Step 1: auth
@@ -293,14 +293,14 @@ export async function DELETE(
   // Step 2: load post
   const { data: postRow, error: postFetchErr } = await admin
     .from('posts')
-    .select('id, author_id, deleted_at')
+    .select('id, author_id, slug, deleted_at')
     .eq('id', postId)
     .single()
 
   if (postFetchErr || !postRow) {
     return json(404, { error: 'not_found' })
   }
-  const post = postRow as { id: string; author_id: string; deleted_at: string | null }
+  const post = postRow as { id: string; author_id: string; slug: string; deleted_at: string | null }
 
   // Already-deleted → 404
   if (post.deleted_at !== null) {
@@ -315,7 +315,21 @@ export async function DELETE(
     return json(403, { error: 'forbidden' })
   }
 
-  // Step 4: determine deletion_reason
+  // Step 4: parse optional reason from body (defensive — empty/invalid body is fine)
+  let reason: string | null = null
+  try {
+    const raw = await req.text()
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (parsed && typeof parsed === 'object' && typeof parsed.reason === 'string') {
+        reason = parsed.reason.slice(0, 1000)
+      }
+    }
+  } catch {
+    // ignore — author self-delete commonly has no body
+  }
+
+  // Step 5: determine deletion_reason
   // If author triggered delete → 'author' (takes precedence even if also admin)
   // If admin (not author) → 'moderation'
   const deletion_reason: 'author' | 'moderation' = isAuthor ? 'author' : 'moderation'
@@ -333,6 +347,22 @@ export async function DELETE(
     return json(500, { error: 'delete_failed', detail: updateErr.message })
   }
 
-  // Step 5: return { ok: true }
+  // Step 6: if moderation delete, write a mod_actions audit row
+  if (deletion_reason === 'moderation') {
+    const { error: modErr } = await admin.from('mod_actions').insert({
+      mod_user_id: userId,
+      action: 'delete_post',
+      target_type: 'post',
+      target_id: String(postId),
+      reason,
+      metadata: { slug: post.slug, author_id: post.author_id },
+    })
+    if (modErr) {
+      console.error('[mod_actions] insert failed:', modErr)
+      // soft failure — deletion already succeeded, do not roll back
+    }
+  }
+
+  // Step 7: return { ok: true }
   return json(200, { ok: true })
 }

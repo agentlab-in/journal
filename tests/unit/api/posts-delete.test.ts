@@ -37,12 +37,14 @@ const capturedOps: CapturedOp[] = []
 const EXISTING_POST = {
   id: 'post-abc',
   author_id: 'user-123',
+  slug: 'test-post-slug',
   deleted_at: null,
 }
 
 const DELETED_POST = {
   id: 'post-abc',
   author_id: 'user-123',
+  slug: 'test-post-slug',
   deleted_at: '2026-01-01T00:00:00Z',
 }
 
@@ -76,17 +78,32 @@ function postsHandler(postRow: typeof EXISTING_POST | typeof DELETED_POST | null
 }
 
 /**
+ * Build mod_actions handler — insert stub that records the op.
+ */
+function modActionsHandler(opts: { insertError?: { message: string } | null } = {}) {
+  const { insertError = null } = opts
+  return {
+    insert: vi.fn((payload: unknown) => {
+      capturedOps.push({ table: 'mod_actions', op: 'insert', payload })
+      return Promise.resolve({ data: null, error: insertError })
+    }),
+  }
+}
+
+/**
  * Build a full fake client for DELETE tests.
  */
 function makeDeleteClient(opts: {
   postRow?: typeof EXISTING_POST | typeof DELETED_POST | null
   githubLogin?: string
+  modActionsInsertError?: { message: string } | null
 } = {}) {
-  const { postRow = EXISTING_POST, githubLogin = 'user-gh' } = opts
+  const { postRow = EXISTING_POST, githubLogin = 'user-gh', modActionsInsertError = null } = opts
 
   return {
     from: vi.fn((table: string) => {
       if (table === 'posts') return postsHandler(postRow)
+      if (table === 'mod_actions') return modActionsHandler({ insertError: modActionsInsertError })
       // Default: no-op stub
       return {
         select: vi.fn(() => ({
@@ -114,9 +131,10 @@ function makeDeleteClient(opts: {
 // Request factory
 // ---------------------------------------------------------------------------
 
-function makeRequest(postId: string) {
+function makeRequest(postId: string, body?: string) {
   return new Request(`http://test/api/posts/${postId}`, {
     method: 'DELETE',
+    body: body ?? undefined,
   })
 }
 
@@ -213,6 +231,14 @@ describe("DELETE /api/posts/[id] — deletion_reason='author' for author delete"
     expect(payload.deletion_reason).toBe('author')
     expect(typeof payload.deleted_at).toBe('string')
   })
+
+  it('does NOT insert a mod_actions row on author delete', async () => {
+    const { DELETE } = await import('@/app/api/posts/[id]/route')
+    await DELETE(makeRequest('post-abc') as never, makeContext('post-abc'))
+
+    const modOp = capturedOps.find((op) => op.table === 'mod_actions')
+    expect(modOp).toBeUndefined()
+  })
 })
 
 describe("DELETE /api/posts/[id] — deletion_reason='moderation' for admin delete", () => {
@@ -238,6 +264,49 @@ describe("DELETE /api/posts/[id] — deletion_reason='moderation' for admin dele
     const payload = updateOp!.payload as Record<string, unknown>
     expect(payload.deletion_reason).toBe('moderation')
   })
+
+  it('inserts a mod_actions row with correct fields on admin delete', async () => {
+    const { DELETE } = await import('@/app/api/posts/[id]/route')
+    const res = await DELETE(
+      makeRequest('post-abc', JSON.stringify({ reason: 'spammy content' })) as never,
+      makeContext('post-abc'),
+    )
+    expect(res.status).toBe(200)
+
+    const modOp = capturedOps.find((op) => op.table === 'mod_actions' && op.op === 'insert')
+    expect(modOp).toBeDefined()
+    const modPayload = modOp!.payload as Record<string, unknown>
+    expect(modPayload.mod_user_id).toBe('admin-user')
+    expect(modPayload.action).toBe('delete_post')
+    expect(modPayload.target_type).toBe('post')
+    expect(modPayload.target_id).toBe('post-abc')
+    expect(modPayload.reason).toBe('spammy content')
+    expect(modPayload.metadata).toEqual({ slug: 'test-post-slug', author_id: 'user-123' })
+  })
+
+  it('inserts mod_actions row with reason=null when no body provided', async () => {
+    const { DELETE } = await import('@/app/api/posts/[id]/route')
+    const res = await DELETE(makeRequest('post-abc') as never, makeContext('post-abc'))
+    expect(res.status).toBe(200)
+
+    const modOp = capturedOps.find((op) => op.table === 'mod_actions' && op.op === 'insert')
+    expect(modOp).toBeDefined()
+    const modPayload = modOp!.payload as Record<string, unknown>
+    expect(modPayload.reason).toBeNull()
+  })
+
+  it('returns 200 even when mod_actions insert fails (soft failure)', async () => {
+    currentFakeClient = makeDeleteClient({
+      githubLogin: 'admin-gh',
+      modActionsInsertError: { message: 'insert error' },
+    })
+    const { DELETE } = await import('@/app/api/posts/[id]/route')
+    const res = await DELETE(makeRequest('post-abc') as never, makeContext('post-abc'))
+    // Deletion succeeded; audit insert failed but we still return 200
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body).toEqual({ ok: true })
+  })
 })
 
 describe("DELETE /api/posts/[id] — admin who is also the author gets 'author' reason", () => {
@@ -261,6 +330,14 @@ describe("DELETE /api/posts/[id] — admin who is also the author gets 'author' 
     const payload = updateOp!.payload as Record<string, unknown>
     // Author path takes precedence even when admin
     expect(payload.deletion_reason).toBe('author')
+  })
+
+  it('does NOT insert mod_actions when author-admin deletes their own post', async () => {
+    const { DELETE } = await import('@/app/api/posts/[id]/route')
+    await DELETE(makeRequest('post-abc') as never, makeContext('post-abc'))
+
+    const modOp = capturedOps.find((op) => op.table === 'mod_actions')
+    expect(modOp).toBeUndefined()
   })
 })
 
