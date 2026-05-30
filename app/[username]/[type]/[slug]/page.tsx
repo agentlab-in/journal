@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import Link from 'next/link'
@@ -17,6 +18,7 @@ import { BookmarkButton } from '@/components/post/BookmarkButton'
 import { FollowButton } from '@/components/profile/FollowButton'
 import { getFollowState } from '@/lib/profile/follow-state'
 import { ReportButton } from '@/components/report/ReportButton'
+import { CommentSkeleton } from '@/components/skeleton/CommentSkeleton'
 
 interface PageParams {
   username: string
@@ -194,7 +196,14 @@ export default async function PostPage({
 
       <Backlinks postId={post.id} />
 
-      <CommentsSection postId={post.id} />
+      {/* Comments are the expensive thread walk on this page — a
+          service-role read of every comment row + author join. Stream
+          them in under a `CommentSkeleton` fallback so the post body
+          (already in DOM) paints first and the page is scrollable
+          before comments resolve. */}
+      <Suspense fallback={<CommentSkeleton count={3} />}>
+        <CommentsSection postId={post.id} />
+      </Suspense>
 
       <ViewBeacon postId={post.id} />
       </article>

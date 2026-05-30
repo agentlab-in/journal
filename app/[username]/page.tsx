@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { notFound, permanentRedirect } from 'next/navigation'
 import type { Metadata } from 'next'
 import { getSession } from '@/lib/auth'
@@ -15,6 +16,7 @@ import { bioToPlainText, renderBioToHtml } from '@/lib/profile/bio'
 import { ProfileHeader } from '@/components/profile/ProfileHeader'
 import { PinnedPosts } from '@/components/profile/PinnedPosts'
 import { PostList } from '@/components/profile/PostList'
+import { PostCardSkeleton } from '@/components/skeleton/PostCardSkeleton'
 
 interface PageParams {
   username: string
@@ -60,6 +62,40 @@ export async function generateMetadata({
   }
 }
 
+interface ProfileBodyProps {
+  profileId: string
+  username: string
+  isOwner: boolean
+}
+
+/**
+ * Slow async boundary — pinned posts + authored posts list. The two
+ * queries are kicked off in parallel. Extracted from the page so the
+ * `<ProfileHeader />` (which is hydrated from a `cache`-wrapped lookup
+ * already awaited by the page) paints instantly while the post lists
+ * stream in.
+ */
+async function ProfileBody({ profileId, username, isOwner }: ProfileBodyProps) {
+  const db = createAnonServerSupabaseClient()
+  const [pinned, authored] = await Promise.all([
+    getPinnedPosts(db, profileId),
+    getAuthoredPosts(db, profileId),
+  ])
+  const pinnedIds = pinned.map((p) => p.id)
+
+  return (
+    <>
+      <PinnedPosts username={username} pins={pinned} isOwner={isOwner} />
+      <PostList
+        username={username}
+        posts={authored}
+        isOwner={isOwner}
+        initialPinnedIds={pinnedIds}
+      />
+    </>
+  )
+}
+
 export default async function ProfilePage({
   params,
 }: {
@@ -80,21 +116,15 @@ export default async function ProfilePage({
   const isOwner = viewerId === profile.id
   const isSignedIn = viewerId !== null
 
-  // Share a single anon SSR client across the two list queries. Public reads
-  // are gated by RLS public-read policies on users / posts / post_tags /
-  // pinned_posts (see supabase/migrations/0002_content.sql).
-  const db = createAnonServerSupabaseClient()
   // Follow lookup needs the service-role client — `public.follows` is
   // owner-only-read under RLS, and the NextAuth session has no Supabase JWT.
+  // Run header-blocking awaits in parallel: bio markdown rendering +
+  // follow state. Both are needed for `<ProfileHeader />`.
   const admin = createAdminSupabaseClient()
-  const [pinned, authored, bioHtml, initialFollowing] = await Promise.all([
-    getPinnedPosts(db, profile.id),
-    getAuthoredPosts(db, profile.id),
+  const [bioHtml, initialFollowing] = await Promise.all([
     profile.bio ? renderBioToHtml(profile.bio) : Promise.resolve<string | null>(null),
     getFollowState({ admin, targetUserId: profile.id, viewerUserId: viewerId }),
   ])
-
-  const pinnedIds = pinned.map((p) => p.id)
 
   return (
     <main id="main-content" className="profile-page">
@@ -114,14 +144,17 @@ export default async function ProfilePage({
         isSignedIn={isSignedIn}
       />
 
-      <PinnedPosts username={profile.username} pins={pinned} isOwner={isOwner} />
-
-      <PostList
-        username={profile.username}
-        posts={authored}
-        isOwner={isOwner}
-        initialPinnedIds={pinnedIds}
-      />
+      {/* Pinned + authored posts are the slow path on this page —
+          PinnedPosts queries `pinned_posts` joined to `posts`, and
+          PostList paginates `posts` for this author. Stream both in
+          under a Suspense fallback so the header paints first. */}
+      <Suspense fallback={<PostCardSkeleton count={4} />}>
+        <ProfileBody
+          profileId={profile.id}
+          username={profile.username}
+          isOwner={isOwner}
+        />
+      </Suspense>
     </main>
   )
 }
