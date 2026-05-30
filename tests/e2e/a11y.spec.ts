@@ -24,10 +24,24 @@ const PUBLIC_ROUTES: Array<{ path: string; label: string }> = [
 
 for (const { path, label } of PUBLIC_ROUTES) {
   test(`a11y: ${label} (${path}) — zero serious/critical violations`, async ({ page }) => {
-    const response = await page.goto(path, { waitUntil: 'domcontentloaded' })
+    // Wait for `load` so the React-Server-Components payload finishes
+    // streaming and React rehydrates the document. With `domcontentloaded`
+    // axe could fire before Next.js's dev shell upgrades `<html id="__next_error__">`
+    // (no lang) to the real `<html lang="en">` from the root layout.
+    const response = await page.goto(path, { waitUntil: 'load' })
     // Tag/profile routes may 404 when seed data is absent — axe still runs on the 404 page,
     // which is itself part of the surface we want clean.
     expect(response?.status(), `${path} responded with a server error`).toBeLessThan(500)
+
+    // Belt-and-suspenders: explicitly wait for the lang attribute to land
+    // on <html>. On a fully-rendered page this resolves instantly; on the
+    // 404 fallback we give React up to 2s to swap in the layout.
+    await page.waitForFunction(() => document.documentElement.lang === 'en', null, {
+      timeout: 2000,
+    }).catch(() => {
+      // If it still hasn't shown up, fall through — axe will flag it and
+      // the failure is a real signal worth investigating.
+    })
 
     const results = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
