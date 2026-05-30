@@ -1044,10 +1044,26 @@ body {
   margin-bottom: 2.5rem;
 }
 
+/* Phase 13 mobile audit: explicit breakpoints rather than auto-fill so the
+ * column count is deterministic across viewport sizes. 1 col at <640px
+ * (375/414 phones), 2 cols at sm-md tablets (640-1023px), 3 cols at lg+
+ * desktops (1024px+). Mirrors Tailwind's sm/lg breakpoints. */
 .profile-pinned__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: 1fr;
   gap: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .profile-pinned__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .profile-pinned__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .profile-posts__header {
