@@ -197,7 +197,7 @@ describe('<BookmarkButton>', () => {
         currentPath="/alice/post/hello"
       />,
     )
-    fireEvent.click(screen.getByRole('button', { name: /^bookmark$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^bookmark post$/i }))
 
     expect(mockPush).toHaveBeenCalledWith(
       '/auth/signin?callbackUrl=%2Falice%2Fpost%2Fhello',
@@ -221,7 +221,7 @@ describe('<BookmarkButton>', () => {
       />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: /^bookmark$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^bookmark post$/i }))
 
     expect(
       screen.getByRole('button', { name: /remove bookmark/i }),

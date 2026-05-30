@@ -23,6 +23,8 @@ export function FollowButton({
   const router = useRouter()
   const [following, setFollowing] = useState(initialFollowing)
   const [pending, setPending] = useState(false)
+  // Phase 13 a11y: revert announcement (see LikeButton for context).
+  const [revertMessage, setRevertMessage] = useState('')
 
   async function onClick() {
     if (!isSignedIn) {
@@ -36,6 +38,7 @@ export function FollowButton({
 
     setFollowing(nextFollowing)
     setPending(true)
+    setRevertMessage('')
 
     try {
       const res = await fetch(`/api/follows/${targetUserId}`, {
@@ -43,6 +46,9 @@ export function FollowButton({
       })
       if (!res.ok) {
         setFollowing(prevFollowing)
+        setRevertMessage(
+          nextFollowing ? 'Follow failed, reverted.' : 'Unfollow failed, reverted.',
+        )
         console.error('[FollowButton] toggle failed:', res.status)
         return
       }
@@ -50,6 +56,9 @@ export function FollowButton({
       setFollowing(data.following)
     } catch (err) {
       setFollowing(prevFollowing)
+      setRevertMessage(
+        nextFollowing ? 'Follow failed, reverted.' : 'Unfollow failed, reverted.',
+      )
       console.error('[FollowButton] network error:', err)
     } finally {
       setPending(false)
@@ -57,17 +66,22 @@ export function FollowButton({
   }
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={pending}
-      aria-label={following ? 'Unfollow' : 'Follow'}
-      aria-pressed={following}
-      className={
-        following ? 'follow-button follow-button--active' : 'follow-button'
-      }
-    >
-      {following ? 'Following' : 'Follow'}
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={pending}
+        aria-label={following ? 'Unfollow' : 'Follow'}
+        aria-pressed={following}
+        className={
+          following ? 'follow-button follow-button--active' : 'follow-button'
+        }
+      >
+        {following ? 'Following' : 'Follow'}
+      </button>
+      <span role="status" aria-live="polite" className="sr-only">
+        {revertMessage}
+      </span>
+    </>
   )
 }

@@ -26,6 +26,10 @@ export function LikeButton({
   const [liked, setLiked] = useState(initialLiked)
   const [count, setCount] = useState(initialCount)
   const [pending, setPending] = useState(false)
+  // Phase 13 a11y: assistive-tech announcement when an optimistic update
+  // gets reverted (network or 5xx). Empty string on initial render so we
+  // don't speak anything spurious. Kept in sr-only span below.
+  const [revertMessage, setRevertMessage] = useState('')
 
   async function onClick() {
     if (!isSignedIn) {
@@ -44,6 +48,8 @@ export function LikeButton({
     setLiked(nextLiked)
     setCount(nextCount)
     setPending(true)
+    // Clear any prior revert message when we kick off a new attempt.
+    setRevertMessage('')
 
     try {
       const res = await fetch(`/api/likes/${postId}`, {
@@ -52,6 +58,7 @@ export function LikeButton({
       if (!res.ok) {
         setLiked(prevLiked)
         setCount(prevCount)
+        setRevertMessage(nextLiked ? 'Like failed, reverted.' : 'Unlike failed, reverted.')
         console.error('[LikeButton] toggle failed:', res.status)
         return
       }
@@ -62,6 +69,7 @@ export function LikeButton({
     } catch (err) {
       setLiked(prevLiked)
       setCount(prevCount)
+      setRevertMessage(nextLiked ? 'Like failed, reverted.' : 'Unlike failed, reverted.')
       console.error('[LikeButton] network error:', err)
     } finally {
       setPending(false)
@@ -69,29 +77,37 @@ export function LikeButton({
   }
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={pending}
-      aria-label={liked ? 'Unlike' : 'Like'}
-      aria-pressed={liked}
-      className={liked ? 'like-button like-button--active' : 'like-button'}
-    >
-      <svg
-        aria-hidden="true"
-        className="like-button__icon"
-        viewBox="0 0 24 24"
-        width="18"
-        height="18"
-        fill={liked ? 'currentColor' : 'none'}
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+    <>
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={pending}
+        aria-label={liked ? 'Unlike post' : 'Like post'}
+        aria-pressed={liked}
+        className={liked ? 'like-button like-button--active' : 'like-button'}
       >
-        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-      </svg>
-      <span className="like-button__count">{count}</span>
-    </button>
+        <svg
+          aria-hidden="true"
+          className="like-button__icon"
+          viewBox="0 0 24 24"
+          width="18"
+          height="18"
+          fill={liked ? 'currentColor' : 'none'}
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+        </svg>
+        <span className="like-button__count">{count}</span>
+      </button>
+      {/* aria-live region for optimistic-revert announcements. Empty on
+          initial render so screen-readers stay silent until a revert
+          actually happens. sr-only keeps it visually hidden. */}
+      <span role="status" aria-live="polite" className="sr-only">
+        {revertMessage}
+      </span>
+    </>
   )
 }

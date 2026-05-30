@@ -23,6 +23,8 @@ export function BookmarkButton({
   const router = useRouter()
   const [bookmarked, setBookmarked] = useState(initialBookmarked)
   const [pending, setPending] = useState(false)
+  // Phase 13 a11y: revert announcement (see LikeButton for context).
+  const [revertMessage, setRevertMessage] = useState('')
 
   async function onClick() {
     if (!isSignedIn) {
@@ -36,6 +38,7 @@ export function BookmarkButton({
 
     setBookmarked(next)
     setPending(true)
+    setRevertMessage('')
 
     try {
       const res = await fetch(`/api/bookmarks/${postId}`, {
@@ -43,6 +46,9 @@ export function BookmarkButton({
       })
       if (!res.ok) {
         setBookmarked(prev)
+        setRevertMessage(
+          next ? 'Bookmark failed, reverted.' : 'Bookmark removal failed, reverted.',
+        )
         console.error('[BookmarkButton] toggle failed:', res.status)
         return
       }
@@ -50,6 +56,9 @@ export function BookmarkButton({
       setBookmarked(data.bookmarked)
     } catch (err) {
       setBookmarked(prev)
+      setRevertMessage(
+        next ? 'Bookmark failed, reverted.' : 'Bookmark removal failed, reverted.',
+      )
       console.error('[BookmarkButton] network error:', err)
     } finally {
       setPending(false)
@@ -57,30 +66,35 @@ export function BookmarkButton({
   }
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={pending}
-      aria-label={bookmarked ? 'Remove bookmark' : 'Bookmark'}
-      aria-pressed={bookmarked}
-      className={
-        bookmarked ? 'bookmark-button bookmark-button--active' : 'bookmark-button'
-      }
-    >
-      <svg
-        aria-hidden="true"
-        className="bookmark-button__icon"
-        viewBox="0 0 24 24"
-        width="18"
-        height="18"
-        fill={bookmarked ? 'currentColor' : 'none'}
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+    <>
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={pending}
+        aria-label={bookmarked ? 'Remove bookmark' : 'Bookmark post'}
+        aria-pressed={bookmarked}
+        className={
+          bookmarked ? 'bookmark-button bookmark-button--active' : 'bookmark-button'
+        }
       >
-        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-      </svg>
-    </button>
+        <svg
+          aria-hidden="true"
+          className="bookmark-button__icon"
+          viewBox="0 0 24 24"
+          width="18"
+          height="18"
+          fill={bookmarked ? 'currentColor' : 'none'}
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+        </svg>
+      </button>
+      <span role="status" aria-live="polite" className="sr-only">
+        {revertMessage}
+      </span>
+    </>
   )
 }
