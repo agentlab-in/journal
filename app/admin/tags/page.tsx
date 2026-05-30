@@ -54,7 +54,7 @@ export default async function AdminTagsPage({
               {rows.map((tag: PendingTagRow) => (
                 <tr key={tag.slug} className="border-b border-border last:border-0">
                   <td className="py-3 pr-4">
-                    <code className="text-xs bg-surface-raised px-1 rounded">{tag.slug}</code>
+                    <code className="text-xs bg-bg-subtle px-1 rounded">{tag.slug}</code>
                   </td>
                   <td className="py-3 pr-4">{tag.name}</td>
                   <td className="py-3 pr-4 text-right text-fg-subtle">{tag.usage_count}</td>

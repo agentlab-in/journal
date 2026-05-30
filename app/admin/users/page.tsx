@@ -50,7 +50,7 @@ export default async function AdminUsersPage({
         />
         <button
           type="submit"
-          className="px-3 py-1.5 text-sm border border-border rounded hover:bg-surface-raised"
+          className="px-3 py-1.5 text-sm border border-border rounded hover:bg-bg-hover"
         >
           Search
         </button>
