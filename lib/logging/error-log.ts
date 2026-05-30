@@ -78,10 +78,14 @@ function redactExtra(
 export function logRouteError(err: unknown, ctx: ErrorLogContext): void {
   const ts = new Date().toISOString()
   try {
+    // Canonical fields (ts, route, err, user_id) are written AFTER the spread
+    // so a caller can't accidentally — or maliciously — shadow them via
+    // `ctx.extra`. Without this ordering, an `extra: { route: '/spoofed' }`
+    // would silently overwrite the real route in the log line.
     const record: Record<string, unknown> = {
+      ...redactExtra(ctx.extra),
       ts,
       route: ctx.route,
-      ...redactExtra(ctx.extra),
       err: shapeError(err),
     }
     if (ctx.userId !== undefined) {

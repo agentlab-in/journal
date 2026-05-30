@@ -438,18 +438,21 @@ export const authOptions: NextAuthOptions = {
         // to public.users. Best-effort — moderators read this column as a
         // soft-signal triage hint; failure must NEVER block login.
         try {
-          // The raw GitHub profile NextAuth passes here includes `bio`,
-          // `email`, and `followers` on top of the typed GithubProfile.
-          // We cast minimally to read those without losing type safety.
-          const raw = profile as GithubProfile & {
-            bio?: string | null
-            email?: string | null
-            followers?: number
-          }
+          // The raw GitHub profile NextAuth passes here may include `bio`,
+          // `email`, and `followers` on top of the typed GithubProfile —
+          // but we cannot trust their types at runtime (a malformed upstream
+          // response could deliver a number where a string is expected).
+          // Narrow each field via `typeof` so a wrong shape becomes `null`
+          // / `0` cleanly, rather than relying on the outer try/catch as a
+          // safety net when downstream code calls `.trim()` on a non-string.
+          const rawBio = (profile as { bio?: unknown }).bio
+          const rawEmail = (profile as { email?: unknown }).email
+          const rawFollowers = (profile as { followers?: unknown }).followers
+
           const flags = deriveSignupFlags({
-            bio: raw.bio ?? null,
-            email: raw.email ?? null,
-            followers: typeof raw.followers === 'number' ? raw.followers : 0,
+            bio: typeof rawBio === 'string' ? rawBio : null,
+            email: typeof rawEmail === 'string' ? rawEmail : null,
+            followers: typeof rawFollowers === 'number' ? rawFollowers : 0,
           })
           const username = gh.login.toLowerCase()
           const { error: flagsErr } = await supabase

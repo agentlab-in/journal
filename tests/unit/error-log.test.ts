@@ -118,6 +118,29 @@ describe('logRouteError', () => {
     expect(payload.ok).toBe(true)
   })
 
+  it('canonical fields win when ctx.extra tries to shadow ts/route/err/user_id', () => {
+    const realError = new Error('real-error')
+    logRouteError(realError, {
+      route: '/api/real-route',
+      userId: 'real-user',
+      extra: {
+        route: '/api/spoofed-route',
+        ts: 'spoofed-ts',
+        err: { name: 'SpoofedError', message: 'pwn', stack: null },
+        user_id: 'spoofed-user',
+      },
+    })
+    const payload = lastLogged()
+    // Canonical fields must NOT have been shadowed by the spread.
+    expect(payload.route).toBe('/api/real-route')
+    expect(payload.ts).not.toBe('spoofed-ts')
+    expect(typeof payload.ts).toBe('string')
+    expect(payload.user_id).toBe('real-user')
+    const errShape = payload.err as Record<string, unknown>
+    expect(errShape.name).toBe('Error')
+    expect(errShape.message).toBe('real-error')
+  })
+
   it('redacts a mix of denylisted keys (varied casing + separators) while passing safe ones through', () => {
     const tokenVal = 'tok_abc123'
     const pwdVal = 'hunter2'

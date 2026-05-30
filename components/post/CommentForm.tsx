@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { readRetryAfter } from '@/lib/client/retry-after'
 
 const MAX_LEN = 5000
 const HONEYPOT_FIELD = '_h'
@@ -234,18 +235,4 @@ async function resolveInlineError(res: Response): Promise<string | null> {
     }
   }
   return null
-}
-
-async function readRetryAfter(res: Response): Promise<number> {
-  try {
-    const j = (await res.clone().json()) as { retry_after?: number }
-    if (typeof j.retry_after === 'number' && Number.isFinite(j.retry_after) && j.retry_after > 0) {
-      return Math.ceil(j.retry_after)
-    }
-  } catch {
-    // fallthrough
-  }
-  const header = res.headers.get('Retry-After')
-  const parsed = header ? Number(header) : NaN
-  return Number.isFinite(parsed) && parsed > 0 ? Math.ceil(parsed) : 30
 }

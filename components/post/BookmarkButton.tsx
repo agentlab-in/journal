@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { readRetryAfter } from '@/lib/client/retry-after'
 
 export interface BookmarkButtonProps {
   postId: string
@@ -125,18 +126,4 @@ export function BookmarkButton({
       </span>
     </>
   )
-}
-
-async function readRetryAfter(res: Response): Promise<number> {
-  try {
-    const j = (await res.clone().json()) as { retry_after?: number }
-    if (typeof j.retry_after === 'number' && Number.isFinite(j.retry_after) && j.retry_after > 0) {
-      return Math.ceil(j.retry_after)
-    }
-  } catch {
-    // fallthrough
-  }
-  const header = res.headers.get('Retry-After')
-  const parsed = header ? Number(header) : NaN
-  return Number.isFinite(parsed) && parsed > 0 ? Math.ceil(parsed) : 30
 }

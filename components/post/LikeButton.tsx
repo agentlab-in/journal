@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { readRetryAfter } from '@/lib/client/retry-after'
 
 export interface LikeButtonProps {
   postId: string
@@ -151,22 +152,4 @@ export function LikeButton({
       </span>
     </>
   )
-}
-
-/**
- * Parse retry_after from a 429 body; fall back to the Retry-After header
- * then to a sane default so the UI never renders `NaN` or `undefined`.
- */
-async function readRetryAfter(res: Response): Promise<number> {
-  try {
-    const j = (await res.clone().json()) as { retry_after?: number }
-    if (typeof j.retry_after === 'number' && Number.isFinite(j.retry_after) && j.retry_after > 0) {
-      return Math.ceil(j.retry_after)
-    }
-  } catch {
-    // fallthrough
-  }
-  const header = res.headers.get('Retry-After')
-  const parsed = header ? Number(header) : NaN
-  return Number.isFinite(parsed) && parsed > 0 ? Math.ceil(parsed) : 30
 }
