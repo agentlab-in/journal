@@ -157,16 +157,179 @@ body {
   color: var(--fg-subtle);
 }
 
-.follow-stub {
-  margin-left: auto;
-  padding: 0.25rem 0.75rem;
-  font-size: 0.75rem;
+.like-button,
+.bookmark-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.5rem;
   font-family: inherit;
-  background: transparent;
+  font-size: 0.8125rem;
   color: var(--fg-subtle);
-  border: 1px solid var(--border);
+  background: transparent;
+  border: none;
   border-radius: 999px;
-  cursor: not-allowed;
+  cursor: pointer;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.like-button:hover:not(:disabled),
+.bookmark-button:hover:not(:disabled) {
+  color: var(--fg);
+  background: var(--bg-hover);
+}
+
+.like-button:disabled,
+.bookmark-button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.like-button--active,
+.bookmark-button--active {
+  color: var(--fg);
+}
+
+.like-button__icon,
+.bookmark-button__icon {
+  display: block;
+}
+
+.follow-button {
+  display: inline-block;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  padding: 0.375rem 0.875rem;
+  background: var(--fg);
+  color: var(--bg);
+  border: 1px solid var(--fg);
+  border-radius: 0.375rem;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.follow-button:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.follow-button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.follow-button--active {
+  background: transparent;
+  color: var(--fg);
+  border-color: var(--border);
+}
+
+.follow-button--active:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.profile-follow-count {
+  color: var(--fg);
+  text-decoration: none;
+}
+
+.profile-follow-count:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.profile-follow-count strong {
+  font-weight: 600;
+}
+
+/* ---- Followers / Following list pages ---- */
+
+.profile-follow-page {
+  max-width: 640px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
+.profile-follow-page__header {
+  margin-bottom: 1.5rem;
+}
+
+.profile-follow-page__title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.profile-follow-page__title a {
+  color: var(--fg);
+}
+
+.profile-follow-page__empty {
+  color: var(--fg-subtle);
+  font-size: 0.9375rem;
+}
+
+.profile-follow-page__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.user-card {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  text-decoration: none;
+  color: inherit;
+  transition: background-color 0.15s ease;
+}
+
+.user-card:hover {
+  background: var(--bg-hover);
+}
+
+.user-card__avatar {
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.user-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.user-card__identity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.375rem;
+}
+
+.user-card__display-name {
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.user-card__handle {
+  font-size: 0.8125rem;
+  color: var(--fg-subtle);
+}
+
+.user-card__bio {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--fg-subtle);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .post-tags {

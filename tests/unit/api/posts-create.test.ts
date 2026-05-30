@@ -71,7 +71,7 @@ function postsHandler(opts: {
           })),
         }
       }
-      // wikilink resolve: select('id, author_id, slug, type, published_at, users!inner(username), likes(count)').eq(...).is(...)
+      // wikilink resolve: select('id, author_id, slug, type, published_at, like_count, users!inner(username)').eq(...).is(...)
       return {
         eq: vi.fn(() => ({
           is: vi.fn(() => Promise.resolve({ data: [], error: null })),

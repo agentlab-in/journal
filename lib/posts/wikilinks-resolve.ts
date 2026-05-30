@@ -20,8 +20,8 @@ interface Row {
   slug: string
   type: string
   published_at: string
+  like_count: number
   users: { username: string } | null
-  likes: { count: number }[]
 }
 
 export async function resolveAnchor(
@@ -34,7 +34,7 @@ export async function resolveAnchor(
   const { data, error } = await opts.db
     .from('posts')
     .select(
-      'id, author_id, slug, type, published_at, users!inner(username), likes(count)',
+      'id, author_id, slug, type, published_at, like_count, users!inner(username)',
     )
     .eq('slug', target)
     .is('deleted_at', null)
@@ -46,8 +46,8 @@ export async function resolveAnchor(
     const aMine = a.author_id === opts.currentUserId ? 1 : 0
     const bMine = b.author_id === opts.currentUserId ? 1 : 0
     if (aMine !== bMine) return bMine - aMine
-    const aLikes = a.likes[0]?.count ?? 0
-    const bLikes = b.likes[0]?.count ?? 0
+    const aLikes = a.like_count ?? 0
+    const bLikes = b.like_count ?? 0
     if (aLikes !== bLikes) return bLikes - aLikes
     return b.published_at.localeCompare(a.published_at)
   })

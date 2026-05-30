@@ -24,6 +24,23 @@ export interface ProfileHeaderProps {
    */
   githubLogin: string | null
   isOwner: boolean
+  /** users.id of the profile being viewed; passed through to FollowButton. */
+  targetUserId: string
+  followerCount: number
+  followingCount: number
+  /**
+   * Whether the viewer already follows this profile. Server-resolved; the
+   * FollowButton seeds its own optimistic state from this. Always `false`
+   * for anon / self per `getFollowState`.
+   */
+  initialFollowing: boolean
+  /**
+   * Path of the page rendering this header — forwarded to FollowButton as
+   * the callbackUrl when an anon viewer clicks Follow.
+   */
+  currentPath: string
+  /** Whether the viewer has an authenticated session. */
+  isSignedIn: boolean
 }
 
 export function ProfileHeader({
@@ -34,6 +51,12 @@ export function ProfileHeader({
   createdAt,
   githubLogin,
   isOwner,
+  targetUserId,
+  followerCount,
+  followingCount,
+  initialFollowing,
+  currentPath,
+  isSignedIn,
 }: ProfileHeaderProps) {
   const githubHandle = githubLogin ?? username
   return (
@@ -57,7 +80,12 @@ export function ProfileHeader({
               Edit Profile
             </Link>
           ) : (
-            <FollowButton />
+            <FollowButton
+              targetUserId={targetUserId}
+              initialFollowing={initialFollowing}
+              isSignedIn={isSignedIn}
+              currentPath={currentPath}
+            />
           )}
         </div>
       </div>
@@ -70,6 +98,15 @@ export function ProfileHeader({
       )}
 
       <div className="profile-meta">
+        <Link href={`/${username}/followers`} className="profile-follow-count">
+          <strong>{followerCount}</strong>{' '}
+          {followerCount === 1 ? 'follower' : 'followers'}
+        </Link>
+        <span aria-hidden="true">·</span>
+        <Link href={`/${username}/following`} className="profile-follow-count">
+          <strong>{followingCount}</strong> following
+        </Link>
+        <span aria-hidden="true">·</span>
         <a
           href={`https://github.com/${githubHandle}`}
           target="_blank"
