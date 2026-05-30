@@ -82,13 +82,13 @@ describe('encodeCursor / decodeCursor', () => {
  * Minimal chain stub: tracks `.or(...)` invocations and is fluent.
  *
  * Signature matches the structural generic `applyCursor` accepts
- * (`{ or: (...args: unknown[]) => T }`).
+ * (`{ or: (filter: string, ...rest: never[]) => T }`).
  */
 function makeChainStub() {
   const orSpy = vi.fn()
-  const chain: { or: (...args: unknown[]) => typeof chain } = {
-    or: (...args: unknown[]) => {
-      orSpy(...args)
+  const chain: { or: (filter: string, ...rest: never[]) => typeof chain } = {
+    or: (filter: string, ...rest: never[]) => {
+      orSpy(filter, ...rest)
       return chain
     },
   }

@@ -97,7 +97,7 @@ export function decodeCursor(raw: string): FeedCursor | null {
  * Throws if either cursor field contains characters outside the safe set
  * (belt-and-suspenders — `decodeCursor` already enforces this).
  */
-export function applyCursor<T extends { or: (...args: unknown[]) => T }>(
+export function applyCursor<T extends { or: (filter: string, ...rest: never[]) => T }>(
   chain: T,
   cursor: FeedCursor | null | undefined,
 ): T {

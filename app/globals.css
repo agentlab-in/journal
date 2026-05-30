@@ -1558,3 +1558,22 @@ body {
   color: var(--fg);
   text-decoration: underline;
 }
+
+/* /latest cursor-pagination "Older →" link. Visually matches
+   .home-feed__more but lives under its own selector so the two surfaces
+   can drift independently (the home feed will eventually grow a
+   "See all posts" CTA; the latest feed will not). */
+.latest-feed__pagination {
+  margin: 2rem 0 0;
+  font-size: 0.875rem;
+}
+
+.latest-feed__pagination a {
+  color: var(--fg-subtle);
+  text-decoration: none;
+}
+
+.latest-feed__pagination a:hover {
+  color: var(--fg);
+  text-decoration: underline;
+}
