@@ -24,7 +24,7 @@ export type RateLimitBucket =
 export interface RateLimitResult {
   success: boolean
   remaining: number
-  /** Unix seconds at which the window resets. */
+  /** Unix seconds at which the next slot becomes available (sliding window). */
   reset: number
   /** Seconds to wait before retrying; 0 when success === true. */
   retryAfter: number
@@ -114,10 +114,14 @@ const upstashLimiters = new Map<RateLimitBucket, Ratelimit>()
 
 function getRedis(): Redis {
   if (cachedRedis) return cachedRedis
-  cachedRedis = new Redis({
-    url: env.UPSTASH_REDIS_REST_URL as string,
-    token: env.UPSTASH_REDIS_REST_TOKEN as string,
-  })
+  const url = env.UPSTASH_REDIS_REST_URL
+  const token = env.UPSTASH_REDIS_REST_TOKEN
+  if (!url || !token) {
+    throw new Error(
+      '[rate-limit] getRedis called without Upstash env vars set',
+    )
+  }
+  cachedRedis = new Redis({ url, token })
   return cachedRedis
 }
 
@@ -139,10 +143,13 @@ function getUpstashLimiter(bucket: RateLimitBucket): Ratelimit {
 // Public API
 // ---------------------------------------------------------------------------
 
-function shouldUseFallback(): boolean {
-  if (process.env.NODE_ENV === 'test') return true
-  return !env.UPSTASH_REDIS_REST_URL || !env.UPSTASH_REDIS_REST_TOKEN
-}
+// Evaluated once at import time. `env` is frozen at module load
+// (`lib/env.ts` parses `process.env` at top level), so re-checking per call
+// is misleading and just adds noise.
+const USE_FALLBACK =
+  process.env.NODE_ENV === 'test' ||
+  !env.UPSTASH_REDIS_REST_URL ||
+  !env.UPSTASH_REDIS_REST_TOKEN
 
 export async function checkRateLimit(
   bucket: RateLimitBucket,
@@ -153,7 +160,7 @@ export async function checkRateLimit(
     throw new Error(`[rate-limit] Unknown bucket: ${bucket}`)
   }
 
-  if (shouldUseFallback()) {
+  if (USE_FALLBACK) {
     if (!warnedAboutFallback && process.env.NODE_ENV !== 'test') {
       warnedAboutFallback = true
       console.warn(
@@ -180,6 +187,9 @@ export async function checkRateLimit(
  * @internal
  */
 export function __resetForTests(): void {
+  if (process.env.NODE_ENV !== 'test') {
+    throw new Error('[rate-limit] __resetForTests called outside test env')
+  }
   memoryStore.clear()
   upstashLimiters.clear()
   cachedRedis = null

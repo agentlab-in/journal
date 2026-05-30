@@ -86,4 +86,78 @@ describe('logRouteError', () => {
     expect(payload.request_id).toBe('req-1')
     expect(payload.upstream).toBe('supabase')
   })
+
+  it('redacts denylisted ctx.extra keys to [REDACTED]', () => {
+    const secretValue = 'sk_live_supersecret_should_not_appear'
+    logRouteError(new Error('x'), {
+      route: '/api/f',
+      extra: { authorization: `Bearer ${secretValue}` },
+    })
+    const payload = lastLogged()
+    expect(payload.authorization).toBe('[REDACTED]')
+    // Ensure the secret never made it to the serialized output.
+    const raw = consoleSpy.mock.calls.at(-1)?.[0] as string
+    expect(raw).not.toContain(secretValue)
+    expect(raw).not.toContain('Bearer')
+  })
+
+  it('passes non-denylisted ctx.extra keys through unchanged', () => {
+    logRouteError(new Error('x'), {
+      route: '/api/g',
+      extra: {
+        request_id: 'req-2',
+        upstream: 'supabase',
+        retry_count: 3,
+        ok: true,
+      },
+    })
+    const payload = lastLogged()
+    expect(payload.request_id).toBe('req-2')
+    expect(payload.upstream).toBe('supabase')
+    expect(payload.retry_count).toBe(3)
+    expect(payload.ok).toBe(true)
+  })
+
+  it('redacts a mix of denylisted keys (varied casing + separators) while passing safe ones through', () => {
+    const tokenVal = 'tok_abc123'
+    const pwdVal = 'hunter2'
+    const cookieVal = 'sid=deadbeef'
+    const apiKeyVal = 'ak_999'
+    const accessTokenVal = 'at_777'
+    const userSecretVal = 'us_555'
+    logRouteError(new Error('x'), {
+      route: '/api/h',
+      extra: {
+        Authorization: `Bearer ${tokenVal}`,
+        password: pwdVal,
+        cookies: cookieVal,
+        api_key: apiKeyVal,
+        'API-KEY': apiKeyVal,
+        apiKey: apiKeyVal,
+        accessToken: accessTokenVal,
+        userSecret: userSecretVal,
+        auth_token: tokenVal,
+        request_id: 'req-3',
+        upstream: 'supabase',
+      },
+    })
+    const payload = lastLogged()
+    expect(payload.Authorization).toBe('[REDACTED]')
+    expect(payload.password).toBe('[REDACTED]')
+    expect(payload.cookies).toBe('[REDACTED]')
+    expect(payload.api_key).toBe('[REDACTED]')
+    expect(payload['API-KEY']).toBe('[REDACTED]')
+    expect(payload.apiKey).toBe('[REDACTED]')
+    expect(payload.accessToken).toBe('[REDACTED]')
+    expect(payload.userSecret).toBe('[REDACTED]')
+    expect(payload.auth_token).toBe('[REDACTED]')
+    expect(payload.request_id).toBe('req-3')
+    expect(payload.upstream).toBe('supabase')
+
+    // Belt-and-braces: none of the secret strings should appear in the raw line.
+    const raw = consoleSpy.mock.calls.at(-1)?.[0] as string
+    for (const s of [tokenVal, pwdVal, cookieVal, apiKeyVal, accessTokenVal, userSecretVal]) {
+      expect(raw).not.toContain(s)
+    }
+  })
 })

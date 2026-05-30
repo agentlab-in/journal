@@ -41,13 +41,47 @@ function shapeError(err: unknown): ErrorShape {
   return { name: 'NonError', message, stack: null }
 }
 
+/**
+ * Keys (case-insensitive, full key name) whose values are replaced with
+ * `'[REDACTED]'` when spread from `ctx.extra` into the log record.
+ *
+ * Matches: authorization, Authorization, auth_token, accessToken,
+ * password, cookies, api_key, apiKey, API-KEY, userSecret, etc.
+ *
+ * Callers should still avoid putting raw secrets in `ctx.extra` — this is
+ * a defence-in-depth net, not a license to log credentials.
+ */
+const SENSITIVE_KEY_PATTERN = /authorization|token|secret|password|cookie|api[_-]?key/i
+
+function redactExtra(
+  extra: Record<string, unknown> | undefined,
+): Record<string, unknown> {
+  if (!extra) return {}
+  const out: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(extra)) {
+    out[key] = SENSITIVE_KEY_PATTERN.test(key) ? '[REDACTED]' : value
+  }
+  return out
+}
+
+/**
+ * Emit a single structured JSON line for a route error to console.error.
+ *
+ * Redaction policy: any key in `ctx.extra` whose name matches
+ * `/authorization|token|secret|password|cookie|api[_-]?key/i`
+ * (case-insensitive, full key name) has its value replaced with the
+ * literal string `'[REDACTED]'` before serialization. This guards
+ * against accidental secret leaks via the spread `...ctx.extra` payload.
+ * Callers must still avoid putting raw secrets in `ctx.extra` — this is
+ * defence-in-depth, not a license to log credentials.
+ */
 export function logRouteError(err: unknown, ctx: ErrorLogContext): void {
   const ts = new Date().toISOString()
   try {
     const record: Record<string, unknown> = {
       ts,
       route: ctx.route,
-      ...(ctx.extra ?? {}),
+      ...redactExtra(ctx.extra),
       err: shapeError(err),
     }
     if (ctx.userId !== undefined) {
