@@ -19,6 +19,7 @@ export default function AdminTabs() {
           <Link
             key={t.href}
             href={t.href}
+            aria-current={active ? 'page' : undefined}
             className={`pb-2 text-sm ${active ? 'border-b-2 border-fg text-fg font-semibold' : 'text-fg-subtle hover:text-fg'}`}
           >
             {t.label}
