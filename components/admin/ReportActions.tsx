@@ -122,17 +122,21 @@ export default function ReportActions({ report }: ReportActionsProps) {
   return (
     <div className="flex flex-wrap gap-2 items-center">
       <button
+        type="button"
         onClick={dismiss}
         disabled={busy}
-        className="text-xs px-2 py-1 border border-border rounded hover:bg-surface-raised disabled:opacity-50"
+        aria-label={`Dismiss report ${report.id}`}
+        className="text-xs px-2 py-1 border border-border rounded hover:bg-bg-hover disabled:opacity-50"
       >
         Dismiss
       </button>
 
       {(report.target_type === 'post' || report.target_type === 'comment') && (
         <button
+          type="button"
           onClick={deleteTarget}
           disabled={busy}
+          aria-label={`Delete reported ${report.target_type} and resolve report ${report.id}`}
           className="text-xs px-2 py-1 border border-border rounded text-red-600 hover:bg-red-50 disabled:opacity-50"
         >
           Delete + resolve
@@ -141,15 +145,17 @@ export default function ReportActions({ report }: ReportActionsProps) {
 
       {report.target_type === 'user' && (
         <button
+          type="button"
           onClick={banUser}
           disabled={busy}
+          aria-label={`Ban reported user and resolve report ${report.id}`}
           className="text-xs px-2 py-1 border border-border rounded text-red-600 hover:bg-red-50 disabled:opacity-50"
         >
           Ban + resolve
         </button>
       )}
 
-      {error && <span className="text-xs text-red-600">{error}</span>}
+      {error && <span className="text-xs text-red-600" role="alert">{error}</span>}
     </div>
   )
 }
