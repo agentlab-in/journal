@@ -49,6 +49,23 @@ export default defineConfig({
         process.env.E2E_TEST_AUTH_USER_ID ?? '00000000-0000-4000-8000-000000000001',
       // Short auto-save debounce for the draft-restore scenario.
       E2E_AUTOSAVE_MS: process.env.E2E_AUTOSAVE_MS ?? '300',
+      // Phase 9 anon-feed pages (`/`, `/latest`, `/tag/<slug>`, `/tags`,
+      // `/search`) build their Supabase client at request time. Without
+      // env vars the client factory throws and the page returns 500
+      // instead of an empty state. CI doesn't ship real Supabase secrets,
+      // so we inject placeholders here — client instantiation succeeds,
+      // network requests fail, the page's existing try/catch around the
+      // query degrades to the empty state. DB-dependent E2E tests gate
+      // on E2E_TEST_AUTH_USER_ID and aren't affected.
+      // `.invalid` is a reserved TLD that DNS will never resolve, so
+      // fetches fail immediately rather than hanging on the supabase.co
+      // wildcard.
+      NEXT_PUBLIC_SUPABASE_URL:
+        process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://supabase.invalid',
+      NEXT_PUBLIC_SUPABASE_ANON_KEY:
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? 'placeholder-anon-key',
+      SUPABASE_SERVICE_ROLE_KEY:
+        process.env.SUPABASE_SERVICE_ROLE_KEY ?? 'placeholder-service-key',
     },
   },
 })
