@@ -1640,3 +1640,100 @@ body {
   background: var(--fg);
   color: var(--bg);
 }
+
+/* ============================================================
+   /tags — directory page (featured grid + alphabetical tree)
+   ============================================================ */
+
+.tags-page {
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 4rem;
+}
+
+.tags-page__header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 2rem;
+}
+
+.tags-page__title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.tags-page__tagline {
+  color: var(--fg-subtle);
+  margin: 0;
+}
+
+.tags-page__section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--fg-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 0.75rem;
+}
+
+.tags-page__featured {
+  margin-bottom: 2.5rem;
+}
+
+.tags-page__featured-grid {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: 0.5rem;
+}
+
+.tags-page__featured-chip {
+  display: block;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  border-radius: 0.5rem;
+}
+
+.tags-page__all {
+  margin-top: 0;
+}
+
+.tags-page__tree,
+.tags-page__tree-children {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.tags-page__tree-children {
+  margin-left: 1.25rem;
+  padding-left: 0.75rem;
+  border-left: 1px solid var(--border);
+  margin-top: 0.25rem;
+}
+
+.tags-page__tree-item {
+  padding: 0.25rem 0;
+}
+
+.tags-page__tree-link {
+  color: var(--fg);
+  text-decoration: none;
+}
+
+.tags-page__tree-link:hover {
+  text-decoration: underline;
+}
+
+.tags-page__count {
+  color: var(--fg-subtle);
+  font-size: 0.8125rem;
+}
+
+.tags-page__empty {
+  color: var(--fg-subtle);
+}
