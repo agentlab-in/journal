@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import './globals.css'
+import { THEME_INIT_SCRIPT } from '@/lib/theme/init-script'
 
 /**
  * global-not-found.tsx
@@ -25,7 +26,16 @@ export const metadata = {
 
 export default function GlobalNotFound() {
   return (
-    <html lang="en">
+    // suppressHydrationWarning mirrors app/layout.tsx — the pre-hydration
+    // theme script below sets `data-theme` on <html> before React mounts,
+    // so the server (no data-theme) vs client (data-theme="light"|"dark")
+    // mismatch is intentional and would otherwise spam the console.
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Must run before paint to avoid a light-theme flash on 404
+            for returning dark-mode users. Mirrors app/layout.tsx. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="flex min-h-screen flex-col bg-bg text-fg">
         <main id="main-content" className="flex flex-1 flex-col items-center justify-center px-6 py-24 text-center">
           <p className="font-mono text-sm text-fg-subtle">404</p>
