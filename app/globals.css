@@ -1,5 +1,12 @@
 @import 'tailwindcss';
 
+/* Tailwind 4: wire the `dark:` variant to our data-theme attribute (set by
+ * the pre-hydration script in app/layout.tsx). Phase 13 audit needs this so
+ * MDX surfaces with semantic palettes (Callout info/tip/warning/danger,
+ * Mermaid error fallback) can express a dark-mode counterpart inline
+ * without writing a parallel selector for every shade. */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
 /* ============================================================
    Theme tokens — toggled by data-theme="light|dark" on <html>
    Default: light
@@ -10,7 +17,9 @@
   --bg: #ffffff;
   --fg: #000000;
   --bg-subtle: #f5f5f5;
-  --fg-subtle: #737373;
+  /* Phase 13: was #737373 — failed 4.5:1 on bg-subtle (#f5f5f5).
+     Nudged to #6b6b6b for ≥4.9:1 on bg and ≥4.5:1 on bg-subtle. */
+  --fg-subtle: #6b6b6b;
   --border: #e5e5e5;
   --bg-hover: #f0f0f0;
 }
@@ -49,6 +58,64 @@
   box-sizing: border-box;
 }
 
+/* ============================================================
+   Phase 13 — Focus indicators (a11y baseline)
+   Global :focus-visible rule using the foreground token gives every
+   interactive element a high-contrast ring in both themes. We use
+   :focus-visible (not :focus) so the ring only shows for keyboard
+   focus, not mouse-clicks — that keeps the visual noise low while
+   guaranteeing keyboard navigability. Components that explicitly
+   disable the outline must opt back in via :focus-visible.
+
+   The box-shadow halo fills the `outline-offset` gap with the page
+   background color. Without it, the dark `var(--fg)` outline sits
+   directly on bg-fg solid buttons (e.g. "Continue with GitHub",
+   Follow active state, settings/comment/report submits) and is
+   visually indistinguishable from the button surface. The 4px halo
+   guarantees contrast between the outline and any surface.
+   ============================================================ */
+:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--bg);
+  border-radius: 2px;
+}
+
+/* ============================================================
+   Skip-to-content link — visible only when focused via keyboard
+   tab. Pinned top-left with a high z-index so it sits above the
+   nav. WCAG 2.4.1 (Bypass Blocks).
+   ============================================================ */
+.skip-to-content {
+  position: fixed;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 100;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  /* Visually hidden but available to assistive tech and keyboard focus.
+     `clip: rect(0,0,0,0)` is the modern sr-only pattern. */
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+.skip-to-content:focus,
+.skip-to-content:focus-visible {
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+}
+
 html {
   height: 100%;
 }
@@ -63,6 +130,113 @@ body {
   transition:
     background-color 0.15s ease,
     color 0.15s ease;
+}
+
+/* ============================================================
+   Phase 13 — Polish: snappy 150ms transitions
+   Theme switch needs to crossfade the page surface — applying the
+   transition on <body> alone leaves the html background as a hard
+   cut between paints. Pair both so the toggle feels coherent.
+   ============================================================ */
+html {
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+/* Default-ease for color/border on interactive controls. Components
+   that need a different transition (e.g. transition-opacity) already
+   override via Tailwind utilities, which sit in a later cascade layer
+   and win. The point of this rule is to cover the long tail of
+   `hover:bg-bg-hover` buttons in admin/editor surfaces that never
+   declared an explicit transition — without it, hovers are a hard cut
+   that fights the snappy-but-coherent feel the rest of the app has. */
+button,
+a {
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+/* ============================================================
+   Phase 13 — Modal fade-in (report dialog + draft-restore prompt)
+   Both use a fixed overlay with `bg-black/40`. Without an entrance
+   animation, modals snap into existence on click — feels harsh.
+   This applies a 150ms ease fade to anything with the role="dialog"
+   pattern we use across the app, and to the overlay-darkening layer.
+   Kept at 150ms to stay inside the "snappy" budget the brief sets.
+   Reduced-motion users skip the fade — see the prefers-reduced-motion
+   block lower down.
+   ============================================================ */
+@keyframes modal-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+[role='dialog'][aria-modal='true'] {
+  animation: modal-fade-in 150ms ease;
+}
+
+/* ============================================================
+   Phase 13 — Shake-on-revert
+   Visual treatment paired with the existing sr-only aria-live
+   announcement on optimistic engagement reverts (LikeButton,
+   BookmarkButton, FollowButton). Triggered by toggling the
+   `shake-on-revert` class on the button via a re-key bump.
+   Chose shake over toast: no global container/portal/queue needed —
+   the animation is colocated on the failing element, and the
+   aria-live region already covers the screen-reader path.
+   Duration: ~400ms. Amplitude: ~6px. Mirrors the well-worn macOS
+   "wrong password" shake.
+   ============================================================ */
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-6px);
+  }
+  40% {
+    transform: translateX(6px);
+  }
+  60% {
+    transform: translateX(-4px);
+  }
+  80% {
+    transform: translateX(4px);
+  }
+}
+
+.shake-on-revert {
+  animation: shake 400ms ease;
+}
+
+/* ============================================================
+   Phase 13 — Reduced-motion fallback
+   WCAG 2.3.3 (animation from interactions). Users who set
+   prefers-reduced-motion get instant transitions and no shake —
+   the sr-only aria-live announcement still fires, so the
+   feedback path stays intact for assistive tech and motion-averse
+   sighted users alike.
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  html,
+  body {
+    transition: none;
+  }
+  [role='dialog'][aria-modal='true'] {
+    animation: none;
+  }
+  .shake-on-revert {
+    animation: none;
+  }
 }
 
 /* CodeMirror failsafe: even if the package's bundled theme misses a
@@ -298,7 +472,6 @@ body {
 }
 
 .report-modal__select:focus {
-  outline: none;
   border-color: var(--fg);
 }
 
@@ -318,7 +491,6 @@ body {
   border-radius: 0.375rem;
   resize: vertical;
   width: 100%;
-  outline: none;
   transition: border-color 0.15s ease;
 }
 
@@ -650,6 +822,14 @@ body {
 
 .post-body {
   font-size: 1rem;
+  /* Phase 13 mobile audit: explicit prose line-length cap. The article
+   * container already maxes at 720px, but a stricter 70ch keeps long-form
+   * paragraphs in the comfortable 50-75ch readability zone on viewports
+   * where 720px is the full width. Centered so wide ancestors still feel
+   * balanced. */
+  max-width: 70ch;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .post-body > * + * {
@@ -978,10 +1158,26 @@ body {
   margin-bottom: 2.5rem;
 }
 
+/* Phase 13 mobile audit: explicit breakpoints rather than auto-fill so the
+ * column count is deterministic across viewport sizes. 1 col at <640px
+ * (375/414 phones), 2 cols at sm-md tablets (640-1023px), 3 cols at lg+
+ * desktops (1024px+). Mirrors Tailwind's sm/lg breakpoints. */
 .profile-pinned__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: 1fr;
   gap: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .profile-pinned__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .profile-pinned__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .profile-posts__header {
@@ -1251,7 +1447,6 @@ body {
 }
 
 .settings-textarea:focus {
-  outline: none;
   border-color: var(--fg);
 }
 
@@ -1504,7 +1699,6 @@ body {
   resize: vertical;
   min-height: 4.5rem;
   width: 100%;
-  outline: none;
   transition: border-color 0.15s ease;
 }
 
@@ -1525,8 +1719,16 @@ body {
   color: var(--fg-subtle);
 }
 
+/* Phase 13 dark-mode audit: red-700 (#b91c1c) reads on the light bg but
+ * burns out on dark. Light tone in dark theme keeps the over-limit warning
+ * visible without screaming. Both shades clear 4.5:1 against their
+ * surrounding surface. */
 .comment-form__counter--over {
   color: #b91c1c;
+}
+
+[data-theme='dark'] .comment-form__counter--over {
+  color: #fca5a5;
 }
 
 .comment-form__actions {
@@ -1992,7 +2194,6 @@ body {
   color: var(--fg);
   border: 1px solid var(--border);
   border-radius: 0.375rem;
-  outline: none;
 }
 
 .search-page__input:focus {
@@ -2155,7 +2356,6 @@ body {
   color: var(--fg);
   border: 1px solid var(--border);
   border-radius: 0.375rem;
-  outline: none;
   transition: width 150ms ease, border-color 150ms ease;
 }
 

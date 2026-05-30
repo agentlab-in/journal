@@ -1,5 +1,14 @@
 import Link from 'next/link'
+import type { Metadata } from 'next'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
+
+// Title resolves to `Blocked — agentlab.in` via the root layout template.
+// Deliberately a single word so the suffix carries the brand reference;
+// the body copy disambiguates between sign-up vs. suspension.
+export const metadata: Metadata = {
+  title: 'Blocked',
+  robots: { index: false },
+}
 
 /**
  * Blocked page — shown when the sign-up gate rejects a GitHub account.
@@ -156,7 +165,7 @@ export default async function BlockedPage({ searchParams }: PageProps) {
   }
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center px-6 py-24">
+    <main id="main-content" className="flex flex-1 flex-col items-center justify-center px-6 py-24">
       <div className="w-full max-w-sm space-y-6">
         <h1 className="font-mono text-2xl font-black lowercase tracking-tight text-fg">
           {reason === 'banned' ? 'account suspended' : 'sign-up blocked'}
@@ -177,6 +186,6 @@ export default async function BlockedPage({ searchParams }: PageProps) {
           ← Back home
         </Link>
       </div>
-    </div>
+    </main>
   )
 }

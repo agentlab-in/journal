@@ -77,21 +77,25 @@ export default function TagActions({ tag }: TagActionsProps) {
         />
         <div className="flex gap-2">
           <button
+            type="button"
             onClick={submitReject}
             disabled={busy}
+            aria-label={`Confirm reject tag ${tag.slug}`}
             className="text-xs px-2 py-1 border border-border rounded text-red-600 hover:bg-red-50 disabled:opacity-50"
           >
             Confirm reject
           </button>
           <button
+            type="button"
             onClick={() => { setRejecting(false); setRejectReason(''); setError(null) }}
             disabled={busy}
-            className="text-xs px-2 py-1 border border-border rounded hover:bg-surface-raised disabled:opacity-50"
+            aria-label="Cancel tag rejection"
+            className="text-xs px-2 py-1 border border-border rounded hover:bg-bg-hover disabled:opacity-50"
           >
             Cancel
           </button>
         </div>
-        {error && <span className="text-xs text-red-600">{error}</span>}
+        {error && <span className="text-xs text-red-600" role="alert">{error}</span>}
       </div>
     )
   }
@@ -99,20 +103,24 @@ export default function TagActions({ tag }: TagActionsProps) {
   return (
     <div className="flex flex-wrap gap-2 items-center">
       <button
+        type="button"
         onClick={approve}
         disabled={busy}
+        aria-label={`Approve tag ${tag.slug}`}
         className="text-xs px-2 py-1 border border-border rounded text-green-700 hover:bg-green-50 disabled:opacity-50"
       >
         Approve
       </button>
       <button
+        type="button"
         onClick={() => { setRejecting(true); setError(null) }}
         disabled={busy}
+        aria-label={`Reject tag ${tag.slug}`}
         className="text-xs px-2 py-1 border border-border rounded text-red-600 hover:bg-red-50 disabled:opacity-50"
       >
         Reject
       </button>
-      {error && <span className="text-xs text-red-600">{error}</span>}
+      {error && <span className="text-xs text-red-600" role="alert">{error}</span>}
     </div>
   )
 }

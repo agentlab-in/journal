@@ -4,7 +4,8 @@ import { listAuditActions } from '@/lib/admin/list-audit'
 import type { AuditActionRow } from '@/lib/admin/list-audit'
 
 export const metadata: Metadata = {
-  title: 'Audit — Admin',
+  // Resolves to `Audit · Admin — agentlab.in` via the admin layout's template.
+  title: 'Audit',
 }
 
 const DATE_FMT = new Intl.DateTimeFormat('en-US', {
@@ -96,7 +97,7 @@ export default async function AdminAuditPage({
 
         <button
           type="submit"
-          className="px-3 py-1.5 text-sm border border-border rounded hover:bg-surface-raised"
+          className="px-3 py-1.5 text-sm border border-border rounded hover:bg-bg-hover"
         >
           Filter
         </button>
@@ -111,51 +112,96 @@ export default async function AdminAuditPage({
       {rows.length === 0 ? (
         <p className="text-fg-subtle text-sm">No audit records found.</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="border-b border-border text-fg-subtle text-xs">
-                <th className="text-left py-2 pr-4 font-medium">When</th>
-                <th className="text-left py-2 pr-4 font-medium">Mod</th>
-                <th className="text-left py-2 pr-4 font-medium">Action</th>
-                <th className="text-left py-2 pr-4 font-medium">Target type</th>
-                <th className="text-left py-2 pr-4 font-medium">Target ID</th>
-                <th className="text-left py-2 font-medium">Reason</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row: AuditActionRow) => (
-                <tr key={row.id} className="border-b border-border last:border-0 text-xs">
-                  <td className="py-2 pr-4 text-fg-subtle whitespace-nowrap">
-                    <time dateTime={row.created_at}>{formatDate(row.created_at)}</time>
-                  </td>
-                  <td className="py-2 pr-4">
+        <>
+          {/* Desktop (md+): the original 6-col table. Hidden below md
+              where six columns become unreadable. */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="border-b border-border text-fg-subtle text-xs">
+                  <th className="text-left py-2 pr-4 font-medium">When</th>
+                  <th className="text-left py-2 pr-4 font-medium">Mod</th>
+                  <th className="text-left py-2 pr-4 font-medium">Action</th>
+                  <th className="text-left py-2 pr-4 font-medium">Target type</th>
+                  <th className="text-left py-2 pr-4 font-medium">Target ID</th>
+                  <th className="text-left py-2 font-medium">Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row: AuditActionRow) => (
+                  <tr key={row.id} className="border-b border-border last:border-0 text-xs">
+                    <td className="py-2 pr-4 text-fg-subtle whitespace-nowrap">
+                      <time dateTime={row.created_at}>{formatDate(row.created_at)}</time>
+                    </td>
+                    <td className="py-2 pr-4">
+                      {row.mod_username ? (
+                        <Link href={`/admin/audit?actor=${encodeURIComponent(row.mod_user_id)}`} className="underline">
+                          @{row.mod_username}
+                        </Link>
+                      ) : (
+                        <span className="text-fg-subtle font-mono text-xs">{row.mod_user_id.slice(0, 8)}…</span>
+                      )}
+                    </td>
+                    <td className="py-2 pr-4 font-mono">{row.action}</td>
+                    <td className="py-2 pr-4">
+                      <Link
+                        href={`/admin/audit?target_type=${encodeURIComponent(row.target_type)}${actor ? `&actor=${encodeURIComponent(actor)}` : ''}`}
+                        className="underline text-fg-subtle hover:text-fg"
+                      >
+                        {row.target_type}
+                      </Link>
+                    </td>
+                    <td className="py-2 pr-4 font-mono text-fg-subtle">
+                      {row.target_id.slice(0, 12)}…
+                    </td>
+                    <td className="py-2 text-fg-subtle">{row.reason ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile (<md): card list. Same data, fields labeled inline. */}
+          <ul className="md:hidden flex flex-col gap-3">
+            {rows.map((row: AuditActionRow) => (
+              <li
+                key={row.id}
+                className="border border-border rounded p-3 flex flex-col gap-2 text-xs"
+              >
+                <div className="flex flex-wrap gap-x-3 gap-y-1 text-fg-subtle">
+                  <time dateTime={row.created_at}>{formatDate(row.created_at)}</time>
+                  <span>
                     {row.mod_username ? (
                       <Link href={`/admin/audit?actor=${encodeURIComponent(row.mod_user_id)}`} className="underline">
                         @{row.mod_username}
                       </Link>
                     ) : (
-                      <span className="text-fg-subtle font-mono text-xs">{row.mod_user_id.slice(0, 8)}…</span>
+                      <span className="font-mono">{row.mod_user_id.slice(0, 8)}…</span>
                     )}
-                  </td>
-                  <td className="py-2 pr-4 font-mono">{row.action}</td>
-                  <td className="py-2 pr-4">
-                    <Link
-                      href={`/admin/audit?target_type=${encodeURIComponent(row.target_type)}${actor ? `&actor=${encodeURIComponent(actor)}` : ''}`}
-                      className="underline text-fg-subtle hover:text-fg"
-                    >
-                      {row.target_type}
-                    </Link>
-                  </td>
-                  <td className="py-2 pr-4 font-mono text-fg-subtle">
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-x-3 gap-y-1">
+                  <span className="font-mono">{row.action}</span>
+                  <Link
+                    href={`/admin/audit?target_type=${encodeURIComponent(row.target_type)}${actor ? `&actor=${encodeURIComponent(actor)}` : ''}`}
+                    className="underline text-fg-subtle hover:text-fg"
+                  >
+                    {row.target_type}
+                  </Link>
+                  <span className="font-mono text-fg-subtle break-all">
                     {row.target_id.slice(0, 12)}…
-                  </td>
-                  <td className="py-2 text-fg-subtle">{row.reason ?? '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  </span>
+                </div>
+                {row.reason && (
+                  <p className="text-fg-subtle">
+                    <span className="text-fg-subtle">Reason: </span>
+                    {row.reason}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </>
       )}
 
       {nextCursor && (

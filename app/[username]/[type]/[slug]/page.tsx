@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import Link from 'next/link'
@@ -8,6 +9,8 @@ import { postUrl } from '@/lib/posts/url'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { PostBody } from '@/components/posts/PostBody'
 import { StructuredSections } from '@/components/posts/StructuredSections'
+import { ErrorBoundary } from '@/components/error/ErrorBoundary'
+import { MdxFailedFallback } from '@/components/error/MdxFailedFallback'
 import { ViewBeacon } from '@/components/posts/ViewBeacon'
 import { AuthorActions } from '@/components/posts/AuthorActions'
 import { Backlinks } from '@/components/posts/Backlinks'
@@ -17,6 +20,7 @@ import { BookmarkButton } from '@/components/post/BookmarkButton'
 import { FollowButton } from '@/components/profile/FollowButton'
 import { getFollowState } from '@/lib/profile/follow-state'
 import { ReportButton } from '@/components/report/ReportButton'
+import { CommentSkeleton } from '@/components/skeleton/CommentSkeleton'
 
 interface PageParams {
   username: string
@@ -45,13 +49,19 @@ export async function generateMetadata({
   const post = await getCachedPost({ username, type, slug })
 
   if (!post) {
-    return { title: 'Not found' }
+    // Bypasses the layout-level template; rendered title is just "Not found".
+    return { title: { absolute: 'Not found — agentlab.in' } }
   }
 
   const canonicalPath = postUrl(post.author.username, post.type, post.slug)
 
   return {
-    title: `${post.title} — ${post.author.display_name}`,
+    // `title.absolute` bypasses the layout-level `'%s — agentlab.in'`
+    // template — without it we'd get
+    // `"<title> — <author> — agentlab.in"` from the template plus the
+    // author suffix, which is awkward. Author byline lives in the
+    // body header where it's discoverable.
+    title: { absolute: `${post.title} — agentlab.in` },
     description: post.summary,
     openGraph: {
       title: post.title,
@@ -106,7 +116,8 @@ export default async function PostPage({
   const canonicalPath = postUrl(post.author.username, post.type, post.slug)
 
   return (
-    <article className="post-page">
+    <main id="main-content">
+      <article className="post-page">
       {post.cover_image_url && (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={post.cover_image_url} alt="" className="post-cover" />
@@ -126,6 +137,7 @@ export default async function PostPage({
           {!isOwner && (
             <FollowButton
               targetUserId={post.author_id}
+              username={post.author.username}
               initialFollowing={viewerFollowsAuthor}
               isSignedIn={isSignedIn}
               currentPath={canonicalPath}
@@ -188,13 +200,30 @@ export default async function PostPage({
 
       <StructuredSections type={post.type} sections={post.structured_sections} />
 
-      <PostBody html={post.body_html} />
+      {/* Narrow boundary around the post body MDX render — a broken
+          dangerouslySetInnerHTML payload or a mermaid hydration failure
+          should degrade to a small inline notice instead of bubbling
+          up to the route-level error page. */}
+      <ErrorBoundary
+        resetKey={post.body_html}
+        fallback={<MdxFailedFallback context="post body" />}
+      >
+        <PostBody html={post.body_html} />
+      </ErrorBoundary>
 
       <Backlinks postId={post.id} />
 
-      <CommentsSection postId={post.id} />
+      {/* Comments are the expensive thread walk on this page — a
+          service-role read of every comment row + author join. Stream
+          them in under a `CommentSkeleton` fallback so the post body
+          (already in DOM) paints first and the page is scrollable
+          before comments resolve. */}
+      <Suspense fallback={<CommentSkeleton count={3} />}>
+        <CommentsSection postId={post.id} />
+      </Suspense>
 
       <ViewBeacon postId={post.id} />
-    </article>
+      </article>
+    </main>
   )
 }

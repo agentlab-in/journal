@@ -73,10 +73,12 @@ describe('<LikeButton>', () => {
     )
 
     const btn = screen.getByRole('button', { name: /like/i })
+    expect(btn).toHaveAttribute('aria-pressed', 'false')
     fireEvent.click(btn)
 
-    // Optimistic state applied immediately
-    expect(screen.getByRole('button', { name: /unlike/i })).toHaveAttribute(
+    // Optimistic state applied immediately. Label is stable ("Like post"
+    // per ARIA toggle pattern); pressed-state conveys the toggle.
+    expect(screen.getByRole('button', { name: /like/i })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
@@ -86,7 +88,7 @@ describe('<LikeButton>', () => {
 
     await waitFor(() =>
       expect(
-        screen.getByRole('button', { name: /unlike/i }),
+        screen.getByRole('button', { name: /like/i }),
       ).not.toBeDisabled(),
     )
     expect(screen.getByText('4')).toBeInTheDocument()
@@ -109,9 +111,11 @@ describe('<LikeButton>', () => {
       />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: /unlike/i }))
+    const btn = screen.getByRole('button', { name: /like/i })
+    expect(btn).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(btn)
 
-    // Optimistic flip
+    // Optimistic flip — label stays "Like post", aria-pressed flips to false.
     expect(screen.getByRole('button', { name: /like/i })).toHaveAttribute(
       'aria-pressed',
       'false',
@@ -169,11 +173,11 @@ describe('<LikeButton>', () => {
       />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: /unlike/i }))
+    fireEvent.click(screen.getByRole('button', { name: /like/i }))
 
     await waitFor(() =>
       expect(
-        screen.getByRole('button', { name: /unlike/i }),
+        screen.getByRole('button', { name: /like/i }),
       ).toHaveAttribute('aria-pressed', 'true'),
     )
     expect(screen.getByText('5')).toBeInTheDocument()
@@ -183,6 +187,113 @@ describe('<LikeButton>', () => {
 // ---------------------------------------------------------------------------
 // BookmarkButton
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Shake-on-revert visual treatment (Phase 13 polish)
+// ---------------------------------------------------------------------------
+
+describe('Phase 13: shake-on-revert visual', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('LikeButton: failed click adds .shake-on-revert and removes it after ~400ms', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => ({ error: 'like_failed' }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    render(
+      <LikeButton
+        postId="post-1"
+        initialLiked={false}
+        initialCount={3}
+        isSignedIn
+        currentPath="/alice/post/hello"
+      />,
+    )
+
+    const btn = screen.getByRole('button', { name: /like/i })
+    expect(btn).not.toHaveClass('shake-on-revert')
+
+    fireEvent.click(btn)
+
+    // The revert path runs after the fetch settles. Drain microtasks to
+    // let the awaited fetch + useEffect schedule the class toggle.
+    await vi.waitFor(
+      () => expect(btn).toHaveClass('shake-on-revert'),
+      { timeout: 1000 },
+    )
+
+    // Advance past the shake duration; class is removed.
+    vi.advanceTimersByTime(401)
+    expect(btn).not.toHaveClass('shake-on-revert')
+  })
+
+  it('BookmarkButton: failed click adds .shake-on-revert and removes it after ~400ms', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => ({ error: 'bookmark_failed' }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    render(
+      <BookmarkButton
+        postId="post-1"
+        initialBookmarked={false}
+        isSignedIn
+        currentPath="/alice/post/hello"
+      />,
+    )
+
+    const btn = screen.getByRole('button', { name: /^bookmark post$/i })
+    expect(btn).not.toHaveClass('shake-on-revert')
+
+    fireEvent.click(btn)
+
+    await vi.waitFor(
+      () => expect(btn).toHaveClass('shake-on-revert'),
+      { timeout: 1000 },
+    )
+
+    vi.advanceTimersByTime(401)
+    expect(btn).not.toHaveClass('shake-on-revert')
+  })
+
+  it('LikeButton: successful click does NOT shake', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ liked: true, like_count: 4 }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    render(
+      <LikeButton
+        postId="post-1"
+        initialLiked={false}
+        initialCount={3}
+        isSignedIn
+        currentPath="/alice/post/hello"
+      />,
+    )
+
+    const btn = screen.getByRole('button', { name: /like/i })
+    fireEvent.click(btn)
+
+    // Settle any pending fetch + microtasks.
+    await Promise.resolve()
+    await Promise.resolve()
+    vi.advanceTimersByTime(500)
+    expect(btn).not.toHaveClass('shake-on-revert')
+  })
+})
 
 describe('<BookmarkButton>', () => {
   it('anon click routes to /auth/signin with the encoded callbackUrl and does NOT call fetch', () => {
@@ -197,7 +308,7 @@ describe('<BookmarkButton>', () => {
         currentPath="/alice/post/hello"
       />,
     )
-    fireEvent.click(screen.getByRole('button', { name: /^bookmark$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^bookmark post$/i }))
 
     expect(mockPush).toHaveBeenCalledWith(
       '/auth/signin?callbackUrl=%2Falice%2Fpost%2Fhello',
@@ -221,10 +332,13 @@ describe('<BookmarkButton>', () => {
       />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: /^bookmark$/i }))
+    const btn = screen.getByRole('button', { name: /^bookmark post$/i })
+    expect(btn).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(btn)
 
+    // Stable label per ARIA toggle pattern; aria-pressed conveys state.
     expect(
-      screen.getByRole('button', { name: /remove bookmark/i }),
+      screen.getByRole('button', { name: /^bookmark post$/i }),
     ).toHaveAttribute('aria-pressed', 'true')
     expect(mockFetch).toHaveBeenCalledWith('/api/bookmarks/post-1', {
       method: 'POST',
@@ -232,7 +346,7 @@ describe('<BookmarkButton>', () => {
 
     await waitFor(() =>
       expect(
-        screen.getByRole('button', { name: /remove bookmark/i }),
+        screen.getByRole('button', { name: /^bookmark post$/i }),
       ).not.toBeDisabled(),
     )
   })
@@ -254,14 +368,17 @@ describe('<BookmarkButton>', () => {
       />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: /remove bookmark/i }))
+    const btn = screen.getByRole('button', { name: /^bookmark post$/i })
+    expect(btn).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(btn)
     expect(mockFetch).toHaveBeenCalledWith('/api/bookmarks/post-1', {
       method: 'DELETE',
     })
 
+    // Server returned 5xx, so we revert back to pressed=true.
     await waitFor(() =>
       expect(
-        screen.getByRole('button', { name: /remove bookmark/i }),
+        screen.getByRole('button', { name: /^bookmark post$/i }),
       ).toHaveAttribute('aria-pressed', 'true'),
     )
   })

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Suspense } from 'react'
 import { notFound, permanentRedirect } from 'next/navigation'
 import type { Metadata } from 'next'
 import { createAnonServerSupabaseClient } from '@/lib/supabase/server'
@@ -14,6 +15,8 @@ import {
   type TimeFilter,
 } from '@/lib/feed/tag-filters'
 import { PostCard, type PostCardData } from '@/components/post/PostCard'
+import { KeyboardFeedNav } from '@/components/keyboard/KeyboardFeedNav'
+import { PostCardSkeleton } from '@/components/skeleton/PostCardSkeleton'
 
 const PAGE_SIZE = 30
 /**
@@ -76,11 +79,13 @@ export async function generateMetadata({
 
   const tag = data as Pick<TagRow, 'slug' | 'name' | 'is_approved'> | null
   if (!tag || !tag.is_approved) {
-    return { title: 'Not found' }
+    return { title: { absolute: 'Not found — agentlab.in' } }
   }
 
   return {
-    title: `#${tag.name} — agentlab.in`,
+    // `title.absolute` so the layout template doesn't append a second
+    // " — agentlab.in" after the `#name — agentlab.in` we build here.
+    title: { absolute: `#${tag.name} — agentlab.in` },
     description: `Posts tagged #${tag.name} on agentlab.`,
     alternates: { canonical: `/tag/${tag.slug}` },
   }
@@ -128,50 +133,27 @@ const TIME_LABEL: Record<TimeFilter, string> = {
   '30d': 'Past 30 days',
 }
 
-export default async function TagPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<PageParams>
-  searchParams: Promise<PageSearchParams>
-}) {
-  const { slug: rawSlug } = await params
-  const slug = rawSlug.toLowerCase()
-  if (rawSlug !== slug) {
-    // Canonical-lowercase: 308 redirect so search engines collapse case
-    // variants onto a single URL. Mirrors `app/[username]/page.tsx`.
-    permanentRedirect(`/tag/${slug}`)
-  }
+interface TagPostsListProps {
+  slug: string
+  typeFilter: TypeFilter
+  timeFilter: TimeFilter
+  cursorEncoded: string | null
+}
 
-  const sp = await searchParams
-  const typeFilter = resolveTypeFilter(sp.type)
-  const timeFilter = resolveTimeFilter(sp.time)
-  const cursor = typeof sp.after === 'string' ? decodeCursor(sp.after) : null
+/**
+ * Slow async boundary — `post_tags` lookup → `posts` filter → author /
+ * tag hydration. Extracted from the page so the breadcrumb, title, and
+ * filter chips paint instantly while the cards stream in.
+ */
+async function TagPostsList({
+  slug,
+  typeFilter,
+  timeFilter,
+  cursorEncoded,
+}: TagPostsListProps) {
+  const cursor = cursorEncoded !== null ? decodeCursor(cursorEncoded) : null
 
   const db = createAnonServerSupabaseClient()
-
-  // Step 1: resolve the tag itself. We need parent_tag_slug for the
-  // breadcrumb and is_approved to gate visibility (pending tags 404).
-  const { data: tagData } = await db
-    .from('tags')
-    .select('slug, name, parent_tag_slug, is_approved')
-    .eq('slug', slug)
-    .maybeSingle()
-
-  const tag = tagData as TagRow | null
-  if (!tag || !tag.is_approved) notFound()
-
-  // Optional breadcrumb parent lookup. One extra round-trip when the tag
-  // has a parent — acceptable for a per-page render.
-  let parentTag: ParentTagRow | null = null
-  if (tag.parent_tag_slug) {
-    const { data: parentData } = await db
-      .from('tags')
-      .select('slug, name')
-      .eq('slug', tag.parent_tag_slug)
-      .maybeSingle()
-    parentTag = (parentData as ParentTagRow | null) ?? null
-  }
 
   // Approach A (two-query) — chosen because `applyCursor` only understands
   // top-level columns and we want clean filter + cursor semantics. The
@@ -270,7 +252,80 @@ export default async function TagPage({
       : null
 
   return (
-    <main className="home-feed tag-page">
+    <>
+      {cards.length === 0 ? (
+        <p className="home-feed__empty">
+          {isFirstPage ? 'No posts tagged here yet.' : 'No more posts.'}
+        </p>
+      ) : (
+        <KeyboardFeedNav>
+          <ul className="home-feed__list">
+            {cards.map((c) => (
+              <li key={c.id} className="home-feed__item">
+                <PostCard post={c} />
+              </li>
+            ))}
+          </ul>
+        </KeyboardFeedNav>
+      )}
+
+      {olderHref && (
+        <p className="latest-feed__pagination">
+          <Link href={olderHref}>Older →</Link>
+        </p>
+      )}
+    </>
+  )
+}
+
+export default async function TagPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<PageParams>
+  searchParams: Promise<PageSearchParams>
+}) {
+  const { slug: rawSlug } = await params
+  const slug = rawSlug.toLowerCase()
+  if (rawSlug !== slug) {
+    // Canonical-lowercase: 308 redirect so search engines collapse case
+    // variants onto a single URL. Mirrors `app/[username]/page.tsx`.
+    permanentRedirect(`/tag/${slug}`)
+  }
+
+  const sp = await searchParams
+  const typeFilter = resolveTypeFilter(sp.type)
+  const timeFilter = resolveTimeFilter(sp.time)
+  const cursorEncoded = typeof sp.after === 'string' ? sp.after : null
+
+  // Tag-existence check stays in the page (not the suspended body) so
+  // we can `notFound()` before any streaming starts — once a response
+  // body begins streaming the status code is locked at 200. This is
+  // also needed for the breadcrumb / heading copy.
+  const db = createAnonServerSupabaseClient()
+  const { data: tagData } = await db
+    .from('tags')
+    .select('slug, name, parent_tag_slug, is_approved')
+    .eq('slug', slug)
+    .maybeSingle()
+
+  const tag = tagData as TagRow | null
+  if (!tag || !tag.is_approved) notFound()
+
+  // Optional breadcrumb parent lookup. One extra round-trip when the tag
+  // has a parent — acceptable for a per-page render.
+  let parentTag: ParentTagRow | null = null
+  if (tag.parent_tag_slug) {
+    const { data: parentData } = await db
+      .from('tags')
+      .select('slug, name')
+      .eq('slug', tag.parent_tag_slug)
+      .maybeSingle()
+    parentTag = (parentData as ParentTagRow | null) ?? null
+  }
+
+  return (
+    <main id="main-content" className="home-feed tag-page">
       <header className="home-feed__header tag-page__header">
         {parentTag && (
           <nav aria-label="Breadcrumb" className="tag-page__breadcrumb">
@@ -315,25 +370,19 @@ export default async function TagPage({
         </nav>
       </header>
 
-      {cards.length === 0 ? (
-        <p className="home-feed__empty">
-          {isFirstPage ? 'No posts tagged this yet.' : 'No more posts.'}
-        </p>
-      ) : (
-        <ul className="home-feed__list">
-          {cards.map((c) => (
-            <li key={c.id} className="home-feed__item">
-              <PostCard post={c} />
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {olderHref && (
-        <p className="latest-feed__pagination">
-          <Link href={olderHref}>Older →</Link>
-        </p>
-      )}
+      {/* Suspense key on the filter+cursor combo: changing filters or
+          page triggers a fresh skeleton, not a stale held list. */}
+      <Suspense
+        key={`${typeFilter}|${timeFilter}|${cursorEncoded ?? 'first'}`}
+        fallback={<PostCardSkeleton count={5} />}
+      >
+        <TagPostsList
+          slug={slug}
+          typeFilter={typeFilter}
+          timeFilter={timeFilter}
+          cursorEncoded={cursorEncoded}
+        />
+      </Suspense>
     </main>
   )
 }

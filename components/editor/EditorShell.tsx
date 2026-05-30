@@ -121,6 +121,10 @@ export function EditorShell({
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [publishing, setPublishing] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
+  // Ref to the latest handlePublish so the keyboard listener never
+  // captures a stale closure (deps change every keystroke).
+  const handlePublishRef = useRef<() => Promise<void> | void>(() => {})
+  const canPublishRef = useRef<boolean>(false)
 
   const handleEditorReady = useCallback((api: CodeMirrorEditorApi) => {
     editorApiRef.current = api
@@ -232,6 +236,13 @@ export function EditorShell({
   const [editorFraction, setEditorFraction] = useState(0.5)
   const splitRef = useRef<HTMLDivElement | null>(null)
   const draggingRef = useRef(false)
+
+  // ---- mobile pane switcher ----------------------------------------------
+  // Below the `lg` breakpoint the split-pane stacks into a single column
+  // and the author flips between editing and previewing with a tab
+  // control. On `lg` and up both panes show side-by-side and `view` is
+  // ignored (the CSS `lg:` modifier overrides the `hidden` toggles).
+  const [view, setView] = useState<'edit' | 'preview'>('edit')
 
   const handleDividerPointerDown = useCallback((e: React.PointerEvent) => {
     draggingRef.current = true
@@ -373,6 +384,41 @@ export function EditorShell({
   useEffect(() => {
     // no-op; the inline style below already binds to editorFraction.
   }, [editorFraction])
+
+  // Keep the keyboard shortcut closure pointing at the freshest
+  // handlePublish + validity. Refs avoid re-attaching the window
+  // listener on every keystroke, which is hot in CodeMirror.
+  useEffect(() => {
+    handlePublishRef.current = handlePublish
+    canPublishRef.current = validation.valid && !publishing
+  }, [handlePublish, validation.valid, publishing])
+
+  // Global cmd/ctrl + Enter (publish) and cmd/ctrl + s (save draft now).
+  // Mounted on `window` so the shortcut works even when focus is inside
+  // CodeMirror (which swallows its own keydowns at the DOM-content
+  // level). The handler is intentionally lightweight — all the real
+  // logic lives behind refs so this listener mounts exactly once.
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      const mod = e.metaKey || e.ctrlKey
+      if (!mod) return
+      // Enter → publish (when valid + not already publishing).
+      if (e.key === 'Enter') {
+        if (!canPublishRef.current) return
+        e.preventDefault()
+        void handlePublishRef.current()
+        return
+      }
+      // s → manual draft save. Use lowercase compare so it fires for
+      // both cmd+s and cmd+shift+s consistently.
+      if (e.key === 's' || e.key === 'S') {
+        e.preventDefault()
+        draftRef.current?.saveNow()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
 
   return (
     <div className="flex w-full flex-col gap-4 p-4">
@@ -537,15 +583,70 @@ export function EditorShell({
         />
       </div>
 
-      {/* ---- split: editor | divider | preview ----------------------- */}
+      {/* ---- mobile tabs: Write / Preview (hidden on lg+) ----------- */}
+      {/* Tailwind's default `lg` breakpoint (1024px) is the closest match
+          to the spec's ~900px target. Discussion #23 notes the deviation
+          — we prefer staying on default breakpoints over a custom one. */}
+      <div
+        role="tablist"
+        aria-label="Editor view"
+        className="flex gap-1 border-b border-border lg:hidden"
+        data-testid="editor-view-tabs"
+      >
+        <button
+          type="button"
+          id="editor-tab-write"
+          role="tab"
+          aria-selected={view === 'edit'}
+          aria-controls="editor-pane-write"
+          onClick={() => setView('edit')}
+          className={`px-3 py-2 text-sm font-medium ${
+            view === 'edit'
+              ? 'border-b-2 border-fg text-fg'
+              : 'text-fg-subtle hover:text-fg'
+          }`}
+        >
+          Write
+        </button>
+        <button
+          type="button"
+          id="editor-tab-preview"
+          role="tab"
+          aria-selected={view === 'preview'}
+          aria-controls="editor-pane-preview"
+          onClick={() => setView('preview')}
+          className={`px-3 py-2 text-sm font-medium ${
+            view === 'preview'
+              ? 'border-b-2 border-fg text-fg'
+              : 'text-fg-subtle hover:text-fg'
+          }`}
+        >
+          Preview
+        </button>
+      </div>
+
+      {/* ---- split: editor | divider | preview -----------------------
+          Below `lg` (1024px) the layout collapses to a single column;
+          the tabs above flip the `view` state which toggles `hidden` on
+          each pane. On `lg` and up the grid restores its draggable
+          two-column layout and `view` is irrelevant. */}
       <div
         ref={splitRef}
-        className="grid w-full gap-0"
+        className="flex w-full flex-col gap-0 lg:grid"
         style={{
+          // The inline style only applies once `lg:grid` activates the
+          // grid display mode — CSS resolves `gridTemplateColumns` against
+          // a flex parent as a no-op. Keep the style inline so the
+          // draggable divider can mutate it without a media-query dance.
           gridTemplateColumns: `${editorFraction}fr 6px ${1 - editorFraction}fr`,
         }}
       >
-        <div className="min-w-0">
+        <div
+          id="editor-pane-write"
+          role="tabpanel"
+          aria-labelledby="editor-tab-write"
+          className={`min-w-0 ${view === 'edit' ? '' : 'hidden'} lg:block`}
+        >
           <CodeMirrorEditor
             value={bodyMd}
             onChange={setBodyMd}
@@ -562,11 +663,18 @@ export function EditorShell({
           onPointerDown={handleDividerPointerDown}
           onPointerMove={handleDividerPointerMove}
           onPointerUp={handleDividerPointerUp}
-          className="cursor-col-resize bg-border hover:bg-fg-subtle"
+          className="hidden cursor-col-resize bg-border hover:bg-fg-subtle lg:block"
           data-testid="split-divider"
         />
 
-        <div className="relative min-w-0 overflow-auto border-l border-border pl-4">
+        <div
+          id="editor-pane-preview"
+          role="tabpanel"
+          aria-labelledby="editor-tab-preview"
+          className={`relative min-w-0 overflow-auto lg:border-l lg:border-border lg:pl-4 ${
+            view === 'preview' ? '' : 'hidden'
+          } lg:block`}
+        >
           <PreviewPane body_md={bodyMd} />
         </div>
       </div>

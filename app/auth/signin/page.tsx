@@ -8,7 +8,7 @@ import { signIn } from 'next-auth/react'
  */
 export default function SignInPage() {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center px-6 py-24">
+    <main id="main-content" className="flex flex-1 flex-col items-center justify-center px-6 py-24">
       <div className="w-full max-w-sm space-y-6 text-center">
         <h1 className="font-mono text-2xl font-black lowercase tracking-tight text-fg">
           sign in to agentlab
@@ -40,6 +40,6 @@ export default function SignInPage() {
           New accounts are subject to a brief eligibility check.
         </p>
       </div>
-    </div>
+    </main>
   )
 }

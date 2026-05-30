@@ -209,14 +209,32 @@ describe('ProfilePage', () => {
     ).toBe('Alice')
   })
 
-  it('renders PinnedPosts and PostList in the tree', async () => {
+  it('renders PinnedPosts and PostList in the tree (inside Suspense)', async () => {
     vi.mocked(getCachedProfile).mockResolvedValue(BASE_PROFILE)
     vi.mocked(getSession).mockResolvedValue(null)
 
     const tree = await ProfilePage({
       params: Promise.resolve({ username: 'alice' }),
     })
-    expect(findByComponentType(tree, PinnedPosts)).not.toBeNull()
-    expect(findByComponentType(tree, PostList)).not.toBeNull()
+
+    // Phase 13: PinnedPosts + PostList moved inside a <Suspense> boundary
+    // that wraps an async server component (ProfileBody). The walker
+    // can't await server components, so we (a) confirm a Suspense
+    // boundary exists with a skeleton fallback, then (b) await the
+    // body component directly and assert it renders PinnedPosts +
+    // PostList.
+    const suspense = findByComponentType(tree, React.Suspense)
+    expect(suspense).not.toBeNull()
+    const fallback = (suspense!.props as { fallback: React.ReactNode }).fallback
+    expect(fallback).toBeTruthy()
+
+    const body = (suspense!.props as { children: React.ReactElement }).children
+    expect(body).toBeTruthy()
+    // body.type is the ProfileBody async function. Invoke it with its
+    // resolved props to materialise the children.
+    const BodyFn = body.type as (props: Record<string, unknown>) => Promise<React.ReactNode>
+    const bodyTree = await BodyFn(body.props as Record<string, unknown>)
+    expect(findByComponentType(bodyTree, PinnedPosts)).not.toBeNull()
+    expect(findByComponentType(bodyTree, PostList)).not.toBeNull()
   })
 })

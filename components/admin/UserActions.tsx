@@ -69,13 +69,15 @@ export default function UserActions({ user }: UserActionsProps) {
     return (
       <div className="flex flex-wrap gap-2 items-center">
         <button
+          type="button"
           onClick={unban}
           disabled={busy}
+          aria-label={`Unban @${user.username}`}
           className="text-xs px-2 py-1 border border-border rounded text-green-700 hover:bg-green-50 disabled:opacity-50"
         >
           Unban
         </button>
-        {error && <span className="text-xs text-red-600">{error}</span>}
+        {error && <span className="text-xs text-red-600" role="alert">{error}</span>}
       </div>
     )
   }
@@ -83,7 +85,11 @@ export default function UserActions({ user }: UserActionsProps) {
   if (banning) {
     return (
       <div className="flex flex-col gap-1">
+        <label className="sr-only" htmlFor={`ban-reason-${user.id}`}>
+          Ban reason for @{user.username}
+        </label>
         <input
+          id={`ban-reason-${user.id}`}
           type="text"
           value={banReason}
           onChange={(e) => setBanReason(e.target.value)}
@@ -93,21 +99,25 @@ export default function UserActions({ user }: UserActionsProps) {
         />
         <div className="flex gap-2">
           <button
+            type="button"
             onClick={submitBan}
             disabled={busy}
+            aria-label={`Confirm ban @${user.username}`}
             className="text-xs px-2 py-1 border border-border rounded text-red-600 hover:bg-red-50 disabled:opacity-50"
           >
             Confirm ban
           </button>
           <button
+            type="button"
             onClick={() => { setBanning(false); setBanReason(''); setError(null) }}
             disabled={busy}
-            className="text-xs px-2 py-1 border border-border rounded hover:bg-surface-raised disabled:opacity-50"
+            aria-label="Cancel ban"
+            className="text-xs px-2 py-1 border border-border rounded hover:bg-bg-hover disabled:opacity-50"
           >
             Cancel
           </button>
         </div>
-        {error && <span className="text-xs text-red-600">{error}</span>}
+        {error && <span className="text-xs text-red-600" role="alert">{error}</span>}
       </div>
     )
   }
@@ -115,13 +125,15 @@ export default function UserActions({ user }: UserActionsProps) {
   return (
     <div className="flex flex-wrap gap-2 items-center">
       <button
+        type="button"
         onClick={() => { setBanning(true); setError(null) }}
         disabled={busy}
+        aria-label={`Ban @${user.username}`}
         className="text-xs px-2 py-1 border border-border rounded text-red-600 hover:bg-red-50 disabled:opacity-50"
       >
         Ban
       </button>
-      {error && <span className="text-xs text-red-600">{error}</span>}
+      {error && <span className="text-xs text-red-600" role="alert">{error}</span>}
     </div>
   )
 }

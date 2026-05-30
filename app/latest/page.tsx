@@ -1,12 +1,16 @@
 import Link from 'next/link'
+import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import { createAnonServerSupabaseClient } from '@/lib/supabase/server'
 import { applyCursor, decodeCursor, encodeCursor } from '@/lib/feed/cursor'
 import { fetchAuthors, fetchTagsByPost } from '@/lib/feed/hydrate'
 import { PostCard, type PostCardData } from '@/components/post/PostCard'
+import { KeyboardFeedNav } from '@/components/keyboard/KeyboardFeedNav'
+import { PostCardSkeleton } from '@/components/skeleton/PostCardSkeleton'
 
 export const metadata: Metadata = {
-  title: 'Latest — agentlab.in',
+  // Title resolves to `Latest — agentlab.in` via the layout template.
+  title: 'Latest',
   description: 'The newest posts on agentlab.',
   alternates: { canonical: '/latest' },
 }
@@ -26,15 +30,19 @@ interface LatestRow {
   comment_count: number | null
 }
 
-export default async function LatestPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ after?: string }>
-}) {
-  const { after } = await searchParams
+interface LatestListProps {
+  cursorEncoded: string | null
+}
+
+/**
+ * Slow async boundary — posts query + author/tag hydration. Extracted
+ * from the page so the header + tagline paint instantly while the
+ * cards stream in under a `PostCardSkeleton` fallback.
+ */
+async function LatestList({ cursorEncoded }: LatestListProps) {
   // Null cursor (missing or invalid) renders page 1 — don't 400 on a
   // poisoned share link. `decodeCursor` is total per `lib/feed/cursor.ts`.
-  const cursor = typeof after === 'string' ? decodeCursor(after) : null
+  const cursor = cursorEncoded !== null ? decodeCursor(cursorEncoded) : null
 
   const db = createAnonServerSupabaseClient()
 
@@ -106,24 +114,21 @@ export default async function LatestPage({
     : null
 
   return (
-    <main className="home-feed">
-      <header className="home-feed__header">
-        <h1 className="home-feed__title">Latest</h1>
-        <p className="home-feed__tagline">The newest posts on agentlab.</p>
-      </header>
-
+    <>
       {cards.length === 0 ? (
         <p className="home-feed__empty">
           {isFirstPage ? 'Nothing here yet.' : 'No more posts.'}
         </p>
       ) : (
-        <ul className="home-feed__list">
-          {cards.map((c) => (
-            <li key={c.id} className="home-feed__item">
-              <PostCard post={c} />
-            </li>
-          ))}
-        </ul>
+        <KeyboardFeedNav>
+          <ul className="home-feed__list">
+            {cards.map((c) => (
+              <li key={c.id} className="home-feed__item">
+                <PostCard post={c} />
+              </li>
+            ))}
+          </ul>
+        </KeyboardFeedNav>
       )}
 
       {olderHref && (
@@ -131,6 +136,33 @@ export default async function LatestPage({
           <Link href={olderHref}>Older →</Link>
         </p>
       )}
+    </>
+  )
+}
+
+export default async function LatestPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ after?: string }>
+}) {
+  const { after } = await searchParams
+  const cursorEncoded = typeof after === 'string' ? after : null
+
+  return (
+    <main id="main-content" className="home-feed">
+      <header className="home-feed__header">
+        <h1 className="home-feed__title">Latest</h1>
+        <p className="home-feed__tagline">The newest posts on agentlab.</p>
+      </header>
+
+      {/* Suspense key on the cursor: navigating between pages (?after=X)
+          triggers a fresh skeleton instead of holding the old list. */}
+      <Suspense
+        key={cursorEncoded ?? 'first'}
+        fallback={<PostCardSkeleton count={5} />}
+      >
+        <LatestList cursorEncoded={cursorEncoded} />
+      </Suspense>
     </main>
   )
 }

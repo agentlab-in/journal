@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import { createAnonServerSupabaseClient } from '@/lib/supabase/server'
 import { parseSearchParams, type ParsedSearchParams } from '@/lib/search/query'
@@ -7,6 +8,7 @@ import { renderSnippet } from '@/lib/search/snippet'
 import { FEATURED_TAG_SLUGS } from '@/lib/search/featured-tags'
 import { fetchAuthors, type AuthorInfo } from '@/lib/feed/hydrate'
 import { postUrl, POST_TYPES, type PostType } from '@/lib/posts/url'
+import { SearchResultSkeleton } from '@/components/skeleton/SearchResultSkeleton'
 
 const RESULT_LIMIT = 50
 
@@ -48,8 +50,10 @@ export async function generateMetadata({
   searchParams: Promise<PageSearchParams>
 }): Promise<Metadata> {
   const parsed = parseSearchParams(await searchParams)
+  // Title resolves to `Search — agentlab.in` or `Search: <q> — agentlab.in`
+  // via the layout-level `'%s — agentlab.in'` template.
   return {
-    title: parsed.q ? `Search: ${parsed.q} — agentlab.in` : 'Search — agentlab.in',
+    title: parsed.q ? `Search: ${parsed.q}` : 'Search',
     description: 'Search posts on agentlab.',
     // Search result pages shouldn't be indexed — every variation is a
     // pseudo-page and indexing them creates infinite crawl surface.
@@ -133,6 +137,35 @@ function SearchResultItem({
 }
 
 // -----------------------------------------------------------------------------
+// SearchResults — slow async boundary. The Postgres full-text RPC can
+// take a few hundred ms on first run (cold-cached index); extracting
+// it lets the search form + filter chips render instantly.
+// -----------------------------------------------------------------------------
+async function SearchResults({ parsed }: { parsed: ParsedSearchParams }) {
+  const db = createAnonServerSupabaseClient()
+  const hits: SearchHit[] = await runSearch(
+    db,
+    { q: parsed.q, type: parsed.type, tags: parsed.tags },
+    { limit: RESULT_LIMIT },
+  )
+
+  const uniqueAuthorIds = Array.from(new Set(hits.map((h) => h.author_id)))
+  const authorMap = await fetchAuthors(db, uniqueAuthorIds)
+
+  if (hits.length === 0) {
+    return <p className="search-page__empty">No posts match. Try fewer keywords.</p>
+  }
+
+  return (
+    <ul className="search-page__results">
+      {hits.map((h) => (
+        <SearchResultItem key={h.id} hit={h} author={authorMap.get(h.author_id)} />
+      ))}
+    </ul>
+  )
+}
+
+// -----------------------------------------------------------------------------
 // Page
 // -----------------------------------------------------------------------------
 export default async function SearchPage({
@@ -143,23 +176,6 @@ export default async function SearchPage({
   const sp = await searchParams
   const parsed = parseSearchParams(sp)
 
-  const db = createAnonServerSupabaseClient()
-
-  // Short-circuit empty queries — the RPC would return [] anyway, but we
-  // skip the round-trip and render a richer empty state with quick-filter
-  // chips for the featured tags.
-  const hits: SearchHit[] =
-    parsed.q.length > 0
-      ? await runSearch(
-          db,
-          { q: parsed.q, type: parsed.type, tags: parsed.tags },
-          { limit: RESULT_LIMIT },
-        )
-      : []
-
-  const uniqueAuthorIds = Array.from(new Set(hits.map((h) => h.author_id)))
-  const authorMap = await fetchAuthors(db, uniqueAuthorIds)
-
   // Type chips: "All" + each post type. Active when matches current parse.
   const typeChips: Array<{ label: string; type: PostType | null }> = [
     { label: 'All', type: null },
@@ -167,7 +183,7 @@ export default async function SearchPage({
   ]
 
   return (
-    <main className="search-page">
+    <main id="main-content" className="search-page">
       <header className="search-page__header">
         <h1 className="search-page__title">Search</h1>
 
@@ -226,6 +242,8 @@ export default async function SearchPage({
       </header>
 
       {parsed.q === '' ? (
+        // Empty-query state: render the suggested-tags block immediately
+        // — no Suspense needed because nothing async runs.
         <section className="search-page__empty-state" aria-label="Suggested tags">
           <p className="search-page__empty-hint">
             Type a query above, or browse posts by topic:
@@ -240,14 +258,16 @@ export default async function SearchPage({
             ))}
           </ul>
         </section>
-      ) : hits.length === 0 ? (
-        <p className="search-page__empty">No posts match. Try fewer keywords.</p>
       ) : (
-        <ul className="search-page__results">
-          {hits.map((h) => (
-            <SearchResultItem key={h.id} hit={h} author={authorMap.get(h.author_id)} />
-          ))}
-        </ul>
+        // Suspense key on the full parsed query so typing a new search
+        // (which mounts a new SearchResults via different `key`)
+        // re-shows the skeleton instead of holding the previous results.
+        <Suspense
+          key={`${parsed.q}|${parsed.type ?? ''}|${parsed.tags.join(',')}`}
+          fallback={<SearchResultSkeleton count={5} />}
+        >
+          <SearchResults parsed={parsed} />
+        </Suspense>
       )}
     </main>
   )

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getSession } from '@/lib/auth'
@@ -18,9 +19,15 @@ import {
   type TagInfo,
 } from '@/lib/feed/hydrate'
 import { PostCard, type PostCardData } from '@/components/post/PostCard'
+import { KeyboardFeedNav } from '@/components/keyboard/KeyboardFeedNav'
+import { PostCardSkeleton } from '@/components/skeleton/PostCardSkeleton'
 
 export const metadata: Metadata = {
-  title: 'agentlab.in',
+  // Home is the one route that ISN'T `{label} — agentlab.in`. It's
+  // just the site name. `title.absolute` bypasses the layout-level
+  // `'%s — agentlab.in'` template so we don't get the awkward
+  // `'agentlab.in — agentlab.in'`.
+  title: { absolute: 'agentlab.in' },
   description: 'Community publishing for AI agent infrastructure.',
   alternates: { canonical: '/' },
 }
@@ -75,13 +82,18 @@ function buildCards(
   return cards
 }
 
-export default async function HomePage() {
-  const session = await getSession()
-  const viewerId = session?.user?.id ?? null
-
+/**
+ * Slow async boundary — 3-5 Supabase round-trips (feed read + author
+ * hydration + tag hydration). Extracted into its own server component so
+ * the page shell (header/title/tagline + "see all" link) paints
+ * instantly and this streams in under a Suspense fallback.
+ *
+ * `viewerId` is passed in (already resolved by the page) so the fast
+ * JWT-decode `getSession()` call doesn't block the shell from rendering.
+ */
+async function FeedList({ viewerId }: { viewerId: string | null }) {
   let rows: FeedRow[] = []
   let db: SupabaseClient
-  let usedAuthedPath = false
 
   if (viewerId) {
     // Authed: service-role client because `getForYouFeed` reads likes /
@@ -89,7 +101,6 @@ export default async function HomePage() {
     db = createAdminSupabaseClient()
     try {
       rows = await getForYouFeed(db, viewerId)
-      usedAuthedPath = true
     } catch (err) {
       console.error('[home] getForYouFeed failed, falling back to latest:', err)
       try {
@@ -138,10 +149,38 @@ export default async function HomePage() {
   }
 
   const cards = buildCards(rows, authorMap, tagNameMap, anonTagMap)
-  const showingForYou = viewerId !== null && usedAuthedPath
+
+  if (cards.length === 0) {
+    return (
+      <p className="home-feed__empty">
+        Follow people or wait while the feed warms up. Start with{' '}
+        <Link href="/tags">/tags</Link>.
+      </p>
+    )
+  }
 
   return (
-    <main className="home-feed">
+    <KeyboardFeedNav>
+      <ul className="home-feed__list">
+        {cards.map((c) => (
+          <li key={c.id} className="home-feed__item">
+            <PostCard post={c} />
+          </li>
+        ))}
+      </ul>
+    </KeyboardFeedNav>
+  )
+}
+
+export default async function HomePage() {
+  // Cheap JWT decode — kept out of the Suspense boundary so the H1 +
+  // tagline copy that depends on auth state can paint with the shell.
+  const session = await getSession()
+  const viewerId = session?.user?.id ?? null
+  const showingForYou = viewerId !== null
+
+  return (
+    <main id="main-content" className="home-feed">
       <header className="home-feed__header">
         <h1 className="home-feed__title">{showingForYou ? 'For you' : 'Latest'}</h1>
         <p className="home-feed__tagline">
@@ -151,17 +190,9 @@ export default async function HomePage() {
         </p>
       </header>
 
-      {cards.length === 0 ? (
-        <p className="home-feed__empty">Nothing here yet. Be the first to publish.</p>
-      ) : (
-        <ul className="home-feed__list">
-          {cards.map((c) => (
-            <li key={c.id} className="home-feed__item">
-              <PostCard post={c} />
-            </li>
-          ))}
-        </ul>
-      )}
+      <Suspense fallback={<PostCardSkeleton count={5} />}>
+        <FeedList viewerId={viewerId} />
+      </Suspense>
 
       <p className="home-feed__more">
         <Link href="/latest">See all posts →</Link>

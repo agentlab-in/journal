@@ -286,7 +286,7 @@ test.describe('Phase 9 discovery — authed + seeded', () => {
     // Capture page-1 titles so we can sanity-check there's no overlap
     // with page 2 (best-effort — full 32-post seed would be more robust).
     const page1Titles = await page
-      .locator('h3.post-card__title')
+      .locator('h2.post-card__title')
       .allInnerTexts()
 
     await olderLink.first().click()
@@ -297,7 +297,7 @@ test.describe('Phase 9 discovery — authed + seeded', () => {
     expect(finalUrl.searchParams.get('after')).toBeTruthy()
 
     const page2Titles = await page
-      .locator('h3.post-card__title')
+      .locator('h2.post-card__title')
       .allInnerTexts()
 
     // No title from page 1 should reappear on page 2 — cursor pagination

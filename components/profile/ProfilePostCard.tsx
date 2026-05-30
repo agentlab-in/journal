@@ -35,14 +35,24 @@ export interface ProfilePostCardProps {
 }
 
 export function ProfilePostCard({ username, post, action }: ProfilePostCardProps) {
+  const cardHref = postUrl(username, post.type, post.slug)
   return (
-    <article className="profile-post-card">
+    // `data-feed-card` + `data-href` opt this card into the j/k/Enter
+    // keyboard nav (see <KeyboardFeedNav />). `tabIndex={-1}` keeps the
+    // card out of the normal Tab order — only the wrapper's programmatic
+    // focus() can land here.
+    <article
+      className="profile-post-card"
+      data-feed-card
+      data-href={cardHref}
+      tabIndex={-1}
+    >
       <div className="profile-post-card__header">
         <span className={`type-chip type-chip--${post.type}`}>{post.type}</span>
         {action && <div className="profile-post-card__action">{action}</div>}
       </div>
       <h3 className="profile-post-card__title">
-        <Link href={postUrl(username, post.type, post.slug)}>{post.title}</Link>
+        <Link href={cardHref}>{post.title}</Link>
       </h3>
       {post.summary && <p className="profile-post-card__summary">{post.summary}</p>}
       {post.tags.length > 0 && (

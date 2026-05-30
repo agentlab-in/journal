@@ -1,3 +1,8 @@
+// Tracks the theme mermaid was last initialised with. Phase 13 dark-mode
+// audit: if the user toggles the page theme after a diagram has rendered,
+// we re-initialise mermaid with the new value so subsequent renders match
+// the surrounding page. The existing SVG isn't re-themed in place — the
+// MermaidBlock effect re-runs and `mermaid.render()` produces a fresh SVG.
 let initialized = false
 let initializedTheme: 'dark' | 'default' | null = null
 

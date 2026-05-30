@@ -18,17 +18,19 @@ export async function generateMetadata({
   const { username } = await params
 
   if (username !== username.toLowerCase()) {
-    return { title: 'Redirecting…' }
+    return { title: { absolute: 'Redirecting… — agentlab.in' } }
   }
 
   const profile = await getCachedProfile(username)
-  if (!profile) return { title: 'Not found' }
+  if (!profile) return { title: { absolute: 'Not found — agentlab.in' } }
 
   const title = `Followers of @${profile.username} — agentlab.in`
   const description = `People who follow ${profile.display_name} on agentlab.in`
 
   return {
-    title,
+    // `title.absolute` — we already build the canonical "… — agentlab.in"
+    // form here; bypass the layout template so we don't get a double suffix.
+    title: { absolute: title },
     description,
     alternates: { canonical: `/${profile.username}/followers` },
     openGraph: { title, description, url: `/${profile.username}/followers` },
@@ -53,7 +55,7 @@ export default async function FollowersPage({
   const followers = await listFollowEdges(admin, profile.id, 'followers')
 
   return (
-    <main className="profile-follow-page">
+    <main id="main-content" className="profile-follow-page">
       <header className="profile-follow-page__header">
         <h1 className="profile-follow-page__title">
           {profile.follower_count}{' '}

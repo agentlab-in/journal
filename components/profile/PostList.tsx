@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { ProfilePostCard } from './ProfilePostCard'
 import type { ProfilePostCardData } from './ProfilePostCard'
 import type { PostType } from '@/lib/posts/url'
+import { KeyboardFeedNav } from '@/components/keyboard/KeyboardFeedNav'
 
 type FilterValue = 'all' | PostType
 
@@ -99,36 +100,38 @@ export function PostList({
       </div>
 
       {visible.length === 0 ? (
-        <p className="profile-posts__empty">No posts to show.</p>
+        <p className="profile-posts__empty">No posts yet.</p>
       ) : (
-        <ul className="profile-posts__list">
-          {visible.map((p) => {
-            const isPinned = pinnedIds.has(p.id)
-            const canPin =
-              isOwner && !isPinned && pinnedIds.size < MAX_PINS
-            return (
-              <li key={p.id}>
-                <ProfilePostCard
-                  username={username}
-                  post={p}
-                  action={
-                    canPin ? (
-                      <button
-                        type="button"
-                        className="pin-action pin-action--pin"
-                        disabled={pendingId === p.id}
-                        onClick={() => pin(p.id)}
-                        aria-label={`Pin ${p.title}`}
-                      >
-                        {pendingId === p.id ? 'Pinning…' : 'Pin'}
-                      </button>
-                    ) : undefined
-                  }
-                />
-              </li>
-            )
-          })}
-        </ul>
+        <KeyboardFeedNav>
+          <ul className="profile-posts__list">
+            {visible.map((p) => {
+              const isPinned = pinnedIds.has(p.id)
+              const canPin =
+                isOwner && !isPinned && pinnedIds.size < MAX_PINS
+              return (
+                <li key={p.id}>
+                  <ProfilePostCard
+                    username={username}
+                    post={p}
+                    action={
+                      canPin ? (
+                        <button
+                          type="button"
+                          className="pin-action pin-action--pin"
+                          disabled={pendingId === p.id}
+                          onClick={() => pin(p.id)}
+                          aria-label={`Pin ${p.title}`}
+                        >
+                          {pendingId === p.id ? 'Pinning…' : 'Pin'}
+                        </button>
+                      ) : undefined
+                    }
+                  />
+                </li>
+              )
+            })}
+          </ul>
+        </KeyboardFeedNav>
       )}
     </section>
   )

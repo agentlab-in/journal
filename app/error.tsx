@@ -1,6 +1,16 @@
 'use client'
 
+/**
+ * Root route-level error boundary. Catches anything that escapes the
+ * per-segment error.tsx files (or anything thrown above them). Renders
+ * friendly copy + try-again + home link.
+ *
+ * Note: never render `error.message` / `error.stack`. The `digest` is
+ * the Next.js correlation id and is safe to expose for support.
+ */
+
 import { useEffect } from 'react'
+import Link from 'next/link'
 
 export default function Error({
   error,
@@ -15,7 +25,7 @@ export default function Error({
   }, [error])
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center px-6 py-24 text-center">
+    <main id="main-content" className="flex flex-1 flex-col items-center justify-center px-6 py-24 text-center">
       <p className="font-mono text-sm text-fg-subtle">500</p>
       <h1 className="mt-2 font-mono text-2xl font-black lowercase tracking-tight text-fg">
         something went wrong
@@ -23,12 +33,20 @@ export default function Error({
       <p className="mt-3 text-sm text-fg-subtle">
         An unexpected error occurred. Please try again.
       </p>
-      <button
-        onClick={reset}
-        className="mt-6 rounded border border-border px-4 py-2 text-sm text-fg transition-colors hover:bg-bg-hover"
-      >
-        try again
-      </button>
-    </div>
+      <div className="mt-6 flex items-center gap-4">
+        <button
+          onClick={reset}
+          className="rounded border border-border px-4 py-2 text-sm text-fg transition-colors hover:bg-bg-hover"
+        >
+          try again
+        </button>
+        <Link
+          href="/"
+          className="text-sm text-fg underline underline-offset-4 hover:opacity-70"
+        >
+          back to agentlab
+        </Link>
+      </div>
+    </main>
   )
 }

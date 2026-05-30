@@ -1,14 +1,19 @@
 'use client'
 
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import { initMermaidOnce } from '@/lib/mdx/mermaid-init'
 
 /**
  * Client-only Mermaid renderer. The component receives the fenced-code
  * `code` string (already class="language-mermaid" in HAST). On mount it
- * dynamically `import('mermaid')`, initialises it once per page with the
- * theme picked from `document.documentElement.dataset.theme`, then calls
+ * dynamically `import('mermaid')`, initialises it with the theme picked
+ * from `document.documentElement.dataset.theme`, then calls
  * `mermaid.render(id, code)` and injects the resulting SVG.
+ *
+ * Phase 13 dark-mode audit: the component now subscribes to `data-theme`
+ * mutations on <html> via useSyncExternalStore (mirroring ThemeToggle).
+ * Toggling theme re-runs the render effect with the new mermaid theme so
+ * the diagram visually matches the surrounding page without a refresh.
  *
  * Errors render a small monospace fallback so a malformed diagram never
  * blocks the surrounding article.
@@ -18,21 +23,55 @@ export interface MermaidBlockProps {
   code: string
 }
 
+// Read the current page theme as 'dark' | 'default' (mermaid's name for
+// its light theme). Returning a string keyed off data-theme means the
+// snapshot is referentially stable across reads and re-runs the effect
+// only when the value actually flips.
+function getMermaidTheme(): 'dark' | 'default' {
+  return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'default'
+}
+
+function getServerSnapshot(): 'default' {
+  // SSR can't read the DOM. Default ('default' === mermaid's light) is
+  // a safe pick — the effect only runs on the client and re-renders with
+  // the real value once mounted.
+  return 'default'
+}
+
+function subscribeToTheme(callback: () => void): () => void {
+  const observer = new MutationObserver(callback)
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-theme'],
+  })
+  return () => observer.disconnect()
+}
+
 export function MermaidBlock({ code }: MermaidBlockProps) {
   const id = useId().replace(/[:]/g, '')
   const ref = useRef<HTMLDivElement | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const theme = useSyncExternalStore(
+    subscribeToTheme,
+    getMermaidTheme,
+    getServerSnapshot,
+  )
 
   useEffect(() => {
     let cancelled = false
     void (async () => {
       try {
         const mermaid = (await import('mermaid')).default
-        const theme =
-          document.documentElement.dataset.theme === 'dark' ? 'dark' : 'default'
         await initMermaidOnce(theme)
         const { svg } = await mermaid.render(`mermaid-${id}`, code)
-        if (!cancelled && ref.current) ref.current.innerHTML = svg
+        if (!cancelled && ref.current) {
+          ref.current.innerHTML = svg
+          // Clear any prior error from a previous theme/code attempt now
+          // that we successfully rendered. Doing this inside the async
+          // block (not synchronously at effect entry) keeps the linter
+          // happy and avoids a wasted re-render on every effect run.
+          setError(null)
+        }
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Mermaid render error')
@@ -42,11 +81,14 @@ export function MermaidBlock({ code }: MermaidBlockProps) {
     return () => {
       cancelled = true
     }
-  }, [code, id])
+  }, [code, id, theme])
 
   if (error) {
+    // Phase 13: dark variant on the error pill so the red callout doesn't
+    // burn through the dark page background. red-50/200/900 stays for
+    // light; red-950/700/100 darkens the chrome for dark.
     return (
-      <pre className="overflow-x-auto rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-900">
+      <pre className="overflow-x-auto rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-900 dark:border-red-700 dark:bg-red-950 dark:text-red-100">
         <code>{`Mermaid error: ${error}\n\n${code}`}</code>
       </pre>
     )
