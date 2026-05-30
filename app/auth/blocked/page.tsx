@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 
 /**
  * Blocked page — shown when the sign-up gate rejects a GitHub account.
@@ -11,6 +12,7 @@ import Link from 'next/link'
  *   no_public_repos        — account has 0 public repos
  *   reserved_name          — GitHub login collides with a reserved platform name
  *   invalid_account_data   — GitHub /user returned a malformed timestamp
+ *   banned                 — account has been suspended by a moderator
  */
 
 interface PageProps {
@@ -29,7 +31,7 @@ function sanitiseLogin(raw: string | undefined): string | null {
   return GH_LOGIN_RE.test(raw) ? raw.toLowerCase() : null
 }
 
-function parseReason(reason: string | undefined): React.ReactNode {
+function parseReason(reason: string | undefined, bannedReason?: string | null): React.ReactNode {
   if (!reason) {
     return <p className="text-fg-subtle">Your account does not meet the eligibility criteria.</p>
   }
@@ -96,6 +98,34 @@ function parseReason(reason: string | undefined): React.ReactNode {
     )
   }
 
+  if (reason === 'banned') {
+    return (
+      <div className="space-y-3 text-sm leading-relaxed">
+        <p className="text-fg-subtle">
+          Your account has been suspended.
+        </p>
+        {bannedReason && (
+          <p className="text-fg-subtle">
+            Reason: <span className="text-fg">{bannedReason}</span>
+          </p>
+        )}
+        <p className="text-fg-subtle font-medium">
+          Suspensions are not appealable.
+        </p>
+        <p className="text-fg-subtle">
+          For factual errors or clarifications only (not appeals), contact{' '}
+          <a
+            href="mailto:harshit@agentlab.in"
+            className="text-fg underline underline-offset-2 hover:opacity-80"
+          >
+            harshit@agentlab.in
+          </a>
+          .
+        </p>
+      </div>
+    )
+  }
+
   return <p className="text-fg-subtle">Your account does not meet the eligibility criteria.</p>
 }
 
@@ -103,20 +133,42 @@ export default async function BlockedPage({ searchParams }: PageProps) {
   const { reason, login } = await searchParams
   const safeLogin = sanitiseLogin(login)
 
+  // For banned accounts, attempt a server-side lookup for the banned_reason.
+  // Only enrich with banned_reason when the row exists AND is banned.
+  // We never reveal whether a login is "not found" vs "not banned" — show
+  // generic banned copy in both cases; only enrich on a confirmed ban row.
+  let bannedReason: string | null = null
+  if (reason === 'banned' && safeLogin) {
+    try {
+      const supabase = createAdminSupabaseClient()
+      const { data: banRow } = await supabase
+        .from('users')
+        .select('banned_at, banned_reason')
+        .eq('username', safeLogin)
+        .maybeSingle<{ banned_at: string | null; banned_reason: string | null }>()
+
+      if (banRow?.banned_at) {
+        bannedReason = banRow.banned_reason ?? null
+      }
+    } catch {
+      // Lookup failed — show generic banned copy without a specific reason.
+    }
+  }
+
   return (
     <div className="flex flex-1 flex-col items-center justify-center px-6 py-24">
       <div className="w-full max-w-sm space-y-6">
         <h1 className="font-mono text-2xl font-black lowercase tracking-tight text-fg">
-          sign-up blocked
+          {reason === 'banned' ? 'account suspended' : 'sign-up blocked'}
         </h1>
 
         {safeLogin && (
           <p className="font-mono text-xs uppercase tracking-wide text-fg-subtle">
-            sign-up blocked for <span className="text-fg">@{safeLogin}</span>
+            {reason === 'banned' ? 'suspended' : 'sign-up blocked'} for <span className="text-fg">@{safeLogin}</span>
           </p>
         )}
 
-        <div className="text-sm leading-relaxed">{parseReason(reason)}</div>
+        <div className="text-sm leading-relaxed">{parseReason(reason, bannedReason)}</div>
 
         <Link
           href="/"

@@ -69,6 +69,31 @@ export function evaluateGate(input: GateInput, now: Date = new Date()): GateResu
 }
 
 // ---------------------------------------------------------------------------
+// Ban-redirect helper (exported for unit testing — pure function, no I/O)
+// ---------------------------------------------------------------------------
+
+/**
+ * Pure function that decides whether a banned user should be redirected.
+ *
+ * Returns null when not banned (banned_at is null), or a redirect URL string
+ * when the user is banned. The login is appended only when it passes the
+ * same GitHub handle shape check used by evaluateGate.
+ */
+export function decideBanRedirect(input: {
+  login: string
+  banned_at: string | null
+}): string | null {
+  if (!input.banned_at) return null
+
+  const safeLogin =
+    typeof input.login === 'string' && /^[a-z0-9-]{1,39}$/i.test(input.login)
+      ? `&login=${encodeURIComponent(input.login.toLowerCase())}`
+      : ''
+
+  return `/auth/blocked?reason=banned${safeLogin}`
+}
+
+// ---------------------------------------------------------------------------
 // Audit-column derivation for next_auth.users
 //
 // Phase 1 added github_login + the two count columns to next_auth.users as
@@ -333,6 +358,30 @@ export const authOptions: NextAuthOptions = {
 
       if (!result.ok) {
         return result.redirect
+      }
+
+      // Ban check — query public.users for banned_at.
+      // Fail-open: if the lookup errors, allow sign-in and let the API
+      // layer enforce on the next request.
+      try {
+        const username = gh.login.toLowerCase()
+        const supabase = createAdminSupabaseClient()
+        const { data: banRow, error: banError } = await supabase
+          .from('users')
+          .select('id, banned_at')
+          .eq('username', username)
+          .maybeSingle<{ id: string; banned_at: string | null }>()
+
+        if (banError) {
+          console.error('[auth] ban lookup error (fail-open):', banError.message)
+        } else if (banRow) {
+          const redirect = decideBanRedirect({ login: username, banned_at: banRow.banned_at })
+          if (redirect) {
+            return redirect
+          }
+        }
+      } catch (banErr) {
+        console.error('[auth] ban lookup threw (fail-open):', banErr)
       }
 
       return true
