@@ -151,6 +151,53 @@ test.describe('SEO routes', () => {
     expect(parsed.headline).toBe(postBody.title)
   })
 
+  // -------------------------------------------------------------------------
+  // Per-post OG image (next/og ImageResponse)
+  // -------------------------------------------------------------------------
+
+  test('GET /<username>/<type>/<slug>/opengraph-image returns a PNG', async ({
+    request,
+  }) => {
+    test.skip(!HAS_E2E_AUTH, SKIP_REASON)
+
+    const suffix = String(Date.now())
+    const createRes = await request.post('/api/posts', {
+      headers: HEADER_E2E_AUTH,
+      data: {
+        type: 'post',
+        title: `E2E OG Post ${suffix}`,
+        summary: 'A sufficiently long summary that passes validation.',
+        body_md: 'x'.repeat(60),
+        tags: ['rag'],
+      },
+    })
+    expect(createRes.status()).toBe(201)
+    const { url } = (await createRes.json()) as { url: string }
+    const path = new URL(url).pathname
+
+    const res = await request.get(`${path}/opengraph-image`)
+    expect(res.status()).toBe(200)
+    expect(res.headers()['content-type'] ?? '').toContain('image/png')
+    const body = await res.body()
+    // A real Satori-rendered PNG is tens of KB; 1 KB rules out a
+    // stub/error body without coupling the test to exact byte counts.
+    expect(body.byteLength).toBeGreaterThan(1000)
+  })
+
+  test('GET /unknown/post/unknown/opengraph-image redirects to /og.png', async ({
+    request,
+  }) => {
+    // No DB needed: the cached-post lookup either returns null or
+    // throws when Supabase env is unset; either path is caught and
+    // redirected to the static fallback.
+    const res = await request.get(
+      '/unknown-user-zzz/post/unknown-slug-zzz/opengraph-image',
+      { maxRedirects: 0 },
+    )
+    expect(res.status()).toBe(302)
+    expect(res.headers()['location'] ?? '').toContain('/og.png')
+  })
+
   test('profile page emits Person JSON-LD with @username', async ({
     page,
     request,
