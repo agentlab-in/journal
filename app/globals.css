@@ -14,20 +14,23 @@
 
 :root,
 [data-theme='light'] {
-  --bg: #ffffff;
-  --fg: #000000;
-  --bg-subtle: #f5f5f5;
+  --bg: #fafafa;
+  --fg: #27272a;
+  --bg-subtle: #f0f0f0;
   /* Phase 13: was #737373 — failed 4.5:1 on bg-subtle (#f5f5f5).
-     Nudged to #6b6b6b for ≥4.9:1 on bg and ≥4.5:1 on bg-subtle. */
+     Nudged to #6b6b6b for ≥4.9:1 on bg and ≥4.5:1 on bg-subtle.
+     Post-review (softened contrast): bg shifted to #fafafa, fg to #27272a,
+     bg-subtle to #f0f0f0. #6b6b6b still clears ≥5.1:1 on bg and ≥4.6:1
+     on bg-subtle — no nudge required. */
   --fg-subtle: #6b6b6b;
   --border: #e5e5e5;
-  --bg-hover: #f0f0f0;
+  --bg-hover: #ebebeb;
 }
 
 [data-theme='dark'] {
-  --bg: #000000;
-  --fg: #ffffff;
-  --bg-subtle: #111111;
+  --bg: #0a0a0a;
+  --fg: #f4f4f5;
+  --bg-subtle: #141414;
   --fg-subtle: #a3a3a3;
   --border: #262626;
   --bg-hover: #1a1a1a;
@@ -35,9 +38,9 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
-    --bg: #000000;
-    --fg: #ffffff;
-    --bg-subtle: #111111;
+    --bg: #0a0a0a;
+    --fg: #f4f4f5;
+    --bg-subtle: #141414;
     --fg-subtle: #a3a3a3;
     --border: #262626;
     --bg-hover: #1a1a1a;
@@ -1476,6 +1479,18 @@ a {
 .settings-submit:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.settings-cancel {
+  font-size: 0.8125rem;
+  color: var(--fg-subtle);
+  text-decoration: none;
+  padding: 0.5rem 0.25rem;
+  transition: color 0.15s ease;
+}
+
+.settings-cancel:hover {
+  color: var(--fg);
 }
 
 .settings-status {

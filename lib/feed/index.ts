@@ -38,6 +38,22 @@ interface TagJoinRow {
 }
 
 /**
+ * Structured timing log helper — same shape as the one in
+ * `lib/feed/affinity.ts`, kept local to avoid leaking the logger across
+ * module boundaries. Gated by `FEED_TIMING_LOGS=1`.
+ */
+function feedTimeLog(
+  label: string,
+  ms: number,
+  extra?: Record<string, unknown>,
+): void {
+  if (process.env.FEED_TIMING_LOGS !== '1') return
+  console.log(
+    JSON.stringify({ event: 'feed_timing', label, ms: Math.round(ms), ...extra }),
+  )
+}
+
+/**
  * Personalized home feed. Affinity → shortlist → tag-attach → rerank.
  */
 export async function getForYouFeed(
@@ -49,19 +65,36 @@ export async function getForYouFeed(
   const shortlistSize = options.shortlistSize ?? FOR_YOU_DEFAULT_SHORTLIST_SIZE
   const now = options.now ?? new Date()
 
+  const overallStart = performance.now()
+
   const [affinity, shortlist] = await Promise.all([
     getViewerTagAffinity(db, viewerId, { now }),
     shortlistByHeat(db, { limit: shortlistSize }),
   ])
+  feedTimeLog('for_you.affinity_plus_shortlist', performance.now() - overallStart, {
+    affinity_size: affinity.size,
+    shortlist_size: shortlist.length,
+  })
 
-  if (shortlist.length === 0) return []
+  if (shortlist.length === 0) {
+    feedTimeLog('for_you.total', performance.now() - overallStart, {
+      viewer_id: viewerId,
+      empty_shortlist: true,
+    })
+    return []
+  }
 
   // Fetch approved tag slugs for every shortlisted post in a single round-trip.
+  const tagFetchStart = performance.now()
   const ids = shortlist.map((p) => p.id)
   const { data: tagData, error: tagError } = await db
     .from('post_tags')
     .select('post_id, tag_slug, tags(slug, is_approved)')
     .in('post_id', ids)
+  feedTimeLog('for_you.post_tags_attach', performance.now() - tagFetchStart, {
+    post_count: ids.length,
+    ok: !tagError,
+  })
 
   const tagsByPost = new Map<string, string[]>()
   if (!tagError && Array.isArray(tagData)) {
@@ -81,7 +114,19 @@ export async function getForYouFeed(
     tag_slugs: tagsByPost.get(p.id) ?? [],
   }))
 
-  return rerankWithAffinity(enriched, affinity, { limit, now })
+  const rerankStart = performance.now()
+  const result = rerankWithAffinity(enriched, affinity, { limit, now })
+  feedTimeLog('for_you.rerank', performance.now() - rerankStart, {
+    input_size: enriched.length,
+    output_size: result.length,
+  })
+
+  feedTimeLog('for_you.total', performance.now() - overallStart, {
+    viewer_id: viewerId,
+    returned: result.length,
+  })
+
+  return result
 }
 
 interface PostsLatestRow {
