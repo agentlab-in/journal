@@ -104,6 +104,38 @@ describe('renderAtomFeed', () => {
     expect(xml).toContain('<updated>2026-01-02T00:00:00Z</updated>')
   })
 
+  it('strips XML-illegal C0 control chars from text fields', () => {
+    // A single NUL in any user-supplied field would otherwise crash
+    // every reader on the whole feed. Build the inputs via fromCharCode
+    // so the test source has no literal control bytes.
+    const NUL = String.fromCharCode(0x00)
+    const BS = String.fromCharCode(0x08)
+    const VT = String.fromCharCode(0x0b)
+    const SO = String.fromCharCode(0x0e)
+    const US = String.fromCharCode(0x1f)
+
+    const xml = renderAtomFeed({
+      ...FEED_BASE,
+      entries: [
+        {
+          ...ENTRY_A,
+          title: `Bad${NUL}title${BS}here`,
+          contentHtml: `<p>body${VT}with${SO}junk${US}</p>`,
+        },
+      ],
+    })
+
+    expect(xml).toContain('<title>Badtitlehere</title>')
+    expect(xml).not.toContain(NUL)
+    expect(xml).not.toContain(BS)
+    expect(xml).not.toContain(VT)
+    expect(xml).not.toContain(SO)
+    expect(xml).not.toContain(US)
+    // Whole feed must still parse cleanly.
+    const doc = new DOMParser().parseFromString(xml, 'application/xml')
+    expect(doc.getElementsByTagName('parsererror').length).toBe(0)
+  })
+
   it('parses as XML and exposes structured children', () => {
     // jsdom is the vitest test environment — `DOMParser` is global.
     const xml = renderAtomFeed(FEED_BASE)

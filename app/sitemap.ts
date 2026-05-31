@@ -38,6 +38,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .select('slug, approved_at')
     .eq('is_approved', true)
 
+  // Supabase types the inner !inner join as an array but at runtime the
+  // shape is singular for a one-to-one FK — same cast the rest of the
+  // repo uses (see lib/posts/lookup.ts).
   const posts = (postsData ?? []) as unknown as PostRow[]
   const tags = (tagsData ?? []) as unknown as TagRow[]
 

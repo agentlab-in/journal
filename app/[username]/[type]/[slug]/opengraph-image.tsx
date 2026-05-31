@@ -6,9 +6,7 @@ import { getCachedPost } from '@/lib/posts/lookup'
 import { isPostType } from '@/lib/posts/url'
 import { absoluteUrl } from '@/lib/site-url'
 
-// Next 16 OG routes default to the Node.js runtime; pinning is
-// belt-and-suspenders so `node:fs/promises` keeps resolving even if
-// the default ever flips.
+// readFile from node:fs/promises requires the Node runtime.
 export const runtime = 'nodejs'
 
 export const alt = 'agentlab.in post share image'

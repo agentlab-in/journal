@@ -34,7 +34,7 @@ export interface PersonJsonLdInput {
 }
 
 /** Drop keys whose value is `undefined`. Null values are left as-is. */
-function prune<T extends Record<string, unknown>>(obj: T): T {
+function pruneInPlace<T extends Record<string, unknown>>(obj: T): T {
   for (const k of Object.keys(obj)) {
     if (obj[k as keyof T] === undefined) delete obj[k as keyof T]
   }
@@ -51,9 +51,15 @@ function toScriptSafeJson(payload: unknown): string {
 
 export function articleJsonLd(input: ArticleJsonLdInput): string {
   const schemaType = input.type === 'dive' ? 'TechArticle' : 'Article'
-  const imageUrl = absoluteUrl(input.coverImageUrl ?? '/og.png')
+  // Prefer the post's own cover; fall back to the per-post OG image route
+  // (always serves a post-specific card via next/og) rather than the
+  // generic site /og.png — Google Rich Results favors article-specific
+  // images.
+  const imageUrl = input.coverImageUrl
+    ? absoluteUrl(input.coverImageUrl)
+    : absoluteUrl(`${input.canonicalPath}/opengraph-image`)
 
-  const payload = prune({
+  const payload = pruneInPlace({
     '@context': 'https://schema.org',
     '@type': schemaType,
     headline: input.title,
@@ -84,7 +90,7 @@ export function articleJsonLd(input: ArticleJsonLdInput): string {
 }
 
 export function personJsonLd(input: PersonJsonLdInput): string {
-  const payload = prune({
+  const payload = pruneInPlace({
     '@context': 'https://schema.org',
     '@type': 'Person',
     name: input.displayName,

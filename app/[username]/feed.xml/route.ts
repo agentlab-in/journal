@@ -74,7 +74,10 @@ export async function GET(
   })
 
   const selfUrl = absoluteUrl(`/${user.username}/feed.xml`)
-  const updated = entries.length > 0 ? entries[0].updated : new Date().toISOString()
+  // Stable sentinel for empty feeds so the timestamp doesn't tick every
+  // 5 minutes — readers that short-circuit on <updated> would otherwise
+  // re-poll forever on a user who hasn't published yet.
+  const updated = entries.length > 0 ? entries[0].updated : '1970-01-01T00:00:00Z'
 
   const xml = renderAtomFeed({
     title: `${user.display_name} (@${user.username}) — agentlab.in`,

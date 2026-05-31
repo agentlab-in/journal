@@ -28,14 +28,28 @@ export interface AtomFeedInput {
   description: string
   selfUrl: string
   alternateUrl: string
+  // WARNING: don't change the canonical origin (SITE_URL) once feeds
+  // are published — readers dedupe entries by <id>, which is derived
+  // from absolute URLs.
   feedId: string
   updated: string
   entries: AtomEntry[]
 }
 
+// XML 1.0 forbids C0 control chars except \t, \n, \r. A single NUL in
+// any user-supplied field would otherwise make every reader reject the
+// whole feed. Built via RegExp constructor so the source file stays
+// free of literal control bytes.
+const XML_ILLEGAL_CONTROL_CHARS = new RegExp(
+  '[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F]',
+  'g',
+)
+
 function escapeXml(s: string): string {
-  // Order matters: `&` first so subsequent replacements don't double-escape.
+  // Order matters: strip illegal chars first, then `&` before the
+  // other entity replacements so they don't double-escape.
   return s
+    .replace(XML_ILLEGAL_CONTROL_CHARS, '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')

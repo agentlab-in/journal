@@ -95,7 +95,10 @@ export async function GET(
   })
 
   const selfUrl = absoluteUrl(`/tag/${tag.slug}/feed.xml`)
-  const updated = entries.length > 0 ? entries[0].updated : new Date().toISOString()
+  // Stable sentinel for empty feeds so the timestamp doesn't tick every
+  // 5 minutes — readers that short-circuit on <updated> would otherwise
+  // re-poll forever on a tag with no published posts yet.
+  const updated = entries.length > 0 ? entries[0].updated : '1970-01-01T00:00:00Z'
 
   const xml = renderAtomFeed({
     title: `#${tag.name} — agentlab.in`,

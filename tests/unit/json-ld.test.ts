@@ -59,10 +59,12 @@ describe('articleJsonLd', () => {
     )
   })
 
-  it('falls back to absolute /og.png when coverImageUrl is null', () => {
+  it('falls back to the per-post OG route when coverImageUrl is null', () => {
     const parsed = parseArticle({ ...ARTICLE_BASE, coverImageUrl: null })
     const image = parsed.image as string
-    expect(image.endsWith('/og.png')).toBe(true)
+    // Google Rich Results prefers an article-specific image; the per-post
+    // OG endpoint always serves one even when the post has no cover.
+    expect(image.endsWith('/alice/post/first-post/opengraph-image')).toBe(true)
     expect(image.startsWith('http')).toBe(true)
   })
 
