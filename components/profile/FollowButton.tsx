@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { readRetryAfter } from '@/lib/client/retry-after'
 
 export interface FollowButtonProps {
   targetUserId: string
@@ -56,12 +57,14 @@ export function FollowButton({
       })
       if (!res.ok) {
         setFollowing(prevFollowing)
-        setRevert((r) => ({
-          msg: nextFollowing
-            ? 'Follow failed, reverted.'
-            : 'Unfollow failed, reverted.',
-          n: r.n + 1,
-        }))
+        let msg = nextFollowing
+          ? 'Follow failed, reverted.'
+          : 'Unfollow failed, reverted.'
+        if (res.status === 429) {
+          const seconds = await readRetryAfter(res)
+          msg = `Too many clicks — try again in ${seconds}s.`
+        }
+        setRevert((r) => ({ msg, n: r.n + 1 }))
         console.error('[FollowButton] toggle failed:', res.status)
         return
       }

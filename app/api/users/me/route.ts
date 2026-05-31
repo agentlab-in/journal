@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { getSession } from '@/lib/auth'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
+import { guardMutatingRequest } from '@/lib/route-guard'
 
 export const runtime = 'nodejs'
 
@@ -32,6 +33,10 @@ export async function PATCH(req: NextRequest | Request): Promise<Response> {
   const session = await getSession()
   if (!session?.user?.id) return json(401, { error: 'unauthorized' })
   const userId = session.user.id
+
+  // Origin guard only — profile edits aren't in the bucket list.
+  const guard = await guardMutatingRequest(req, { userId })
+  if (guard.failed) return guard.response
 
   let raw: unknown
   try {

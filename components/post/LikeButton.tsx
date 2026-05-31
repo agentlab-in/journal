@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { readRetryAfter } from '@/lib/client/retry-after'
 
 export interface LikeButtonProps {
   postId: string
@@ -62,10 +63,14 @@ export function LikeButton({
       if (!res.ok) {
         setLiked(prevLiked)
         setCount(prevCount)
-        setRevert((r) => ({
-          msg: nextLiked ? 'Like failed, reverted.' : 'Unlike failed, reverted.',
-          n: r.n + 1,
-        }))
+        let msg = nextLiked ? 'Like failed, reverted.' : 'Unlike failed, reverted.'
+        // Phase 14: distinct copy for 429 so the user understands it's
+        // throttling, not a server bug.
+        if (res.status === 429) {
+          const seconds = await readRetryAfter(res)
+          msg = `Too many clicks — try again in ${seconds}s.`
+        }
+        setRevert((r) => ({ msg, n: r.n + 1 }))
         console.error('[LikeButton] toggle failed:', res.status)
         return
       }

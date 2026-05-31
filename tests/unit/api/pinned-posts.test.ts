@@ -168,7 +168,10 @@ function makeDeleteClient(opts: PinnedHandlerOpts = {}) {
 function makePostRequest(body: unknown) {
   return new Request('http://test/api/pinned-posts', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Origin: 'http://localhost:3010',
+    },
     body: JSON.stringify(body),
   })
 }
@@ -176,6 +179,7 @@ function makePostRequest(body: unknown) {
 function makeDeleteRequest(postId: string) {
   return new Request(`http://test/api/pinned-posts/${postId}`, {
     method: 'DELETE',
+    headers: { Origin: 'http://localhost:3010' },
   })
 }
 

@@ -29,9 +29,13 @@ vi.mock('next/navigation', () => ({
 
 // Lightweight stubs for child components — we just need them to render
 // something identifiable so we can inspect the tree.
-vi.mock('@/components/posts/PostBody', () => ({
-  PostBody: ({ html }: { html: string }) =>
-    React.createElement('div', { 'data-testid': 'post-body', dangerouslySetInnerHTML: { __html: html } }),
+vi.mock('@/components/posts/PostBodyStatic', () => ({
+  PostBodyStatic: ({ html }: { html: string }) =>
+    React.createElement('div', { 'data-testid': 'post-body-static', dangerouslySetInnerHTML: { __html: html } }),
+}))
+vi.mock('@/components/posts/MermaidHydratorClient', () => ({
+  MermaidHydratorClient: ({ scopeId }: { scopeId: string }) =>
+    React.createElement('div', { 'data-testid': 'mermaid-hydrator', 'data-scope-id': scopeId }),
 }))
 vi.mock('@/components/posts/StructuredSections', () => ({
   StructuredSections: () => React.createElement('div', { 'data-testid': 'structured-sections' }),

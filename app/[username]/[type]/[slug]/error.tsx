@@ -3,7 +3,7 @@
 /**
  * Route-level error boundary for /[username]/[type]/[slug] — single
  * post pages (post / playbook / dive). Catches anything that escapes
- * the narrower MDX boundaries around PostBody / StructuredSections.
+ * the narrower MDX boundaries around PostBodyStatic / StructuredSections.
  *
  * Note: never render `error.message` / `error.stack`. The `digest` is
  * the Next.js correlation id and is safe to expose for support.

@@ -95,7 +95,10 @@ function makePatchClient(opts: { commentRow?: CommentRow | null } = {}) {
 function makeRequest(commentId: string, body: unknown) {
   return new Request(`http://test/api/comments/${commentId}`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Origin: 'http://localhost:3010',
+    },
     body: typeof body === 'string' ? body : JSON.stringify(body),
   })
 }

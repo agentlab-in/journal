@@ -31,6 +31,11 @@ const envSchema = z.object({
 
   // Admin allowlist — Phase 12 scaffold; comma-separated GitHub logins
   ADMIN_GITHUB_LOGINS: z.string().optional(),
+
+  // Phase 14 — Rate limiting (Upstash Redis REST). Both optional; missing
+  // values fall back to an in-memory sliding window (see lib/rate-limit.ts).
+  UPSTASH_REDIS_REST_URL: z.string().url().optional(),
+  UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
 })
 
 export const env = envSchema.parse(process.env)

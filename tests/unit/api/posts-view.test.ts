@@ -37,6 +37,7 @@ function makeViewClient(opts: { rpcError?: { message: string } | null } = {}) {
 function makeRequest(postId: string) {
   return new Request(`http://test/api/posts/${postId}/view`, {
     method: 'POST',
+    headers: { Origin: 'http://localhost:3010' },
   })
 }
 

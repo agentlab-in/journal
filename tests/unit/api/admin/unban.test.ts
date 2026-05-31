@@ -82,7 +82,10 @@ function makeFakeClient(opts: {
 function makeRequest(body: unknown) {
   return new Request('http://test/api/admin/unban', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Origin: 'http://localhost:3010',
+    },
     body: JSON.stringify(body),
   })
 }

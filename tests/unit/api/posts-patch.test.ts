@@ -261,7 +261,10 @@ const VALID_PATCH_PAYLOAD = {
 function makeRequest(postId: string, body: unknown) {
   return new Request(`http://test/api/posts/${postId}`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Origin: 'http://localhost:3010',
+    },
     body: JSON.stringify(body),
   })
 }

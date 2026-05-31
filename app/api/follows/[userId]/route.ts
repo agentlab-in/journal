@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
+import { guardMutatingRequest } from '@/lib/route-guard'
 
 export const runtime = 'nodejs'
 
@@ -31,12 +32,15 @@ async function loadFollowerCount(
 // POST /api/follows/[userId] — idempotent follow
 // ---------------------------------------------------------------------------
 export async function POST(
-  _req: NextRequest | Request,
+  req: NextRequest | Request,
   context: { params: Promise<{ userId: string }> },
 ): Promise<Response> {
   const session = await getSession()
   if (!session?.user?.id) return json(401, { error: 'unauthorized' })
   const followerId = session.user.id
+
+  const guard = await guardMutatingRequest(req, { bucket: 'engagement', userId: followerId })
+  if (guard.failed) return guard.response
 
   const { userId } = await context.params
 
@@ -80,12 +84,15 @@ export async function POST(
 // DELETE /api/follows/[userId] — idempotent unfollow
 // ---------------------------------------------------------------------------
 export async function DELETE(
-  _req: NextRequest | Request,
+  req: NextRequest | Request,
   context: { params: Promise<{ userId: string }> },
 ): Promise<Response> {
   const session = await getSession()
   if (!session?.user?.id) return json(401, { error: 'unauthorized' })
   const followerId = session.user.id
+
+  const guard = await guardMutatingRequest(req, { bucket: 'engagement', userId: followerId })
+  if (guard.failed) return guard.response
 
   const { userId } = await context.params
 

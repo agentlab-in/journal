@@ -8,6 +8,8 @@ import { isReserved } from '@/lib/reserved-names'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { ensurePublicUser } from '@/lib/users/ensure-public-user'
+import { deriveSignupFlags } from '@/lib/auth/soft-flag'
+import { logRouteError } from '@/lib/logging/error-log'
 
 // ---------------------------------------------------------------------------
 // Gate types (exported for unit testing — pure function, no I/O)
@@ -430,6 +432,44 @@ export const authOptions: NextAuthOptions = {
           await ensurePublicUser(supabase, user.id)
         } catch (innerErr) {
           console.error('[auth] ensurePublicUser threw:', innerErr)
+        }
+
+        // Phase 14: derive signup_flags from the GitHub profile and write
+        // to public.users. Best-effort — moderators read this column as a
+        // soft-signal triage hint; failure must NEVER block login.
+        try {
+          // The raw GitHub profile NextAuth passes here may include `bio`,
+          // `email`, and `followers` on top of the typed GithubProfile —
+          // but we cannot trust their types at runtime (a malformed upstream
+          // response could deliver a number where a string is expected).
+          // Narrow each field via `typeof` so a wrong shape becomes `null`
+          // / `0` cleanly, rather than relying on the outer try/catch as a
+          // safety net when downstream code calls `.trim()` on a non-string.
+          const rawBio = (profile as { bio?: unknown }).bio
+          const rawEmail = (profile as { email?: unknown }).email
+          const rawFollowers = (profile as { followers?: unknown }).followers
+
+          const flags = deriveSignupFlags({
+            bio: typeof rawBio === 'string' ? rawBio : null,
+            email: typeof rawEmail === 'string' ? rawEmail : null,
+            followers: typeof rawFollowers === 'number' ? rawFollowers : 0,
+          })
+          const username = gh.login.toLowerCase()
+          const { error: flagsErr } = await supabase
+            .from('users')
+            .update({ signup_flags: flags })
+            .eq('username', username)
+          if (flagsErr) {
+            logRouteError(flagsErr, {
+              route: 'events.signIn:signup_flags',
+              userId: user.id,
+            })
+          }
+        } catch (flagsThrew) {
+          logRouteError(flagsThrew, {
+            route: 'events.signIn:signup_flags',
+            userId: user.id,
+          })
         }
       } catch (err) {
         console.error('[auth] audit-column update threw:', err)

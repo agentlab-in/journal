@@ -134,6 +134,7 @@ function makeDeleteClient(opts: {
 function makeRequest(postId: string, body?: string) {
   return new Request(`http://test/api/posts/${postId}`, {
     method: 'DELETE',
+    headers: { Origin: 'http://localhost:3010' },
     body: body ?? undefined,
   })
 }

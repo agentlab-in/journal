@@ -9,6 +9,8 @@ import { resolveAnchor } from '@/lib/posts/wikilinks-resolve'
 import { renderToHtml } from '@/lib/posts/render'
 import { isReserved } from '@/lib/reserved-names'
 import { postUrl, type PostType } from '@/lib/posts/url'
+import { guardMutatingRequest } from '@/lib/route-guard'
+import { logRouteError } from '@/lib/logging/error-log'
 
 export const runtime = 'nodejs'
 
@@ -46,6 +48,10 @@ export async function PATCH(
   const session = await getSession()
   if (!session?.user?.id) return json(401, { error: 'unauthorized' })
   const userId = session.user.id
+
+  // Step 1b: origin + rate-limit guard (Phase 14)
+  const guard = await guardMutatingRequest(req, { bucket: 'edit_post', userId })
+  if (guard.failed) return guard.response
 
   const { id: postId } = await context.params
 
@@ -286,6 +292,10 @@ export async function DELETE(
   if (!session?.user?.id) return json(401, { error: 'unauthorized' })
   const userId = session.user.id
 
+  // Step 1b: origin + rate-limit guard (Phase 14)
+  const guard = await guardMutatingRequest(req, { bucket: 'delete_post', userId })
+  if (guard.failed) return guard.response
+
   const { id: postId } = await context.params
 
   const admin = createAdminSupabaseClient()
@@ -358,7 +368,11 @@ export async function DELETE(
       metadata: { slug: post.slug, author_id: post.author_id },
     })
     if (modErr) {
-      console.error('[mod_actions] insert failed:', modErr)
+      logRouteError(modErr, {
+        route: '/api/posts/[id]',
+        userId,
+        extra: { op: 'mod_actions_insert', postId },
+      })
       // soft failure — deletion already succeeded, do not roll back
     }
   }

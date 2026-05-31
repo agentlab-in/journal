@@ -2,6 +2,8 @@ import { getSession } from '@/lib/auth'
 import { requireAdminApi } from '@/lib/admin'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { AdminTagApproveBody } from '@/lib/admin/schema'
+import { guardMutatingRequest } from '@/lib/route-guard'
+import { logRouteError } from '@/lib/logging/error-log'
 
 export const runtime = 'nodejs'
 
@@ -14,6 +16,9 @@ export async function POST(req: Request): Promise<Response> {
   const gate = await requireAdminApi(session)
   if (gate) return gate
   const adminUserId = session!.user.id
+
+  const guard = await guardMutatingRequest(req, { userId: adminUserId })
+  if (guard.failed) return guard.response
 
   // Parse body
   let raw: unknown
@@ -77,7 +82,11 @@ export async function POST(req: Request): Promise<Response> {
   })
 
   if (modErr) {
-    console.error('[mod_actions] insert failed:', modErr)
+    logRouteError(modErr, {
+      route: '/api/admin/tags/approve',
+      userId: adminUserId,
+      extra: { op: 'mod_actions_insert', tag_slug: slug },
+    })
   }
 
   return json(200, { ok: true })

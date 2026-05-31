@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
+import { guardMutatingRequest } from '@/lib/route-guard'
 
 export const runtime = 'nodejs'
 
@@ -34,12 +35,16 @@ async function loadPostLikeCount(
 // POST /api/likes/[postId] — idempotent like
 // ---------------------------------------------------------------------------
 export async function POST(
-  _req: NextRequest | Request,
+  req: NextRequest | Request,
   context: { params: Promise<{ postId: string }> },
 ): Promise<Response> {
   const session = await getSession()
   if (!session?.user?.id) return json(401, { error: 'unauthorized' })
   const userId = session.user.id
+
+  // Origin + engagement-bucket rate-limit (Phase 14).
+  const guard = await guardMutatingRequest(req, { bucket: 'engagement', userId })
+  if (guard.failed) return guard.response
 
   const { postId } = await context.params
   if (!UUID_RE.test(postId)) return json(404, { error: 'post_not_found' })
@@ -84,12 +89,16 @@ export async function POST(
 // DELETE /api/likes/[postId] — idempotent unlike
 // ---------------------------------------------------------------------------
 export async function DELETE(
-  _req: NextRequest | Request,
+  req: NextRequest | Request,
   context: { params: Promise<{ postId: string }> },
 ): Promise<Response> {
   const session = await getSession()
   if (!session?.user?.id) return json(401, { error: 'unauthorized' })
   const userId = session.user.id
+
+  // Same engagement bucket for DELETE — click-spam either way.
+  const guard = await guardMutatingRequest(req, { bucket: 'engagement', userId })
+  if (guard.failed) return guard.response
 
   const { postId } = await context.params
   if (!UUID_RE.test(postId)) return json(404, { error: 'post_not_found' })

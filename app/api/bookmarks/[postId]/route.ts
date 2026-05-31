@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
+import { guardMutatingRequest } from '@/lib/route-guard'
 
 export const runtime = 'nodejs'
 
@@ -18,12 +19,15 @@ const UUID_RE =
 // POST /api/bookmarks/[postId] — idempotent bookmark
 // ---------------------------------------------------------------------------
 export async function POST(
-  _req: NextRequest | Request,
+  req: NextRequest | Request,
   context: { params: Promise<{ postId: string }> },
 ): Promise<Response> {
   const session = await getSession()
   if (!session?.user?.id) return json(401, { error: 'unauthorized' })
   const userId = session.user.id
+
+  const guard = await guardMutatingRequest(req, { bucket: 'engagement', userId })
+  if (guard.failed) return guard.response
 
   const { postId } = await context.params
   if (!UUID_RE.test(postId)) return json(404, { error: 'post_not_found' })
@@ -58,12 +62,15 @@ export async function POST(
 // DELETE /api/bookmarks/[postId] — idempotent un-bookmark
 // ---------------------------------------------------------------------------
 export async function DELETE(
-  _req: NextRequest | Request,
+  req: NextRequest | Request,
   context: { params: Promise<{ postId: string }> },
 ): Promise<Response> {
   const session = await getSession()
   if (!session?.user?.id) return json(401, { error: 'unauthorized' })
   const userId = session.user.id
+
+  const guard = await guardMutatingRequest(req, { bucket: 'engagement', userId })
+  if (guard.failed) return guard.response
 
   const { postId } = await context.params
   if (!UUID_RE.test(postId)) return json(404, { error: 'post_not_found' })

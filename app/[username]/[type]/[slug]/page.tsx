@@ -2,12 +2,15 @@ import { Suspense } from 'react'
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import Image from 'next/image'
 import { getSession, resolveIsAdmin } from '@/lib/auth'
 import { getCachedPost } from '@/lib/posts/lookup'
 import { getEngagementState } from '@/lib/posts/engagement'
 import { postUrl } from '@/lib/posts/url'
+import { hasMermaid } from '@/lib/posts/has-mermaid'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
-import { PostBody } from '@/components/posts/PostBody'
+import { PostBodyStatic } from '@/components/posts/PostBodyStatic'
+import { MermaidHydratorClient } from '@/components/posts/MermaidHydratorClient'
 import { StructuredSections } from '@/components/posts/StructuredSections'
 import { ErrorBoundary } from '@/components/error/ErrorBoundary'
 import { MdxFailedFallback } from '@/components/error/MdxFailedFallback'
@@ -21,6 +24,14 @@ import { FollowButton } from '@/components/profile/FollowButton'
 import { getFollowState } from '@/lib/profile/follow-state'
 import { ReportButton } from '@/components/report/ReportButton'
 import { CommentSkeleton } from '@/components/skeleton/CommentSkeleton'
+import { logRouteError } from '@/lib/logging/error-log'
+
+// Posts above this size trigger a WARN log when rendered. The page still
+// serves — this is a signal to investigate the post (and eventually
+// enforce a hard cap at write-time) rather than a runtime block. 500 KB
+// of HTML is already an extreme outlier: a typical long-form post body
+// fits in ~30-80 KB.
+const BODY_HTML_WARN_BYTES = 500_000
 
 interface PageParams {
   username: string
@@ -115,20 +126,63 @@ export default async function PostPage({
 
   const canonicalPath = postUrl(post.author.username, post.type, post.slug)
 
+  // WARN (don't block) when body_html is unexpectedly large. Logged on
+  // every viewer render so the spike is visible exactly when it bites.
+  // The author flow should eventually grow a hard cap; until then this
+  // is the cheapest early-warning system.
+  if (post.body_html.length > BODY_HTML_WARN_BYTES) {
+    logRouteError(new Error('oversized_body_html'), {
+      route: '/posts/render',
+      extra: {
+        post_id: post.id,
+        byte_length: post.body_html.length,
+      },
+    })
+  }
+
+  // Server-side detect: only mount the client `<MermaidHydratorClient>`
+  // (which dynamic-imports mermaid on mount) on posts that actually
+  // contain a Mermaid block. Every post renders `<PostBodyStatic>`
+  // (zero client JS for the body region) — mermaid pages additionally
+  // mount the hydrator which mutates the static HTML in place.
+  const postHasMermaid = hasMermaid(post.body_html)
+
   return (
     <main id="main-content">
       <article className="post-page">
       {post.cover_image_url && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={post.cover_image_url} alt="" className="post-cover" />
+        // Cover image is a decorative banner — empty alt is correct
+        // (title + summary already carry the semantic load). Sized
+        // 1280×640 matches the OG-image aspect ratio our covers are
+        // produced at; CSS (.post-cover) constrains to width:100% and
+        // max-height:420px, so this is just the intrinsic aspect hint
+        // next/image needs to reserve layout space and avoid CLS.
+        <Image
+          src={post.cover_image_url}
+          alt=""
+          className="post-cover"
+          width={1280}
+          height={640}
+          priority
+          sizes="(max-width: 768px) 100vw, 720px"
+        />
       )}
       <header className="post-header">
         <h1>{post.title}</h1>
         <p className="post-summary">{post.summary}</p>
         <div className="post-author">
           {post.author.avatar_url && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={post.author.avatar_url} alt="" className="author-avatar" />
+            // .author-avatar pins to 32×32 — render at 2x so the bitmap
+            // is crisp on retina. next/image will down-scale via
+            // width/height attrs.
+            <Image
+              src={post.author.avatar_url}
+              alt=""
+              className="author-avatar"
+              width={64}
+              height={64}
+              sizes="32px"
+            />
           )}
           <Link href={`/${post.author.username}`} className="author-handle">
             @{post.author.username}
@@ -203,12 +257,19 @@ export default async function PostPage({
       {/* Narrow boundary around the post body MDX render — a broken
           dangerouslySetInnerHTML payload or a mermaid hydration failure
           should degrade to a small inline notice instead of bubbling
-          up to the route-level error page. */}
+          up to the route-level error page.
+
+          The static HTML always renders server-side (zero client JS for
+          the body region). Mermaid pages additionally mount
+          `<MermaidHydratorClient>`, which dynamic-imports the hydrator
+          (and via it the `mermaid` library) so neither chunk ships to
+          non-mermaid posts. */}
       <ErrorBoundary
         resetKey={post.body_html}
         fallback={<MdxFailedFallback context="post body" />}
       >
-        <PostBody html={post.body_html} />
+        <PostBodyStatic html={post.body_html} />
+        {postHasMermaid && <MermaidHydratorClient scopeId={post.id} />}
       </ErrorBoundary>
 
       <Backlinks postId={post.id} />

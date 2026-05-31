@@ -2,6 +2,8 @@ import { getSession } from '@/lib/auth'
 import { requireAdminApi } from '@/lib/admin'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { AdminReportResolveBody } from '@/lib/admin/schema'
+import { guardMutatingRequest } from '@/lib/route-guard'
+import { logRouteError } from '@/lib/logging/error-log'
 
 export const runtime = 'nodejs'
 
@@ -17,6 +19,9 @@ export async function POST(
   const gate = await requireAdminApi(session)
   if (gate) return gate
   const adminUserId = session!.user.id
+
+  const guard = await guardMutatingRequest(req, { userId: adminUserId })
+  if (guard.failed) return guard.response
 
   const { id: reportId } = await context.params
 
@@ -89,7 +94,11 @@ export async function POST(
   })
 
   if (modErr) {
-    console.error('[mod_actions] insert failed:', modErr)
+    logRouteError(modErr, {
+      route: '/api/admin/reports/[id]/resolve',
+      userId: adminUserId,
+      extra: { op: 'mod_actions_insert', reportId },
+    })
   }
 
   return json(200, { ok: true })

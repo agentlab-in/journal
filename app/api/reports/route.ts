@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { ReportCreateBody } from '@/lib/reports/schema'
+import { guardMutatingRequest } from '@/lib/route-guard'
 
 export const runtime = 'nodejs'
 
@@ -17,6 +18,10 @@ export async function POST(req: NextRequest | Request): Promise<Response> {
   const session = await getSession()
   if (!session?.user?.id) return json(401, { error: 'unauthorized' })
   const reporterId = session.user.id
+
+  // Step 1b: origin + report-bucket rate-limit (Phase 14)
+  const guard = await guardMutatingRequest(req, { bucket: 'report', userId: reporterId })
+  if (guard.failed) return guard.response
 
   // Step 2: JSON parse
   let raw: unknown

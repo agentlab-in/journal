@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { readRetryAfter } from '@/lib/client/retry-after'
 
 export interface BookmarkButtonProps {
   postId: string
@@ -48,12 +49,14 @@ export function BookmarkButton({
       })
       if (!res.ok) {
         setBookmarked(prev)
-        setRevert((r) => ({
-          msg: next
-            ? 'Bookmark failed, reverted.'
-            : 'Bookmark removal failed, reverted.',
-          n: r.n + 1,
-        }))
+        let msg = next
+          ? 'Bookmark failed, reverted.'
+          : 'Bookmark removal failed, reverted.'
+        if (res.status === 429) {
+          const seconds = await readRetryAfter(res)
+          msg = `Too many clicks — try again in ${seconds}s.`
+        }
+        setRevert((r) => ({ msg, n: r.n + 1 }))
         console.error('[BookmarkButton] toggle failed:', res.status)
         return
       }

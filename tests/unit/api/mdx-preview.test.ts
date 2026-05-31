@@ -28,7 +28,10 @@ function jsonRequest(body: unknown, init?: { stringifyOverride?: string }): Requ
   const payload = init?.stringifyOverride ?? JSON.stringify(body)
   return new Request('http://localhost/api/mdx/preview', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Origin: 'http://localhost:3010',
+    },
     body: payload,
   })
 }
