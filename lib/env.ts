@@ -36,6 +36,10 @@ const envSchema = z.object({
   // values fall back to an in-memory sliding window (see lib/rate-limit.ts).
   UPSTASH_REDIS_REST_URL: z.string().url().optional(),
   UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
+
+  // Canonical site origin used for sitemap/robots/OG absolute URLs. Optional
+  // — lib/site-url.ts falls back to https://agentlab.in when unset.
+  NEXT_PUBLIC_SITE_URL: z.string().url().optional(),
 })
 
 export const env = envSchema.parse(process.env)

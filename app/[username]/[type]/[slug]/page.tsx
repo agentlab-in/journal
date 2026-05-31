@@ -8,6 +8,7 @@ import { getCachedPost } from '@/lib/posts/lookup'
 import { getEngagementState } from '@/lib/posts/engagement'
 import { postUrl } from '@/lib/posts/url'
 import { hasMermaid } from '@/lib/posts/has-mermaid'
+import { articleJsonLd } from '@/lib/json-ld'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { PostBodyStatic } from '@/components/posts/PostBodyStatic'
 import { MermaidHydratorClient } from '@/components/posts/MermaidHydratorClient'
@@ -147,9 +148,28 @@ export default async function PostPage({
   // mount the hydrator which mutates the static HTML in place.
   const postHasMermaid = hasMermaid(post.body_html)
 
+  // Build the Article (or TechArticle for dives) JSON-LD off the
+  // already-fetched post — no extra DB roundtrip. Rendered server-side
+  // as the first child of <article> so crawlers see it in the SSR HTML.
+  const jsonLd = articleJsonLd({
+    type: post.type,
+    title: post.title,
+    summary: post.summary,
+    coverImageUrl: post.cover_image_url,
+    publishedAt: post.published_at,
+    editedAt: post.edited_at,
+    canonicalPath,
+    authorName: post.author.display_name,
+    authorUsername: post.author.username,
+  })
+
   return (
     <main id="main-content">
       <article className="post-page">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLd }}
+      />
       {post.cover_image_url && (
         // Cover image is a decorative banner — empty alt is correct
         // (title + summary already carry the semantic load). Sized
