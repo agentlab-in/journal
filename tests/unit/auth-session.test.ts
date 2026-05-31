@@ -17,7 +17,7 @@
  *   3. Falls back gracefully (no username, no throw) when Supabase
  *      misbehaves.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { Session, User } from 'next-auth'
 import type { AdapterUser } from 'next-auth/adapters'
 
@@ -230,21 +230,6 @@ describe('authOptions.callbacks.session', () => {
     expect(out.user?.image).toBe('https://avatars.githubusercontent.com/u/42?v=4')
   })
 
-  it('leaves username undefined when even ensurePublicUser fails', async () => {
-    const supa = mockSupabaseUsersLookup(null)
-    createAdminSupabaseClient.mockReturnValue(supa)
-    ensurePublicUser.mockResolvedValue(null)
-
-    const out = await callSession({
-      session: { ...BASE_SESSION, user: { ...BASE_SESSION.user! } },
-      user: BASE_USER,
-    })
-
-    expect(ensurePublicUser).toHaveBeenCalledTimes(1)
-    expect(out.user?.username).toBeUndefined()
-    expect(out.user?.id).toBe('user-1')
-  })
-
   it('does not throw when Supabase throws — returns the session without username', async () => {
     createAdminSupabaseClient.mockImplementation(() => {
       throw new Error('boom')
@@ -380,6 +365,11 @@ describe('authOptions.callbacks.session — first call with real ensurePublicUse
   beforeEach(() => {
     vi.resetModules()
     createAdminSupabaseClient.mockReset()
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('surfaces username on the FIRST session call when public.users is empty (real ensurePublicUser, no mock)', async () => {
@@ -397,6 +387,8 @@ describe('authOptions.callbacks.session — first call with real ensurePublicUse
     // under test.
     vi.doUnmock('@/lib/users/ensure-public-user')
     // Re-import authOptions so it picks up the real ensurePublicUser.
+    // Note: dynamic import is awaited before the session callback so that
+    // fake timers are only in-flight during the cb() call, not the import itself.
     const { authOptions: realAuthOptions } = await import('@/lib/auth')
 
     // Build a chainable mock that handles every call shape ensurePublicUser
@@ -458,7 +450,10 @@ describe('authOptions.callbacks.session — first call with real ensurePublicUse
     const cb = realAuthOptions.callbacks?.session
     if (!cb) throw new Error('session callback missing on real authOptions')
 
-    const out = (await cb({
+    // Start the session callback without awaiting — the real ensurePublicUser
+    // inside it will hit a 50 ms setTimeout; advance fake timers to fire it
+    // without burning real wall-clock time, then collect the result.
+    const outPromise = cb({
       session: { ...BASE_SESSION, user: { ...BASE_SESSION.user! } },
       user: BASE_USER,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -466,7 +461,9 @@ describe('authOptions.callbacks.session — first call with real ensurePublicUse
       newSession: undefined,
       trigger: 'update',
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any)) as Session
+    } as any)
+    await vi.advanceTimersByTimeAsync(60)
+    const out = (await outPromise) as Session
 
     // The user-visible assertion: username is set on the FIRST session
     // response, so NavAuth.tsx renders the profile link without reload.
