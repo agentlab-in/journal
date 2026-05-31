@@ -1478,6 +1478,18 @@ a {
   cursor: not-allowed;
 }
 
+.settings-cancel {
+  font-size: 0.8125rem;
+  color: var(--fg-subtle);
+  text-decoration: none;
+  padding: 0.5rem 0.25rem;
+  transition: color 0.15s ease;
+}
+
+.settings-cancel:hover {
+  color: var(--fg);
+}
+
 .settings-status {
   font-size: 0.8125rem;
   color: var(--fg-subtle);
