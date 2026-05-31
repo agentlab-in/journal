@@ -118,5 +118,21 @@ export async function ensurePublicUser(
     .select('username')
     .eq('id', userId)
     .maybeSingle<{ username: string }>()
-  return after.data?.username ?? login
+
+  // If the row still isn't visible (rare read-after-write timing window between
+  // the trigger/upsert commit and the session-callback read), wait 50 ms and
+  // retry once. This is a single extra round-trip; it only fires when the upsert
+  // appeared to succeed but the row isn't yet visible, which is the edge case
+  // that causes username to be missing from the session on first render.
+  if (!after.data?.username) {
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    const retry = await supabase
+      .from('users')
+      .select('username')
+      .eq('id', userId)
+      .maybeSingle<{ username: string }>()
+    return retry.data?.username ?? login
+  }
+
+  return after.data.username
 }

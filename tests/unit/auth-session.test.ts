@@ -258,4 +258,26 @@ describe('authOptions.callbacks.session', () => {
     expect(out.user?.id).toBe('user-1')
     expect(out.user?.username).toBeUndefined()
   })
+
+  it('uses ensurePublicUser login fallback as username when post-heal re-read also returns null (first-render race)', async () => {
+    // Simulates the timing window reported by the reviewer:
+    // - Initial public.users lookup misses (row not committed yet)
+    // - ensurePublicUser runs its upsert + retry but the DB read still returns null
+    //   (extreme read-after-write lag), so ensurePublicUser returns the login string directly
+    // - The session callback MUST still surface username so the topbar renders the profile link
+    const supa = mockSupabaseUsersLookup([null, null])
+    createAdminSupabaseClient.mockReturnValue(supa)
+    // ensurePublicUser returns the login fallback (non-null string)
+    ensurePublicUser.mockResolvedValue('alice')
+
+    const out = await callSession({
+      session: { ...BASE_SESSION, user: { ...BASE_SESSION.user! } },
+      user: BASE_USER,
+    })
+
+    expect(ensurePublicUser).toHaveBeenCalledTimes(1)
+    // username must be present even when the re-read returns null
+    expect(out.user?.username).toBe('alice')
+    expect(out.user?.id).toBe('user-1')
+  })
 })
