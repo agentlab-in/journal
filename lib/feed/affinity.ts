@@ -61,7 +61,7 @@ const RECENCY_HALF_LIFE_DAYS = 30
 /** Per-viewer affinity cache TTL: 5 minutes. */
 const AFFINITY_TTL_MS = 5 * 60 * 1000
 
-/** Hard cap on number of cached viewer entries (per warm container). */
+/** Hard cap on number of cached viewer entries (per warm container). Worst case ~12MB per warm container (1000 viewers × 500 tags). */
 const AFFINITY_CACHE_MAX_ENTRIES = 1000
 
 interface TagRow {
@@ -299,7 +299,7 @@ export async function getViewerTagAffinity(
     }
 
     affinityCache.set(viewerId, {
-      weights,
+      weights: new Map(weights), // defensive snapshot, not a live reference
       expiresAt: now.getTime() + AFFINITY_TTL_MS,
     })
     timeLog('affinity.cache_miss', performance.now() - overallStart, {

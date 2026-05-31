@@ -67,12 +67,11 @@ export async function getForYouFeed(
 
   const overallStart = performance.now()
 
-  const phase1Start = performance.now()
   const [affinity, shortlist] = await Promise.all([
     getViewerTagAffinity(db, viewerId, { now }),
     shortlistByHeat(db, { limit: shortlistSize }),
   ])
-  feedTimeLog('for_you.affinity_plus_shortlist', performance.now() - phase1Start, {
+  feedTimeLog('for_you.affinity_plus_shortlist', performance.now() - overallStart, {
     affinity_size: affinity.size,
     shortlist_size: shortlist.length,
   })

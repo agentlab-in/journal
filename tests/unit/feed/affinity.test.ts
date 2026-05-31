@@ -156,11 +156,13 @@ describe('getViewerTagAffinity', () => {
     const def = await getViewerTagAffinity(db, 'viewer-1', { now: NOW })
     expect(def.size).toBe(8)
 
+    const callsAfterFirst = db.fromSpy.mock.calls.length
     const three = await getViewerTagAffinity(db, 'viewer-1', {
       now: NOW,
       limit: 3,
     })
     expect(three.size).toBe(3)
+    expect(db.fromSpy.mock.calls.length).toBe(callsAfterFirst) // cache hit, no new DB calls
   })
 
   it('filters out tags whose tags.is_approved is false', async () => {
