@@ -197,16 +197,16 @@ describe('<ProfileSettingsForm> — redirect timer cleanup', () => {
   beforeEach(() => {
     mockPush.mockReset()
     vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.useFakeTimers()
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
   })
 
   it('clears the redirect timer if the form unmounts before it fires', async () => {
-    vi.useFakeTimers()
-
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }),
@@ -221,12 +221,10 @@ describe('<ProfileSettingsForm> — redirect timer cleanup', () => {
     submitForm()
 
     // "Saved." should appear after the fetch resolves — advance timers to allow promises
-    act(() => {
-      vi.runAllTimersAsync()
-    })
-
-    await waitFor(() =>
+    // We need to flush microtasks without advancing the 600ms redirect timer
+    await vi.waitFor(() =>
       expect(screen.getByRole('status')).toHaveTextContent('Saved.'),
+      { timeout: 500 },
     )
 
     // Unmount before the 600 ms timer fires
@@ -239,7 +237,5 @@ describe('<ProfileSettingsForm> — redirect timer cleanup', () => {
 
     // router.push should NOT have been called
     expect(mockPush).not.toHaveBeenCalled()
-
-    vi.useRealTimers()
   })
 })
