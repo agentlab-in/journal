@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
@@ -57,6 +57,14 @@ export function ProfileSettingsForm({
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saveOk, setSaveOk] = useState(false)
+
+  const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current)
+    }
+  }, [])
 
   async function onAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -119,7 +127,7 @@ export function ProfileSettingsForm({
       }
       setSaveOk(true)
       // Give the user a moment to see "Saved." before navigating away.
-      setTimeout(() => {
+      redirectTimerRef.current = setTimeout(() => {
         router.push(`/${username}`)
       }, 600)
     } catch {

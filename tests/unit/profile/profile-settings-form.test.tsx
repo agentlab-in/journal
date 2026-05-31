@@ -188,3 +188,58 @@ describe('<ProfileSettingsForm> — save error', () => {
     expect(mockPush).not.toHaveBeenCalled()
   })
 })
+
+// ---------------------------------------------------------------------------
+// Redirect timer cleanup — clears timer on unmount
+// ---------------------------------------------------------------------------
+
+describe('<ProfileSettingsForm> — redirect timer cleanup', () => {
+  beforeEach(() => {
+    mockPush.mockReset()
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  it('clears the redirect timer if the form unmounts before it fires', async () => {
+    vi.useFakeTimers()
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }),
+    )
+
+    const { unmount } = render(<ProfileSettingsForm {...DEFAULT_PROPS} bio="Updated bio." />)
+
+    // Change bio so payload is non-empty
+    const textarea = screen.getByRole('textbox')
+    fireEvent.change(textarea, { target: { value: 'New bio content.' } })
+
+    submitForm()
+
+    // "Saved." should appear after the fetch resolves — advance timers to allow promises
+    act(() => {
+      vi.runAllTimersAsync()
+    })
+
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveTextContent('Saved.'),
+    )
+
+    // Unmount before the 600 ms timer fires
+    unmount()
+
+    // Advance time past 600 ms
+    act(() => {
+      vi.advanceTimersByTime(700)
+    })
+
+    // router.push should NOT have been called
+    expect(mockPush).not.toHaveBeenCalled()
+
+    vi.useRealTimers()
+  })
+})
