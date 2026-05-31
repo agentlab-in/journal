@@ -13,6 +13,7 @@ import {
 } from '@/lib/profile/lookup'
 import { getFollowState } from '@/lib/profile/follow-state'
 import { bioToPlainText, renderBioToHtml } from '@/lib/profile/bio'
+import { personJsonLd } from '@/lib/json-ld'
 import { ProfileHeader } from '@/components/profile/ProfileHeader'
 import { PinnedPosts } from '@/components/profile/PinnedPosts'
 import { PostList } from '@/components/profile/PostList'
@@ -129,8 +130,24 @@ export default async function ProfilePage({
     getFollowState({ admin, targetUserId: profile.id, viewerUserId: viewerId }),
   ])
 
+  // Person JSON-LD off the already-fetched profile — emitted before
+  // <ProfileHeader> so it lands at the top of the SSR document. `bio`
+  // gets passed through `bioToPlainText` (160-char default with ellipsis)
+  // so the description is plain text, not markdown.
+  const jsonLd = personJsonLd({
+    username: profile.username,
+    displayName: profile.display_name,
+    bio: profile.bio ? bioToPlainText(profile.bio, 160) : null,
+    avatarUrl: profile.avatar_url,
+    githubLogin: profile.github_login,
+  })
+
   return (
     <main id="main-content" className="profile-page">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLd }}
+      />
       <ProfileHeader
         username={profile.username}
         displayName={profile.display_name}

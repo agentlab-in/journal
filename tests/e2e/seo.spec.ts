@@ -113,4 +113,77 @@ test.describe('SEO routes', () => {
     const body = await res.text()
     expect(body).toContain('<feed')
   })
+
+  // -------------------------------------------------------------------------
+  // JSON-LD structured data
+  // -------------------------------------------------------------------------
+
+  test('post page emits Article JSON-LD with the post title', async ({
+    page,
+    request,
+  }) => {
+    test.skip(!HAS_E2E_AUTH, SKIP_REASON)
+
+    const suffix = String(Date.now())
+    const postBody = {
+      type: 'post' as const,
+      title: `E2E JSON-LD Post ${suffix}`,
+      summary: 'A sufficiently long summary that passes validation.',
+      body_md: 'x'.repeat(60),
+      tags: ['rag'],
+    }
+
+    const createRes = await request.post('/api/posts', {
+      headers: HEADER_E2E_AUTH,
+      data: postBody,
+    })
+    expect(createRes.status()).toBe(201)
+    const { url } = (await createRes.json()) as { url: string }
+    const path = new URL(url).pathname
+
+    await page.goto(path, { waitUntil: 'domcontentloaded' })
+
+    const ld = page.locator('script[type="application/ld+json"]').first()
+    await expect(ld).toHaveCount(1)
+    const raw = (await ld.textContent()) ?? ''
+    const parsed = JSON.parse(raw) as { '@type': string; headline: string }
+    expect(['Article', 'TechArticle']).toContain(parsed['@type'])
+    expect(parsed.headline).toBe(postBody.title)
+  })
+
+  test('profile page emits Person JSON-LD with @username', async ({
+    page,
+    request,
+  }) => {
+    test.skip(!HAS_E2E_AUTH, SKIP_REASON)
+
+    // Create a post just to surface the author's username via the
+    // returned URL — same trick as the feed test above.
+    const suffix = String(Date.now())
+    const createRes = await request.post('/api/posts', {
+      headers: HEADER_E2E_AUTH,
+      data: {
+        type: 'post',
+        title: `E2E JSON-LD Profile ${suffix}`,
+        summary: 'A sufficiently long summary that passes validation.',
+        body_md: 'x'.repeat(60),
+        tags: ['rag'],
+      },
+    })
+    expect(createRes.status()).toBe(201)
+    const { url } = (await createRes.json()) as { url: string }
+    const username = new URL(url).pathname.split('/').filter(Boolean)[0]
+
+    await page.goto(`/${username}`, { waitUntil: 'domcontentloaded' })
+
+    const ld = page.locator('script[type="application/ld+json"]').first()
+    await expect(ld).toHaveCount(1)
+    const raw = (await ld.textContent()) ?? ''
+    const parsed = JSON.parse(raw) as {
+      '@type': string
+      alternateName: string
+    }
+    expect(parsed['@type']).toBe('Person')
+    expect(parsed.alternateName).toBe(`@${username}`)
+  })
 })
