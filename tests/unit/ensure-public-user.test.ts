@@ -130,6 +130,12 @@ describe('ensurePublicUser()', () => {
     await vi.advanceTimersByTimeAsync(60)
     const result = await resultPromise
     expect(result).toBe('alice')
+    // Critical: prove the retry actually fired. Without the retry, only 3
+    // maybeSingle calls would happen (initial miss, next_auth lookup,
+    // post-upsert miss). The 4th call IS the retry — if call count is
+    // only 3 here, the retry code path silently regressed.
+    const spy = (supabase as { _maybeSingle: ReturnType<typeof vi.fn> })._maybeSingle
+    expect(spy).toHaveBeenCalledTimes(4)
   })
 
   it('falls back to the login string when the retry read also returns null', async () => {

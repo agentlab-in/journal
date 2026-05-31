@@ -244,6 +244,39 @@ async function readPublicUserProfile(
   return lookup.data ?? null
 }
 
+/**
+ * Last-resort fallback for the session callback: when both the
+ * public.users lookup AND ensurePublicUser have failed to surface a
+ * username, read next_auth.users.github_login directly.
+ *
+ * next_auth.users always exists by the time the session callback runs
+ * because the SupabaseAdapter inserts (or finds) it BEFORE NextAuth
+ * writes the session cookie. The race that triggers a missing
+ * public.users row — events.signIn populating public.users in
+ * parallel with the first GET /api/auth/session — does NOT affect
+ * next_auth.users, so this read is reliable on the first call.
+ *
+ * Returns the lowercased login or null if even this lookup fails.
+ */
+async function readNextAuthGithubLogin(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<string | null> {
+  try {
+    const { data } = await supabase
+      .schema('next_auth')
+      .from('users')
+      .select('github_login')
+      .eq('id', userId)
+      .maybeSingle<{ github_login: string | null }>()
+    const login = data?.github_login?.toLowerCase().trim()
+    return login ? login : null
+  } catch (err) {
+    console.error('[auth] next_auth.users github_login fallback failed:', err)
+    return null
+  }
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [buildGithubProvider()],
 
@@ -314,6 +347,28 @@ export const authOptions: NextAuthOptions = {
                 username: healedUsername,
                 display_name: null,
                 avatar_url: null,
+              }
+            } else {
+              // Deeper race / null-return paths in ensurePublicUser
+              // (e.g. naUser.data missing, accounts lookup empty,
+              // GitHub REST failing) leave us with no username. The
+              // actual real-user symptom is the first GET
+              // /api/auth/session firing while events.signIn is still
+              // running server-side, so public.users may not exist
+              // yet — but next_auth.users always does by this point
+              // (the SupabaseAdapter creates it before the session
+              // cookie is written). Read github_login directly as a
+              // last-resort surface so session.user.username is
+              // ALWAYS present on the first call. display_name +
+              // avatar_url stay null; the topbar can still render
+              // the profile link, which is the user-visible bug.
+              const fallbackLogin = await readNextAuthGithubLogin(supabase, user.id)
+              if (fallbackLogin) {
+                profile = {
+                  username: fallbackLogin,
+                  display_name: null,
+                  avatar_url: null,
+                }
               }
             }
           }
