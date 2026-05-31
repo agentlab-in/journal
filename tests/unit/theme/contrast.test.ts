@@ -83,10 +83,13 @@ function extractTokensFromBlock(css: string, selectorPattern: RegExp): Record<st
   if (end === -1) throw new Error('Closing brace not found')
 
   const block = afterSelector.slice(braceOpen + 1, end)
+  // Strip CSS /* ... */ comments to prevent comment-style snippets from
+  // corrupting the parsed token set (e.g., /* was --bg: #fff; */)
+  const stripped = block.replace(/\/\*[\s\S]*?\*\//g, '')
   const tokens: Record<string, string> = {}
   const propRegex = /--([\w-]+)\s*:\s*([^;]+);/g
   let m: RegExpExecArray | null
-  while ((m = propRegex.exec(block)) !== null) {
+  while ((m = propRegex.exec(stripped)) !== null) {
     tokens[`--${m[1]}`] = m[2].trim()
   }
   return tokens
@@ -169,6 +172,24 @@ describe('Theme token contrast — WCAG AA (≥4.5:1)', () => {
           `@media block token ${k} must match [data-theme='dark']`
         ).toBe(darkTokens[k])
       }
+    })
+  })
+
+  describe('CSS comment robustness', () => {
+    it('parser ignores CSS comments (/* ... */) when extracting tokens', () => {
+      // Simulate a block with an old commented-out token followed by the current one
+      const testCss = `
+        [data-theme='test'] {
+          /* was --fg: #ffffff; */
+          --fg: #000000;
+          --bg: #fafafa;
+        }
+      `
+      const tokens = extractTokensFromBlock(testCss, /\[data-theme='test'\]/)
+      // Should extract only the active tokens, not the commented ones
+      expect(tokens['--fg']).toBe('#000000')
+      expect(tokens['--bg']).toBe('#fafafa')
+      expect(Object.keys(tokens)).toHaveLength(2)
     })
   })
 })
