@@ -54,6 +54,7 @@ test-results/
 # agent / IDE tooling (local-only, not project artifacts)
 .ao/
 .claude/
+.superpowers/
 
 agent-orchestrator.yaml
 supabase/.temp/

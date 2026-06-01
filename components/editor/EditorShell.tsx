@@ -421,82 +421,17 @@ export function EditorShell({
   }, [])
 
   return (
-    <div className="flex w-full flex-col gap-4 p-4">
-      {/* ---- top bar -------------------------------------------------- */}
-      <header className="grid gap-3 lg:grid-cols-[auto_1fr_1fr_auto] lg:items-end">
-        {/* type picker */}
-        <fieldset
-          className="flex flex-col gap-1"
-          aria-label="Post type"
-          data-testid="type-picker"
-        >
-          <legend className="text-sm font-medium text-fg">Type</legend>
-          <div className="inline-flex gap-1 rounded-md border border-border bg-bg-subtle p-1 text-sm">
-            {(
-              [
-                { v: 'post', label: 'Post' },
-                { v: 'playbook', label: 'Playbook' },
-                { v: 'dive', label: 'Deep Dive' },
-              ] as const
-            ).map((opt) => (
-              <label
-                key={opt.v}
-                className={`cursor-pointer rounded-sm px-2 py-1 ${
-                  type === opt.v ? 'bg-bg text-fg' : 'text-fg-subtle'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="post-type"
-                  value={opt.v}
-                  checked={type === opt.v}
-                  onChange={() => handleTypeChange(opt.v)}
-                  className="sr-only"
-                />
-                {opt.label}
-              </label>
-            ))}
-          </div>
-        </fieldset>
-
-        {/* title */}
-        <div className="flex flex-col gap-1">
-          <label htmlFor="post-title" className="text-sm font-medium text-fg">
-            Title
-          </label>
-          <input
-            id="post-title"
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="A descriptive title"
-            aria-invalid={titleInvalid || undefined}
-            className={`rounded-md border bg-bg px-3 py-2 text-sm text-fg placeholder:text-fg-subtle ${
-              titleInvalid ? 'border-red-500' : 'border-border'
-            }`}
-          />
-        </div>
-
-        {/* summary */}
-        <div className="flex flex-col gap-1">
-          <label htmlFor="post-summary" className="text-sm font-medium text-fg">
-            Summary
-            <span className={`ml-2 text-xs ${summaryClass}`}>
-              {summaryLen}/{SUMMARY_MAX}
-            </span>
-          </label>
-          <input
-            id="post-summary"
-            type="text"
-            value={summary}
-            onChange={(e) => setSummary(e.target.value)}
-            placeholder="One-liner that shows up on cards and feeds"
-            className="rounded-md border border-border bg-bg px-3 py-2 text-sm text-fg placeholder:text-fg-subtle"
-          />
-        </div>
-
-        {/* publish button */}
-        <div className="flex flex-col items-end gap-1">
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-5 p-4">
+      {/* ---- top action bar ------------------------------------------------
+          Page H1 (mode label) + the publish gesture. Publish-as is paired
+          with Publish here because they're conceptually one action — choose
+          identity, then commit. Pre-restructure they were two rows apart. */}
+      <header className="flex flex-wrap items-end justify-between gap-3 border-b border-border pb-3">
+        <h1 className="self-center font-mono text-lg font-semibold text-fg">
+          {mode === 'new' ? 'New post' : 'Edit post'}
+        </h1>
+        <div className="flex items-end gap-3">
+          <PublishAsSelect currentUsername={displayUsername} />
           <button
             type="button"
             disabled={!validation.valid || publishing}
@@ -507,26 +442,105 @@ export function EditorShell({
           >
             {publishing ? 'Publishing…' : 'Publish'}
           </button>
-          {serverError ? (
-            <span
-              className="text-xs text-red-700"
-              role="alert"
-              data-testid="publish-error"
-            >
-              {serverError}
-            </span>
-          ) : null}
         </div>
       </header>
 
-      {/* ---- pickers row --------------------------------------------- */}
-      <section className="grid gap-4 lg:grid-cols-3">
+      {serverError ? (
+        <p
+          className="text-sm text-red-700"
+          role="alert"
+          data-testid="publish-error"
+        >
+          {serverError}
+        </p>
+      ) : null}
+
+      {/* ---- form fields (vertical stack) -------------------------------
+          Pre-restructure Type/Title/Summary lived in a 4-col grid sharing
+          space with the publish button — each input got ~25% width and felt
+          cramped. Stacked vertically, Title and Summary now span the full
+          column so a long title isn't truncated under the placeholder. */}
+      <fieldset
+        className="flex flex-col gap-1.5"
+        aria-label="Post type"
+        data-testid="type-picker"
+      >
+        <legend className="text-sm font-medium text-fg">Type</legend>
+        <div className="inline-flex w-fit gap-1 rounded-md border border-border bg-bg-subtle p-1 text-sm">
+          {(
+            [
+              { v: 'post', label: 'Post' },
+              { v: 'playbook', label: 'Playbook' },
+              { v: 'dive', label: 'Deep Dive' },
+            ] as const
+          ).map((opt) => (
+            <label
+              key={opt.v}
+              className={`cursor-pointer rounded-sm px-3 py-1 transition-colors ${
+                type === opt.v
+                  ? 'bg-bg text-fg'
+                  : 'text-fg-subtle hover:text-fg'
+              }`}
+            >
+              <input
+                type="radio"
+                name="post-type"
+                value={opt.v}
+                checked={type === opt.v}
+                onChange={() => handleTypeChange(opt.v)}
+                className="sr-only"
+              />
+              {opt.label}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="post-title" className="text-sm font-medium text-fg">
+          Title
+        </label>
+        <input
+          id="post-title"
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="A descriptive title"
+          aria-invalid={titleInvalid || undefined}
+          className={`rounded-md border bg-bg px-3 py-2 text-sm text-fg placeholder:text-fg-subtle ${
+            titleInvalid ? 'border-red-500' : 'border-border'
+          }`}
+        />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label
+          htmlFor="post-summary"
+          className="flex items-baseline justify-between text-sm font-medium text-fg"
+        >
+          <span>Summary</span>
+          <span className={`text-xs ${summaryClass}`}>
+            {summaryLen}/{SUMMARY_MAX}
+          </span>
+        </label>
+        <input
+          id="post-summary"
+          type="text"
+          value={summary}
+          onChange={(e) => setSummary(e.target.value)}
+          placeholder="One-liner that shows up on cards and feeds"
+          className="rounded-md border border-border bg-bg px-3 py-2 text-sm text-fg placeholder:text-fg-subtle"
+        />
+      </div>
+
+      {/* Tags + Cover are smaller, paired controls — kept side-by-side on
+          lg, stacked below. PublishAsSelect that used to live here moved up
+          into the action bar. */}
+      <section className="grid gap-4 lg:grid-cols-2">
         <TagPicker selected={tags} onChange={setTags} />
         <CoverImagePicker value={coverImageUrl} onChange={setCoverImageUrl} />
-        <PublishAsSelect currentUsername={displayUsername} />
       </section>
 
-      {/* ---- slug preview -------------------------------------------- */}
       <div
         data-testid="slug-preview"
         className="font-mono text-xs text-fg-subtle"
@@ -535,11 +549,13 @@ export function EditorShell({
         agentlab.in/{displayUsername}/{type}/{slugPreview}
       </div>
 
-      {/* ---- helper text under publish ------------------------------- */}
+      {/* Helper text bumped from text-xs to text-sm — the publish rules are
+          informational and benefit from being legible at a glance, not
+          buried at 12px. */}
       {!validation.valid ? (
         <p
           id="publish-help"
-          className="text-xs text-fg-subtle"
+          className="text-sm text-fg-subtle"
           data-testid="publish-help"
         >
           To publish: {validation.errors.join('; ')}

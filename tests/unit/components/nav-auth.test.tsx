@@ -5,8 +5,10 @@
  * hook directly so each test can pin the session to loading / unauth /
  * authed without going through a real NextAuth provider.
  *
- * Coverage focus is the Write button: present + ordered before Bookmarks
- * when authed, absent for anon and loading states.
+ * Coverage focus is the Write button: present + ordered before the avatar
+ * dropdown trigger when authed, absent for anon and loading states. The
+ * dropdown's contents (Bookmarks / Settings / Sign out) are exercised in
+ * the dedicated <ProfileMenu> tests once you open it.
  */
 import React from 'react'
 import { describe, it, expect, vi, afterEach } from 'vitest'
@@ -39,7 +41,7 @@ describe('<NavAuth>', () => {
     expect(write.getAttribute('href')).toBe('/write')
   })
 
-  it('renders Write before Bookmarks in the authed nav', () => {
+  it('renders Write before the account-menu trigger', () => {
     mockUseSession.mockReturnValue({
       status: 'authenticated',
       data: { user: { name: 'Ada', username: 'ada' } },
@@ -48,11 +50,13 @@ describe('<NavAuth>', () => {
     render(<NavAuth />)
 
     const write = screen.getByRole('link', { name: /^write$/i })
-    const bookmarks = screen.getByRole('link', { name: /^bookmarks$/i })
+    const accountTrigger = screen.getByRole('button', {
+      name: /open account menu/i,
+    })
 
-    // DOM order: Write must appear before Bookmarks so it sits to the left.
+    // DOM order: primary CTA sits to the left of the secondary cluster.
     expect(
-      write.compareDocumentPosition(bookmarks) &
+      write.compareDocumentPosition(accountTrigger) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
   })

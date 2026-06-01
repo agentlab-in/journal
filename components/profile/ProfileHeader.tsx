@@ -76,31 +76,34 @@ export function ProfileHeader({
         <div className="profile-header__identity">
           <h1 className="profile-display-name">{displayName}</h1>
           <p className="profile-handle">@{username}</p>
-        </div>
-        <div className="profile-header__actions">
+          {/* Owner action lives in the identity column so Edit Profile reads
+              as "the button for this name", not a stray top-right action. */}
           {isOwner ? (
             <Link href="/settings/profile" className="profile-edit-link">
               Edit Profile
             </Link>
-          ) : (
-            <>
-              <FollowButton
-                targetUserId={targetUserId}
-                username={username}
-                initialFollowing={initialFollowing}
-                isSignedIn={isSignedIn}
-                currentPath={currentPath}
-              />
-              <ReportButton
-                targetType="user"
-                targetId={targetUserId}
-                isSignedIn={isSignedIn}
-                currentPath={currentPath}
-                isSelf={isOwner}
-              />
-            </>
-          )}
+          ) : null}
         </div>
+        {/* Non-owner actions stay in the right-aligned slot because Follow /
+            Report are VIEWER affordances, not owner affordances. */}
+        {!isOwner && (
+          <div className="profile-header__actions">
+            <FollowButton
+              targetUserId={targetUserId}
+              username={username}
+              initialFollowing={initialFollowing}
+              isSignedIn={isSignedIn}
+              currentPath={currentPath}
+            />
+            <ReportButton
+              targetType="user"
+              targetId={targetUserId}
+              isSignedIn={isSignedIn}
+              currentPath={currentPath}
+              isSelf={isOwner}
+            />
+          </div>
+        )}
       </div>
 
       {bioHtml && (
