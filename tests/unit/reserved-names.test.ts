@@ -26,6 +26,7 @@ describe('isReserved()', () => {
     const expected = [
       'api', 'admin', 'auth', '_next', 'static', 'public', 'assets',
       'about', 'contact', 'help', 'faq', 'support', 'privacy', 'terms', 'policy', 'legal', 'dmca',
+      'grievance', 'content-policy', 'copyright',
       'login', 'logout', 'signin', 'signout', 'signup', 'register', 'sso', 'oauth',
       'new', 'write', 'edit', 'publish', 'draft', 'drafts', 'editor',
       'settings', 'profile', 'account', 'me', 'you', 'dashboard', 'billing',

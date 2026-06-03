@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { getSession } from '@/lib/auth'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { ProfileSettingsForm } from '@/components/profile/ProfileSettingsForm'
+import { DeleteAccountSection } from '@/components/profile/DeleteAccountSection'
 
 export const metadata: Metadata = {
   // Title resolves to `Profile settings — agentlab.in` via the layout template.
@@ -49,6 +50,7 @@ export default async function ProfileSettingsPage() {
         bio={row.bio}
         avatarUrl={row.avatar_url}
       />
+      <DeleteAccountSection />
     </main>
   )
 }

@@ -20,6 +20,7 @@ export type RateLimitBucket =
   | 'engagement'
   | 'report'
   | 'image_upload'
+  | 'delete_account'
 
 export interface RateLimitResult {
   success: boolean
@@ -47,6 +48,10 @@ const BUCKETS: Record<RateLimitBucket, BucketSpec> = {
   engagement: { limit: 60, windowMs: 60 * 1000, windowDuration: '1 m' },
   report: { limit: 10, windowMs: 60 * 60 * 1000, windowDuration: '1 h' },
   image_upload: { limit: 20, windowMs: 60 * 60 * 1000, windowDuration: '1 h' },
+  // Self-service account deletion is irreversible; a low cap defends against
+  // an authed caller spamming the endpoint without the legitimate use case
+  // (one delete per account) ever hitting the ceiling.
+  delete_account: { limit: 3, windowMs: 60 * 60 * 1000, windowDuration: '1 h' },
 }
 
 // ---------------------------------------------------------------------------
