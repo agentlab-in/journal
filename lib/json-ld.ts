@@ -23,6 +23,17 @@ export interface ArticleJsonLdInput {
   canonicalPath: string
   authorName: string
   authorUsername: string
+  /**
+   * When set, the post is authored under an org. The publisher field
+   * becomes the Organization (with the org's url + logo) instead of the
+   * generic agentlab.in publisher; the human author still rides on the
+   * `author` field as a Person.
+   */
+  org?: {
+    slug: string
+    displayName: string
+    avatarUrl: string | null
+  } | null
 }
 
 export interface PersonJsonLdInput {
@@ -31,6 +42,14 @@ export interface PersonJsonLdInput {
   bio: string | null
   avatarUrl: string | null
   githubLogin: string | null
+}
+
+export interface OrganizationJsonLdInput {
+  /** Public URL segment for the org (orgs.slug). */
+  slug: string
+  displayName: string
+  bio: string | null
+  avatarUrl: string | null
 }
 
 /** Drop keys whose value is `undefined`. Null values are left as-is. */
@@ -72,18 +91,45 @@ export function articleJsonLd(input: ArticleJsonLdInput): string {
       name: input.authorName,
       url: absoluteUrl(`/${input.authorUsername}`),
     },
-    publisher: {
-      '@type': 'Organization',
-      name: 'agentlab.in',
-      logo: {
-        '@type': 'ImageObject',
-        url: absoluteUrl('/icon.png'),
-      },
-    },
+    publisher: input.org
+      ? pruneInPlace({
+          '@type': 'Organization',
+          name: input.org.displayName,
+          url: absoluteUrl(`/${input.org.slug}`),
+          logo: input.org.avatarUrl
+            ? {
+                '@type': 'ImageObject',
+                url: input.org.avatarUrl,
+              }
+            : undefined,
+        })
+      : {
+          '@type': 'Organization',
+          name: 'agentlab.in',
+          logo: {
+            '@type': 'ImageObject',
+            url: absoluteUrl('/icon.png'),
+          },
+        },
     mainEntityOfPage: {
       '@type': 'WebPage',
       '@id': absoluteUrl(input.canonicalPath),
     },
+  })
+
+  return toScriptSafeJson(payload)
+}
+
+export function organizationJsonLd(input: OrganizationJsonLdInput): string {
+  const payload = pruneInPlace({
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: input.displayName,
+    alternateName: `@${input.slug}`,
+    url: absoluteUrl(`/${input.slug}`),
+    image: input.avatarUrl ?? undefined,
+    logo: input.avatarUrl ?? undefined,
+    description: input.bio ?? undefined,
   })
 
   return toScriptSafeJson(payload)

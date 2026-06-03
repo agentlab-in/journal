@@ -18,6 +18,12 @@ interface PostRow {
     username: string
     updated_at: string
   }
+  // Left join — null on personal posts. Phase 11 added orgs as an
+  // alternate URL leading segment; org-authored posts canonicalize at
+  // /<org-slug>/<type>/<slug>.
+  orgs: {
+    slug: string
+  } | null
 }
 
 interface TagRow {
@@ -25,12 +31,19 @@ interface TagRow {
   approved_at: string | null
 }
 
+interface OrgRow {
+  slug: string
+  updated_at: string
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const db = createServerSupabaseClient()
 
   const { data: postsData } = await db
     .from('posts')
-    .select('slug, type, edited_at, published_at, users!inner(username, updated_at)')
+    .select(
+      'slug, type, edited_at, published_at, users!inner(username, updated_at), orgs!left(slug)',
+    )
     .is('deleted_at', null)
 
   const { data: tagsData } = await db
@@ -38,11 +51,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .select('slug, approved_at')
     .eq('is_approved', true)
 
+  // Phase 11: emit profile entries for active (not soft-deleted /
+  // banned) orgs. The posts query alone is org-agnostic, but we want
+  // every active org to be discoverable even without posts.
+  const { data: orgsData } = await db
+    .from('orgs')
+    .select('slug, updated_at')
+    .is('deleted_at', null)
+    .is('banned_at', null)
+
   // Supabase types the inner !inner join as an array but at runtime the
   // shape is singular for a one-to-one FK — same cast the rest of the
   // repo uses (see lib/posts/lookup.ts).
   const posts = (postsData ?? []) as unknown as PostRow[]
   const tags = (tagsData ?? []) as unknown as TagRow[]
+  const orgs = (orgsData ?? []) as unknown as OrgRow[]
 
   const now = new Date()
 
@@ -55,13 +78,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ]
 
   const postEntries: MetadataRoute.Sitemap = posts.map((p) => ({
-    url: absoluteUrl(`/${p.users.username}/${p.type}/${p.slug}`),
+    // Org-authored posts canonicalize under the org slug. Personal
+    // posts under the author username. Matches lookupPost's resolution
+    // order and what the publish API has been emitting since T3.
+    url: absoluteUrl(`/${p.orgs?.slug ?? p.users.username}/${p.type}/${p.slug}`),
     lastModified: p.edited_at ?? p.published_at,
   }))
 
-  // Profiles-with-posts: dedupe by username; one entry per author.
+  // Profiles-with-posts: dedupe by username; one entry per author. We
+  // only emit a profile entry for the personal-post path so the same
+  // username doesn't double-count when an author also publishes to an
+  // org under a different leading segment.
   const profileMap = new Map<string, string>()
   for (const p of posts) {
+    if (p.orgs) continue
     if (!profileMap.has(p.users.username)) {
       profileMap.set(p.users.username, p.users.updated_at)
     }
@@ -73,10 +103,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }),
   )
 
+  const orgEntries: MetadataRoute.Sitemap = orgs.map((o) => ({
+    url: absoluteUrl(`/${o.slug}`),
+    lastModified: o.updated_at,
+  }))
+
   const tagEntries: MetadataRoute.Sitemap = tags.map((t) => ({
     url: absoluteUrl(`/tag/${t.slug}`),
     lastModified: t.approved_at ?? undefined,
   }))
 
-  return [...staticEntries, ...postEntries, ...profileEntries, ...tagEntries]
+  return [
+    ...staticEntries,
+    ...postEntries,
+    ...profileEntries,
+    ...orgEntries,
+    ...tagEntries,
+  ]
 }

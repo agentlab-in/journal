@@ -65,7 +65,10 @@ export async function generateMetadata({
     return { title: { absolute: 'Not found — agentlab.in' } }
   }
 
-  const canonicalPath = postUrl(post.author.username, post.type, post.slug)
+  // Org-authored posts canonicalize under the org slug; personal posts
+  // under the author username.
+  const leadingSegment = post.org ? post.org.slug : post.author.username
+  const canonicalPath = postUrl(leadingSegment, post.type, post.slug)
 
   return {
     // `title.absolute` bypasses the layout-level `'%s — agentlab.in'`
@@ -125,7 +128,8 @@ export default async function PostPage({
     }),
   ])
 
-  const canonicalPath = postUrl(post.author.username, post.type, post.slug)
+  const leadingSegment = post.org ? post.org.slug : post.author.username
+  const canonicalPath = postUrl(leadingSegment, post.type, post.slug)
 
   // WARN (don't block) when body_html is unexpectedly large. Logged on
   // every viewer render so the spike is visible exactly when it bites.
@@ -161,6 +165,15 @@ export default async function PostPage({
     canonicalPath,
     authorName: post.author.display_name,
     authorUsername: post.author.username,
+    // Org-authored posts emit publisher = Organization with the org's
+    // own url + logo instead of the generic agentlab.in publisher.
+    org: post.org
+      ? {
+          slug: post.org.slug,
+          displayName: post.org.display_name,
+          avatarUrl: post.org.avatar_url,
+        }
+      : null,
   })
 
   return (
@@ -190,34 +203,74 @@ export default async function PostPage({
       <header className="post-header">
         <h1>{post.title}</h1>
         <p className="post-summary">{post.summary}</p>
-        <div className="post-author">
-          {post.author.avatar_url && (
-            // .author-avatar pins to 32×32 — render at 2x so the bitmap
-            // is crisp on retina. next/image will down-scale via
-            // width/height attrs.
-            <Image
-              src={post.author.avatar_url}
-              alt=""
-              className="author-avatar"
-              width={64}
-              height={64}
-              sizes="32px"
-            />
-          )}
-          <Link href={`/${post.author.username}`} className="author-handle">
-            @{post.author.username}
-          </Link>
-          <span className="author-display">{post.author.display_name}</span>
-          {!isOwner && (
-            <FollowButton
-              targetUserId={post.author_id}
-              username={post.author.username}
-              initialFollowing={viewerFollowsAuthor}
-              isSignedIn={isSignedIn}
-              currentPath={canonicalPath}
-            />
-          )}
-        </div>
+        {post.org ? (
+          // Org-authored post: org-prominent byline. Avatar + handle +
+          // display_name belong to the org; the human author rides
+          // secondary as "by @author". Orgs are not followable in v1
+          // (per Phase 11 brainstorm), so no Follow affordance here —
+          // the FollowButton is reserved for the author secondary line
+          // when the viewer isn't the author themselves.
+          <div className="post-author post-author--org">
+            {post.org.avatar_url && (
+              <Image
+                src={post.org.avatar_url}
+                alt=""
+                className="author-avatar"
+                width={64}
+                height={64}
+                sizes="32px"
+              />
+            )}
+            <Link href={`/${post.org.slug}`} className="author-handle">
+              @{post.org.slug}
+            </Link>
+            <span className="author-display">{post.org.display_name}</span>
+            <span className="post-author-byline">
+              by{' '}
+              <Link href={`/${post.author.username}`} className="author-handle author-handle--secondary">
+                @{post.author.username}
+              </Link>
+            </span>
+            {!isOwner && (
+              <FollowButton
+                targetUserId={post.author_id}
+                username={post.author.username}
+                initialFollowing={viewerFollowsAuthor}
+                isSignedIn={isSignedIn}
+                currentPath={canonicalPath}
+              />
+            )}
+          </div>
+        ) : (
+          <div className="post-author">
+            {post.author.avatar_url && (
+              // .author-avatar pins to 32×32 — render at 2x so the bitmap
+              // is crisp on retina. next/image will down-scale via
+              // width/height attrs.
+              <Image
+                src={post.author.avatar_url}
+                alt=""
+                className="author-avatar"
+                width={64}
+                height={64}
+                sizes="32px"
+              />
+            )}
+            <Link href={`/${post.author.username}`} className="author-handle">
+              @{post.author.username}
+            </Link>
+            <span className="author-display">{post.author.display_name}</span>
+            {!isOwner && (
+              <FollowButton
+                targetUserId={post.author_id}
+                username={post.author.username}
+                initialFollowing={viewerFollowsAuthor}
+                isSignedIn={isSignedIn}
+                currentPath={canonicalPath}
+              />
+            )}
+          </div>
+        )}
         {post.tags.length > 0 && (
           <ul className="post-tags">
             {post.tags.map((t) => (

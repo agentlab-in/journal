@@ -201,3 +201,126 @@ export const getCachedProfile = cache(
     return lookupProfileByUsername(createAnonServerSupabaseClient(), username)
   },
 )
+
+// ---------------------------------------------------------------------------
+// Phase 11 — Org profiles
+//
+// Orgs share the `/[username]` route with users. The leading URL segment
+// resolves to a user first, then to an org by slug. Soft-deleted and
+// banned orgs are treated as absent at the read layer (mirrors the
+// public-read RLS policy on `public.orgs`) so callers can 404 uniformly.
+// ---------------------------------------------------------------------------
+
+export interface ProfileOrg {
+  id: string
+  slug: string
+  display_name: string
+  bio: string | null
+  avatar_url: string | null
+  cover_image_url: string | null
+  created_at: string
+}
+
+interface OrgRow {
+  id: string
+  slug: string
+  display_name: string
+  bio: string | null
+  avatar_url: string | null
+  cover_image_url: string | null
+  created_at: string
+  deleted_at: string | null
+  banned_at: string | null
+}
+
+/**
+ * Look up a publishable org profile by slug. Returns null when the slug
+ * is mixed-case, no row matches, or the org is soft-deleted / banned.
+ */
+export async function lookupOrgBySlug(
+  db: Pick<SupabaseClient, 'from'>,
+  slug: string,
+): Promise<ProfileOrg | null> {
+  if (slug !== slug.toLowerCase()) return null
+
+  const { data, error } = await db
+    .from('orgs')
+    .select(
+      'id, slug, display_name, bio, avatar_url, cover_image_url, created_at, deleted_at, banned_at',
+    )
+    .eq('slug', slug)
+    .maybeSingle()
+
+  if (error || !data) return null
+  const row = data as unknown as OrgRow
+  if (row.deleted_at !== null || row.banned_at !== null) return null
+
+  return {
+    id: row.id,
+    slug: row.slug,
+    display_name: row.display_name,
+    bio: row.bio,
+    avatar_url: row.avatar_url,
+    cover_image_url: row.cover_image_url,
+    created_at: row.created_at,
+  }
+}
+
+/**
+ * Request-scoped cached org lookup. Mirrors getCachedProfile so the page
+ * + generateMetadata share a single DB roundtrip.
+ */
+export const getCachedOrg = cache(
+  async (slug: string): Promise<ProfileOrg | null> => {
+    return lookupOrgBySlug(createAnonServerSupabaseClient(), slug)
+  },
+)
+
+/**
+ * Fetch up to 6 pinned posts for an org, ordered by pin position.
+ * Mirrors getPinnedPosts but scoped to org_id (the pinned_posts row
+ * owner column was split into user_id XOR org_id in migration 0013).
+ */
+export async function getOrgPinnedPosts(
+  db: Pick<SupabaseClient, 'from'>,
+  orgId: string,
+): Promise<PinnedProfilePost[]> {
+  const { data, error } = await db
+    .from('pinned_posts')
+    .select(`position, posts(${POST_SELECT})`)
+    .eq('org_id', orgId)
+    .order('position', { ascending: true })
+    .limit(6)
+
+  if (error || !data) return []
+  const rows = data as unknown as PinnedRow[]
+
+  const out: PinnedProfilePost[] = []
+  for (const r of rows) {
+    const p = r.posts
+    if (!p) continue
+    if (p.deleted_at !== null && p.deleted_at !== undefined) continue
+    out.push({ ...mapPost(p), position: r.position })
+  }
+  return out
+}
+
+/**
+ * Fetch all non-deleted posts authored under an org, newest first.
+ * Mirrors getAuthoredPosts but filtered by org_id rather than author_id.
+ */
+export async function getOrgPosts(
+  db: Pick<SupabaseClient, 'from'>,
+  orgId: string,
+): Promise<ProfilePost[]> {
+  const { data, error } = await db
+    .from('posts')
+    .select(POST_SELECT)
+    .eq('org_id', orgId)
+    .is('deleted_at', null)
+    .order('published_at', { ascending: false })
+
+  if (error || !data) return []
+  const rows = data as unknown as PostRow[]
+  return rows.map(mapPost)
+}
