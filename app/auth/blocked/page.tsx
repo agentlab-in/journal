@@ -23,6 +23,7 @@ export const metadata: Metadata = {
  *   reserved_name          — GitHub login collides with a reserved platform name
  *   invalid_account_data   — GitHub /user returned a malformed timestamp
  *   banned                 — account has been suspended by a moderator
+ *   username_taken_by_org  — GitHub login collides with an existing org slug
  */
 
 interface PageProps {
@@ -108,6 +109,22 @@ function parseReason(
           harshit@agentlab.in
         </a>
         .
+      </p>
+    )
+  }
+
+  if (reason === 'username_taken_by_org') {
+    return (
+      <p className="text-fg-subtle">
+        This GitHub username is taken by an organization on agentlab.in.
+        If you own it, contact{' '}
+        <a
+          href="mailto:harshit@agentlab.in"
+          className="text-fg underline underline-offset-2 hover:opacity-80"
+        >
+          harshit@agentlab.in
+        </a>
+        ; otherwise sign in with a different GitHub account.
       </p>
     )
   }

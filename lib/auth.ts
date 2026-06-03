@@ -426,6 +426,10 @@ export const authOptions: NextAuthOptions = {
       // Fail-CLOSED: a Supabase error here used to bypass the check; combined
       // with the per-request `banned_at` recheck in getSession(), a transient
       // blip is recoverable on the next request, so denying sign-in is safe.
+      //
+      // banRowFound tracks (a) — Phase 11's downstream org-slug collision check
+      // skips for users that already legitimately hold their username.
+      let banRowFound = false
       try {
         const username = gh.login.toLowerCase()
         const supabase = createAdminSupabaseClient()
@@ -440,6 +444,7 @@ export const authOptions: NextAuthOptions = {
           return `/auth/blocked?reason=lookup_error&login=${encodeURIComponent(username)}`
         }
         if (banRow) {
+          banRowFound = true
           const redirect = decideBanRedirect({ login: username, banned_at: banRow.banned_at })
           if (redirect) {
             return redirect
@@ -496,6 +501,34 @@ export const authOptions: NextAuthOptions = {
       } catch (banErr) {
         console.error('[auth] ban lookup threw (fail-closed):', banErr)
         return `/auth/blocked?reason=lookup_error&login=${encodeURIComponent(gh.login.toLowerCase())}`
+      }
+
+      // Phase 11: cross-table org-slug collision check.
+      // Only run for FUTURE users — existing public.users rows legitimately
+      // hold their username. If banRowFound is true the row already exists.
+      // Fail-open (matches ban-lookup posture). Cross-table uniqueness is not
+      // DB-enforced; this is a best-effort signup-time gate.
+      if (!banRowFound) {
+        try {
+          const username = gh.login.toLowerCase()
+          const safeLogin = /^[a-z0-9-]{1,39}$/i.test(username)
+            ? `&login=${encodeURIComponent(username)}`
+            : ''
+          const supabase = createAdminSupabaseClient()
+          const { data: orgRow, error: orgError } = await supabase
+            .from('orgs')
+            .select('id')
+            .eq('slug', username)
+            .maybeSingle<{ id: string }>()
+
+          if (orgError) {
+            console.error('[auth] org-slug lookup error (fail-open):', orgError.message)
+          } else if (orgRow) {
+            return `/auth/blocked?reason=username_taken_by_org${safeLogin}`
+          }
+        } catch (orgErr) {
+          console.error('[auth] org-slug lookup threw (fail-open):', orgErr)
+        }
       }
 
       return true
