@@ -23,6 +23,9 @@ export const RESERVED_USERNAMES: ReadonlySet<string> = new Set([
   'policy',
   'legal',
   'dmca',
+  'grievance',
+  'content-policy',
+  'copyright',
 
   // Auth routes
   'login',
