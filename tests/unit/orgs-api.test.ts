@@ -166,6 +166,18 @@ function makeClient(opts: ClientOpts = {}) {
           }),
         }
       }),
+      delete: vi.fn(() => {
+        return {
+          eq: vi.fn((_col: string, val: unknown) => {
+            capturedOps.push({
+              table: 'orgs',
+              op: 'delete',
+              filters: { [_col]: val },
+            })
+            return Promise.resolve({ data: null, error: null })
+          }),
+        }
+      }),
     }
   }
 
@@ -406,6 +418,37 @@ describe('POST /api/orgs', () => {
       role: 'admin',
       added_by_user_id: 'user-1',
     })
+  })
+
+  it('cleans up orphan orgs row when first admin member insert fails', async () => {
+    sessionState.value = { user: { id: 'user-1' } }
+    currentFakeClient = makeClient({
+      orgInsertResult: {
+        data: { id: 'org-orphan', slug: 'acme', display_name: 'Acme' },
+        error: undefined,
+      },
+      memberInsertError: {
+        code: 'XXFAIL',
+        message: 'simulated member insert failure',
+      },
+    })
+    const { POST } = await import('@/app/api/orgs/route')
+    const res = await POST(
+      jsonRequest('http://test/api/orgs', 'POST', {
+        slug: 'acme',
+        display_name: 'Acme',
+      }),
+    )
+    expect(res.status).toBe(500)
+    const body = await res.json()
+    expect(body.error).toBe('org_members_insert_failed')
+
+    // The orphan orgs row must have been deleted by id = 'org-orphan'.
+    const orgDelete = capturedOps.find(
+      (o) => o.table === 'orgs' && o.op === 'delete',
+    )
+    expect(orgDelete).toBeTruthy()
+    expect(orgDelete!.filters).toEqual({ id: 'org-orphan' })
   })
 })
 

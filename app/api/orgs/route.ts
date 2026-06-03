@@ -107,6 +107,20 @@ export async function POST(req: NextRequest | Request): Promise<Response> {
       userId,
       extra: { op: 'org_members_insert', orgId: org.id },
     })
+    // Best-effort cleanup: remove the orphan orgs row so we don't leave an
+    // org with no admin member. If this delete fails too, log it but still
+    // return the original 500 so the client gets a stable error shape.
+    const { error: cleanupErr } = await admin
+      .from('orgs')
+      .delete()
+      .eq('id', org.id)
+    if (cleanupErr) {
+      logRouteError(cleanupErr, {
+        route: '/api/orgs',
+        userId,
+        extra: { op: 'orgs_orphan_cleanup', orgId: org.id },
+      })
+    }
     return json(500, {
       error: 'org_members_insert_failed',
       detail: memberInsertErr.message,
