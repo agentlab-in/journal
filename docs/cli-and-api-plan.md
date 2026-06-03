@@ -22,13 +22,14 @@
 4. [Design — Public REST API](#design--public-rest-api)
 5. [Design — CLI](#design--cli)
 6. [Design — Distribution](#design--distribution)
-7. [Phase A — PAT plumbing + `/settings/tokens`](#phase-a--pat-plumbing--settingstokens)
+7. [Phase A — PAT plumbing + `/settings/tokens` + browser-based CLI auth bridge](#phase-a--pat-plumbing--settingstokens--browser-based-cli-auth-bridge)
 8. [Phase B — Public API hardening + docs](#phase-b--public-api-hardening--docs)
 9. [Phase C — CLI shell + core commands](#phase-c--cli-shell--core-commands)
 10. [Phase D — Distribution (npm + brew + curl-pipe)](#phase-d--distribution-npm--brew--curl-pipe)
 11. [Phase E — Polish (keychain, `--json`, completions)](#phase-e--polish-keychain---json-completions)
 12. [Cross-phase test matrix](#cross-phase-test-matrix)
-13. [Rollout + flag plan](#rollout--flag-plan)
+13. [Post-Phase-E — Claude Code skills (non-blocking)](#post-phase-e--claude-code-skills-non-blocking)
+14. [Rollout + flag plan](#rollout--flag-plan)
 
 ---
 
@@ -54,48 +55,87 @@ Operator (Harshit) must decide each of these before the corresponding phase star
 
 ### Top 3 (highest leverage — call out in PR body)
 
-**OPC-1. Token expiry policy.**
-Options:
-- (a) Never expire; rely on revocation only. **(Recommended default.)**
+**OPC-1. Token expiry policy.** ✅ **DECIDED (2026-06-03): (a) Never expire; rely on revocation only.**
+Considered:
+- (a) Never expire; rely on revocation only.
 - (b) Hard cap of 1 year, force regeneration.
 - (c) User picks expiry per token (`30d`, `90d`, `1y`, `never`).
-Trade-off: (a) matches what tools-built-against-the-API actually want (set-and-forget). (b) is industry-conservative but creates a yearly chore that a one-person operator (Harshit) will probably forget. (c) is the flexible-but-fiddly answer.
-Why this matters for the phase: changes the schema (whether `expires_at` is a column at all) and the `/settings/tokens` UI.
+Trade-off captured: (a) matches what tools-built-against-the-API actually want (set-and-forget). (b) creates a yearly chore. (c) is flexible-but-fiddly.
+**Implication for schema:** no `expires_at` column. `/settings/tokens` UI has no expiry picker.
 
-**OPC-2. CLI version signaling at first release.**
-Options:
-- (a) Ship as `v0.1.0`. Signals "unstable, breaking changes possible." **(Recommended default.)**
+**OPC-2. CLI version signaling at first release.** ✅ **DECIDED (2026-06-03): (a) Ship as `v0.1.0`.**
+Considered:
+- (a) Ship as `v0.1.0`. Signals "unstable, breaking changes possible."
 - (b) Ship as `v1.0.0`. Signals stability and forces semver discipline.
-Trade-off: (a) gives wiggle-room for command-shape changes during the first weeks of real-world use. (b) sets a marketing message ("v1!") but locks us into not changing the command surface without a major bump. The web product is v1 — we don't have to mirror the CLI to it.
+Trade-off captured: (a) gives wiggle-room during first weeks of real use; (b) locks the surface for the marketing win.
+**Follow-up locked in:** the CLI is distributed via `brew install` and `npm i -g` (already covered in Phase D). Claude Code skills wrapping the CLI (e.g. a `/agentlab` skill that runs `agentlab post create` on the current buffer) ship after Phase E as a separate non-blocking workstream — tracked as **Post-Phase-E work** at the end of this doc.
 
-**OPC-3. API docs at launch vs. post-launch.**
-Options:
-- (a) Static MDX page at `/docs/api` shipped IN phase B, before the CLI. **(Recommended default.)**
+**OPC-3. API docs at launch vs. post-launch.** ✅ **DECIDED (2026-06-03): (a) Ship `/docs/api` IN phase B.**
+Considered:
+- (a) Static MDX page at `/docs/api` shipped IN phase B, before the CLI.
 - (b) Defer docs by one phase; rely on the CLI itself to be the "docs" until a follow-up PR.
-Trade-off: (a) is correct — anyone who isn't using our CLI (e.g. an agent author wiring up their own HTTP client) needs the spec. (b) saves ~half a phase of work. The MDX doc is small (one page, ~400 lines) so we don't gain much from deferring.
+Trade-off captured: (a) is correct — anyone not using the CLI needs the spec. (b) saves ~half a phase. The MDX doc is small (~400 lines).
 
 ### Smaller calls
 
-**OPC-4. Free-tier rate limits.**
-Recommended: PAT requests hit the **same** rate-limit buckets as session requests, keyed by `user:<user_id>`. Reason: a token IS the user. No separate "API tier" until we have evidence we need one. Trade-off: a script accidentally looping `agentlab post create` hits the publish limit (10/hr) like a logged-in user clicking publish in a loop would.
+**OPC-4. Free-tier rate limits.** ✅ **DECIDED (2026-06-03): same buckets as session.**
+PAT requests hit the **same** rate-limit buckets as session requests, keyed by `user:<user_id>`. Reason: a token IS the user. Trade-off: a script accidentally looping `agentlab post create` hits the publish limit (10/hr) like a logged-in user clicking publish in a loop would.
 
-**OPC-5. `agentlab post init` scaffolder.**
-Recommended: **skip in v1.** Reason: `git init` doesn't ship a markdown template either — frontmatter is documented, users paste it. Reduces phase C scope by ~1 task and a fixture file. Trade-off: less hand-holdy.
+**OPC-5. `agentlab post init` scaffolder.** ⏳ **PENDING (operator question on 2026-06-03).**
 
-**OPC-6. Cover image upload in `post create`.**
-Recommended: **skip in v1 of the CLI.** Reason: covers go through `/api/uploads` which currently requires a session cookie + same-origin (origin check). A CLI cover upload needs `/api/uploads` to also accept PAT auth, which doubles the surface phase A has to cover. Authors who want a cover can publish via the web UI. Trade-off: terminal-only authors lose a feature.
+*Definition (in response to PR review):* `agentlab post init [name] [--type=playbook|post|dive]` would create a new local file `<name>.md` (defaulting to a slug of `<name>` plus `.md`) pre-populated with the YAML frontmatter block for the chosen type, plus a comment skeleton of the required structured sections for that type. For example:
 
-**OPC-7. Token-prefix for secret-scanning.**
-Recommended: `agl_` followed by 43 base64url characters. Reason: GitHub secret scanning supports prefixed tokens; a stable 4-char prefix lets us register the format and have GitHub flag accidental commits. Trade-off: locks us into this string forever — bump means breaking-change for every CLI in the wild.
+```bash
+$ agentlab post init trust-gate --type playbook
+✓ Created trust-gate.md
+```
 
-**OPC-8. Endpoints exposed to Bearer auth.**
-Recommended: ALL existing mutating routes accept Bearer (posts, comments, likes, bookmarks, follows, reports, pinned-posts). Admin endpoints (`/api/admin/*`) ALSO accept Bearer but only when the token has the `admin:write` scope, which is never granted by default and is hidden from the `/settings/tokens` UI for non-admins. Reason: scope-gated symmetry is cleaner than per-endpoint allow-lists. Trade-off: admins can technically issue a token that has `admin:write` and accidentally lose it — the impact is bounded because the same admin already has session access.
+```markdown
+---
+title: # Trust Gate
+type: playbook
+summary: # one-sentence summary, 60–280 chars
+tags:
+  -
+---
 
-**OPC-9. Repo location.**
-Recommended: **same monorepo, `cli/` subdir.** Reason: shared types (the API request/response shapes the CLI consumes are already typed in `lib/posts/schema.ts`, `lib/comments/schema.ts`, etc. as Zod schemas — duplicating them in a second repo will rot). CI also stays simple. Trade-off: every `pnpm install` in the web repo also installs CLI deps. Mitigated by pnpm workspaces.
+## Environment / Target
 
-**OPC-10. Token storage default.**
-Recommended: **flat file** at `~/.config/agentlab/credentials` with `chmod 600`. Keychain (`keytar`) is a **post-Phase-E** improvement, not a default. Reason: `keytar` is a native module that breaks cross-compilation, fails on headless Linux CI without `libsecret`, and adds an install step that confuses new users. `chmod 600` is what GitHub CLI defaulted to until 2019 and what 90% of agent harnesses still do. Trade-off: a compromised home directory leaks the token; revocation is the mitigation.
+(required for playbook — what runtime / model / harness this applies to)
+
+## Prerequisites
+
+(required for playbook — what the reader must have set up first)
+
+## Core Instructions
+
+(required for playbook — the actual steps)
+
+## Safety / Failure Modes
+
+(required for playbook — what goes wrong, what to do)
+```
+
+The author then fills in the placeholders and runs `agentlab post create trust-gate.md`. For `--type post`, the section skeleton is omitted (`post` has no required sections per `app/api/posts/route.ts:REQUIRED_SECTION_KEYS`). For `--type dive`, the required keys are `tldr` + `the_question` — the skeleton mirrors that.
+
+**Recommended default (if no decision):** skip in v0.1.0 — `git init` doesn't scaffold either, frontmatter is documented, and skipping saves ~1 day of phase C work (parser + skeletons + tests for each type). The author can copy the frontmatter from the docs page.
+
+**Trade-off if shipped:** ~120 LoC and ~80 LoC tests in phase C; small but non-zero. The first-post experience is friendlier — no copying frontmatter from docs.
+
+**OPC-6. Cover image upload in `post create`.** ✅ **DECIDED (2026-06-03): skip in v0.1.0 of CLI.**
+Covers go through `/api/uploads` which we still harden in Phase B for `uploads:write`, but the CLI does not exercise that path in v0.1.0. Authors who want a cover publish via the web UI. Trade-off accepted: terminal-only authors lose a feature in v0.1.0.
+
+**OPC-7. Token-prefix for secret-scanning.** ✅ **DECIDED (2026-06-03): `agl_` prefix.**
+`agl_` followed by 43 base64url characters. GitHub secret scanning supports prefixed tokens; a stable 4-char prefix lets us register the format and have GitHub flag accidental commits. Locking this in means the string is forever — secret-scanning enrollment goes ahead with `agl_` (Phase D runbook).
+
+**OPC-8. Endpoints exposed to Bearer auth.** ✅ **DECIDED (2026-06-03): all mutating routes + admin via scope.**
+ALL existing mutating routes accept Bearer (posts, comments, likes, bookmarks, follows, reports, pinned-posts). Admin endpoints (`/api/admin/*`) ALSO accept Bearer but only when the token has the `admin:write` scope, which is never granted by default and is hidden from the `/settings/tokens` UI for non-admins. Scope-gated symmetry is cleaner than per-endpoint allow-lists. Trade-off accepted: admins can technically issue a token that has `admin:write` and accidentally lose it — bounded because the same admin already has session access.
+
+**OPC-9. Repo location.** ✅ **DECIDED (2026-06-03): same monorepo, `cli/` subdir.**
+Shared types (the API request/response shapes the CLI consumes are already typed in `lib/posts/schema.ts`, `lib/comments/schema.ts`, etc. as Zod schemas) wouldn't rot in a monorepo. CI also stays simple. Trade-off accepted: every `pnpm install` in the web repo also installs CLI deps, mitigated by pnpm workspaces.
+
+**OPC-10. Token storage default.** ✅ **DECIDED (2026-06-03): flat file at `~/.config/agentlab/credentials` with `chmod 600`.**
+Keychain (`keytar`) is a **post-Phase-E** improvement, not a default. `keytar` is a native module that breaks cross-compilation, fails on headless Linux CI without `libsecret`, and adds an install step that confuses new users. `chmod 600` is what GitHub CLI defaulted to until 2019 and what 90% of agent harnesses still do. Trade-off accepted: a compromised home directory leaks the token; revocation is the mitigation.
 
 ---
 
@@ -514,9 +554,15 @@ packages:
 ### Command surface (v1.0)
 
 ```
-agentlab login                          Opens https://agentlab.in/settings/tokens
-                                        in the browser, prompts the user to paste
-                                        a token, validates it, saves to disk.
+agentlab login                          Opens https://agentlab.in/cli/auth?... in
+                                        the browser; user clicks Authorize; CLI
+                                        receives the token via local loopback.
+                                        See "agentlab login flow" below.
+agentlab login --device                 Headless / SSH fallback: prints a short
+                                        user code; user enters it at
+                                        https://agentlab.in/cli/auth/device.
+agentlab login --token <agl_...>        Non-interactive: caller supplies a token
+                                        directly (CI use case).
 agentlab logout                         Deletes the stored credential file.
 agentlab whoami                         Prints @<username>. Exit 1 if not logged in.
 
@@ -595,27 +641,132 @@ Precedence: `AGENTLAB_TOKEN` > `AGENTLAB_CONFIG` file > default file.
 
 Keychain integration via `keytar`: see Phase E.
 
-### `agentlab login` flow
+### `agentlab login` flow — browser-based (loopback OAuth-style)
+
+Per operator decision on 2026-06-03 (review comment on OPC-1's thread), the primary login flow is **browser-based**, not paste-a-token. The user runs `agentlab login`, the CLI opens a URL, the user clicks "Authorize" in the browser, and the CLI receives the token automatically — no manual copy-paste.
+
+The "paste a token" flow stays as a documented fallback for CI / headless environments (`--token <agl_...>` flag or `AGENTLAB_TOKEN` env var, both already specified above).
+
+**Happy-path UX:**
 
 ```
 $ agentlab login
-Opening https://agentlab.in/settings/tokens in your browser...
-(If nothing opens, visit that URL manually and generate a token.)
+Opening https://agentlab.in/cli/auth?request_id=8f1c... in your browser...
+Waiting for you to authorize... (timeout in 5 minutes)
 
-Paste your new token: agl_<...>
+(browser: user signs in with GitHub if not already, then sees an
+ "Authorize the agentlab CLI to publish, comment, and react on
+ your behalf?" page with the device name pre-filled as "MacBook Pro of
+ harshitsinghbhandari". User clicks Authorize.)
 
 ✓ Logged in as @harshitsinghbhandari
   Credential saved to /Users/harshit/.config/agentlab/credentials
 ```
 
-Mechanics:
-1. `open` (npm package, lightweight) opens the URL. If no DISPLAY (headless), skip and print the URL only.
-2. Read token from stdin (or prompt with hidden input — `node:readline` works for prompting; suppress echo via `process.stdin.setRawMode(true)`).
-3. Validate shape (`isPatShape`).
-4. Fire `GET /api/users/me` with the token. Expect 200 + `{ id, username }`. 401 → "That token is invalid or revoked." and exit 1.
-5. Write file with `mode: 0o600`.
+**Headless / SSH fallback (device-code style):**
 
-`GET /api/users/me` exists today (returns the current session user's profile). Phase B extends it to accept Bearer auth.
+```
+$ ssh remote-box
+$ agentlab login --device
+To authorize this CLI:
+  1. On any computer, visit https://agentlab.in/cli/auth/device
+  2. Enter the code: AGL-XR2K-9PLM
+Waiting for you to authorize... (timeout in 10 minutes)
+
+✓ Logged in as @harshitsinghbhandari
+```
+
+**Mechanics — loopback flow (default):**
+
+1. CLI binds a random free port on `127.0.0.1` (Node `net.createServer().listen(0)`).
+2. CLI generates a `request_id` (UUID v4) and a `pkce_verifier` (32 random bytes → base64url). Stores both in memory.
+3. CLI computes `pkce_challenge = base64url(sha256(pkce_verifier))`.
+4. CLI POSTs to `/api/cli/auth/start` with `{ request_id, pkce_challenge, redirect_uri: "http://127.0.0.1:<port>/cb", client_name: <os.hostname()>, scopes: DEFAULT_SCOPES }`. Server stores the row in `cli_auth_requests` (new table, see below) and responds `{ authorize_url: "https://agentlab.in/cli/auth?request_id=..." }`.
+5. CLI opens the URL via the `open` npm package. If no DISPLAY (headless), CLI prints the URL and tells the user to visit it manually. (Server-driven device-code is the cleaner headless mode — see `--device` flag below.)
+6. User signs in with GitHub if needed, lands on `app/cli/auth/page.tsx`. The page reads `request_id` from the query, fetches the request details (`client_name`, `scopes`), shows a single "Authorize" button + "Cancel" button.
+7. On "Authorize", browser POSTs to `/api/cli/auth/authorize` with `{ request_id }`. Server (session-authenticated): looks up the request, mints a fresh PAT (named `<client_name>` e.g. `MacBook Pro of harshitsinghbhandari`, scopes from the request), updates `cli_auth_requests.authorized_at` and stores the *encrypted* full token tied to the request, then redirects the browser to `<redirect_uri>?request_id=<id>`. (Token is NOT in the redirect URL — only `request_id`. The CLI exchanges it next.)
+8. CLI's local HTTP server receives the GET `/cb?request_id=<id>`. CLI POSTs to `/api/cli/auth/exchange` with `{ request_id, pkce_verifier }`. Server: checks the `pkce_verifier` hashes to the stored `pkce_challenge`, marks the request as `exchanged_at`, returns the full token. PKCE prevents an attacker who saw the redirect URL from claiming the token without the verifier.
+9. CLI's local HTTP server responds to the browser with a tiny HTML page: "You can close this window — the CLI is now signed in." Local server shuts down. CLI saves the credential (token + username) and prints success.
+
+**Mechanics — device-code flow (`--device` flag, headless):**
+
+1. CLI POSTs to `/api/cli/auth/device/start` with `{ client_name, scopes }`. Server creates a `cli_auth_requests` row, generates a short user-facing code (e.g. `AGL-XR2K-9PLM` — 8 chars + dashes, ~40 bits of entropy because the lookup window is brief) and a long `device_code` (32 bytes base64url, opaque, used by the CLI to poll). Responds `{ user_code, device_code, verification_url, expires_in: 600, poll_interval: 5 }`.
+2. CLI prints `verification_url` + `user_code`, then polls `POST /api/cli/auth/device/poll` with `{ device_code }` every 5s.
+3. User visits `https://agentlab.in/cli/auth/device` (signs in with GitHub if needed), enters the code, sees the same "Authorize" page as the loopback flow with the same client_name + scopes, clicks Authorize.
+4. Server marks the request authorized and mints the PAT.
+5. CLI's next poll returns the full token. CLI saves the credential and prints success.
+
+**Why PKCE (loopback flow)?** A malicious process on the same machine can bind a different port and intercept the redirect URL. PKCE means even if an attacker sees the redirect, they can't claim the token without `pkce_verifier`, which never leaves the original CLI process. Belt-and-suspenders for a low-probability local-process-MITM threat, but it's table stakes for any OAuth-shaped flow today.
+
+**Why a one-time exchange (rather than redirecting the full token to localhost)?** A URL with the full token in the redirect could land in shell history, browser history, or a referrer header. The exchange step keeps the token out of any URL.
+
+**Why a custom flow rather than reusing NextAuth?** NextAuth provides the GitHub session that backs `/api/cli/auth/authorize`. The CLI flow itself is bespoke — adding NextAuth as an OAuth *provider* (server-side) would mean implementing a full OAuth2 server (clients table, scopes, refresh tokens, etc.) which is massively out of scope for v0.1.0. The bespoke flow above is ~200 LoC server-side and gives us the right UX with the same security properties.
+
+**New table — `cli_auth_requests`** (added to Phase A schema):
+
+```sql
+CREATE TABLE public.cli_auth_requests (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  request_id      uuid NOT NULL UNIQUE,        -- supplied by CLI (loopback) or generated (device)
+  flow            text NOT NULL CHECK (flow IN ('loopback', 'device')),
+  pkce_challenge  text,                          -- loopback flow only; null for device
+  redirect_uri    text,                          -- loopback flow only; null for device
+  user_code       text UNIQUE,                   -- device flow only; null for loopback
+  device_code_hash text UNIQUE,                  -- device flow only; sha256 hex; null for loopback
+  client_name     text NOT NULL,                 -- displayed to user; becomes PAT name on authorize
+  scopes          text[] NOT NULL,
+  authorized_by   uuid REFERENCES public.users (id) ON DELETE CASCADE,
+  authorized_at   timestamptz,
+  exchanged_at    timestamptz,                   -- loopback only — when CLI exchanged for token
+  token_id        uuid REFERENCES public.personal_access_tokens (id) ON DELETE SET NULL,
+  expires_at      timestamptz NOT NULL,          -- request itself expires (5m loopback, 10m device)
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT cli_flow_consistent CHECK (
+    (flow = 'loopback' AND pkce_challenge IS NOT NULL AND redirect_uri IS NOT NULL
+                       AND user_code IS NULL AND device_code_hash IS NULL)
+    OR
+    (flow = 'device'   AND user_code IS NOT NULL AND device_code_hash IS NOT NULL
+                       AND pkce_challenge IS NULL AND redirect_uri IS NULL)
+  )
+);
+
+CREATE INDEX cli_auth_requests_request_id_idx ON public.cli_auth_requests (request_id);
+CREATE INDEX cli_auth_requests_user_code_idx  ON public.cli_auth_requests (user_code)
+  WHERE user_code IS NOT NULL AND authorized_at IS NULL;
+CREATE INDEX cli_auth_requests_expires_at_idx ON public.cli_auth_requests (expires_at);
+
+-- RLS: service-role only (route handlers do all the work).
+ALTER TABLE public.cli_auth_requests ENABLE ROW LEVEL SECURITY;
+-- No SELECT policy → no rows visible to non-service-role; all access via API.
+```
+
+Rows are short-lived — a periodic cleanup job (Vercel cron, daily) deletes anything where `expires_at < now() - interval '1 day'`. We don't want abandoned auth requests piling up forever. (Phase D adds the cron.)
+
+**New API routes** (added to Phase A):
+
+| Method | Path                                | Purpose                                         | Auth          |
+| ------ | ----------------------------------- | ----------------------------------------------- | ------------- |
+| POST   | `/api/cli/auth/start`               | CLI starts loopback flow                        | none          |
+| POST   | `/api/cli/auth/exchange`            | CLI exchanges verifier for token                | none          |
+| POST   | `/api/cli/auth/device/start`        | CLI starts device flow                          | none          |
+| POST   | `/api/cli/auth/device/poll`         | CLI polls for completion                        | none          |
+| POST   | `/api/cli/auth/authorize`           | Browser confirms authorization (both flows)     | session ONLY  |
+| GET    | `/api/cli/auth/request/[request_id]`| Browser fetches client_name + scopes to display | session ONLY  |
+
+`/api/cli/auth/start` is unauthenticated — anyone with network access can create a pending request. Mitigation: rate-limit at `5/min/IP` (new bucket `cli_auth_start`), and the request is useless without a user logging in via the bridge page anyway. `/api/cli/auth/exchange` is unauthenticated but requires the PKCE verifier — a brute-force is bounded by the 256-bit verifier entropy.
+
+**New bridge page** (added to Phase A):
+
+- `app/cli/auth/page.tsx` — loopback flow's authorize screen (reads `request_id` from query).
+- `app/cli/auth/device/page.tsx` — device flow's "enter your code" screen.
+- Both screens render in the existing app shell, require session, and show a clear "Authorize the agentlab CLI named **<client_name>** to act on your behalf with the following scopes: …" prompt.
+- Both screens show a "Cancel" button that POSTs a cancel + redirects to `/`.
+
+**Effect on Phase A size:** adds ~600 LoC (table + 6 routes + 2 pages + tests). Phase A bumps from L to L+ but remains a single PR. The `/settings/tokens` UI (manual token creation) is unchanged — both surfaces coexist.
+
+**Effect on Phase C size:** the CLI login command grows by ~200 LoC (local HTTP server, PKCE helpers, device-code polling). Still L.
+
+**Open question — automatically scope the browser-created token?** Recommended: the bridge mints a token with the `DEFAULT_SCOPES` (`['posts:write']`) only. Users who want more scopes use `/settings/tokens` directly. This keeps the consent screen short and the security story simple. If we let `agentlab login` request arbitrary scopes via the start request, a hostile `npm i -g agentlab-typosquat` could trick users into authorizing `admin:write`. The fixed-default-scope answer eliminates that whole class.
 
 ### `agentlab post create` flow
 
@@ -732,36 +883,56 @@ Secrets to add to repo settings (operator must do this manually before phase D):
 
 ---
 
-## Phase A — PAT plumbing + `/settings/tokens`
+## Phase A — PAT plumbing + `/settings/tokens` + browser-based CLI auth bridge
 
-**Goal:** Land PAT auth as a parallel channel to the session cookie. By end of phase A, an engineer with a `agl_` token can `curl -H 'Authorization: Bearer agl_...' https://agentlab.in/api/users/me` and get a 200 with their profile. The web UI at `/settings/tokens` lets users create and revoke tokens.
+**Goal:** Land PAT auth as a parallel channel to the session cookie, AND land the browser-based CLI authorization bridge (loopback + device-code flows) that Phase C's `agentlab login` will consume. By end of phase A:
+- An engineer with a `agl_` token can `curl -H 'Authorization: Bearer agl_...' https://agentlab.in/api/users/me` and get a 200 with their profile.
+- The web UI at `/settings/tokens` lets users create and revoke tokens manually.
+- The web UI at `/cli/auth?request_id=...` (loopback) and `/cli/auth/device` (device-code) lets a signed-in user authorize a pending CLI request, minting a fresh PAT and returning it to the requesting CLI via the redirect/poll mechanisms specified in "Design — CLI → `agentlab login` flow."
 
-**Estimated PR size:** **L** (~1500 LoC, comparable to Phase 12 moderation).
+**Estimated PR size:** **L+** (~2100 LoC including the CLI auth bridge — bigger than Phase 12 moderation but still a single PR; the bridge endpoints and the PAT plumbing share the `lib/auth/*` helpers so splitting would duplicate setup).
 
 **Depends on:** all v1 phases (1–14) shipped. Existing.
 
 **Files (rough):**
-- Create: `supabase/migrations/0013_personal_access_tokens.sql`
+- Create: `supabase/migrations/0013_personal_access_tokens.sql` (PAT table + cli_auth_requests table — both in one migration; same review surface, both are PAT-related).
 - Create: `lib/auth/pat.ts` (generate, hash, shape check)
 - Create: `lib/auth/scopes.ts` (scope const, `requireScope`)
 - Create: `lib/auth/resolve.ts` (`resolveAuth`, `resolvePat`)
 - Create: `lib/auth/pat-last-used.ts` (debounce + write helper)
-- Modify: `lib/auth.ts` (export `resolveAuth` re-export; do NOT delete `getSession` — token-mgmt routes still use it)
+- Create: `lib/auth/cli-auth.ts` (request lifecycle: create, fetch-for-display, authorize, exchange, poll, expire — pure functions + DB helpers)
+- Create: `lib/auth/pkce.ts` (verify a PKCE verifier against a stored challenge; `generateUserCode` for device flow)
+- Modify: `lib/auth.ts` (re-export `resolveAuth`; do NOT delete `getSession`)
 - Modify: `lib/route-guard.ts` (add `authKind` option, skip origin when `pat`)
+- Modify: `lib/rate-limit.ts` (add buckets: `cli_auth_start` 5/min, `cli_auth_exchange` 10/min, `cli_auth_device_poll` 60/min — last is per-device_code to absorb the 5s polling cadence with headroom)
 - Create: `app/api/users/me/tokens/route.ts` (GET, POST)
 - Create: `app/api/users/me/tokens/[id]/route.ts` (DELETE)
+- Create: `app/api/cli/auth/start/route.ts` (POST — loopback start, no auth)
+- Create: `app/api/cli/auth/exchange/route.ts` (POST — loopback exchange, no auth, PKCE-verified)
+- Create: `app/api/cli/auth/device/start/route.ts` (POST — device-code start, no auth)
+- Create: `app/api/cli/auth/device/poll/route.ts` (POST — device-code poll, no auth)
+- Create: `app/api/cli/auth/authorize/route.ts` (POST — session-required confirm)
+- Create: `app/api/cli/auth/request/[request_id]/route.ts` (GET — session-required, returns `client_name + scopes` for the bridge page UI)
 - Create: `app/settings/tokens/page.tsx`
 - Create: `app/settings/tokens/TokensClient.tsx`
+- Create: `app/cli/auth/page.tsx` (loopback bridge UI)
+- Create: `app/cli/auth/device/page.tsx` (device-code entry UI)
+- Create: `app/cli/auth/AuthorizeClient.tsx` (shared "Authorize/Cancel" client component used by both pages)
 - Modify: `app/api/users/me/route.ts` — accept Bearer (single-route prototype to validate the wiring; broad rollout is phase B)
 - Create: `tests/unit/auth-pat.test.ts`
 - Create: `tests/unit/auth-resolve.test.ts`
 - Create: `tests/unit/auth-scopes.test.ts`
+- Create: `tests/unit/cli-auth.test.ts` (request lifecycle, PKCE verify, user-code generation, expiry)
+- Create: `tests/integration/cli-auth-loopback.test.ts` (full loopback flow against seeded Supabase)
+- Create: `tests/integration/cli-auth-device.test.ts` (device-code flow with polling)
 - Create: `tests/e2e/settings-tokens.spec.ts`
-- Modify: `lib/env.ts` — no new env vars expected, but verify (admin allow-list already covers admin scope grant gating).
+- Create: `tests/e2e/cli-auth-bridge.spec.ts` (Playwright: sign in, hit /cli/auth?request_id=..., click Authorize, verify the API exchange returns a working token)
+- Modify: `lib/env.ts` — no new env vars expected, but verify.
 
 **API/schema changes:**
-- New migration 0013 (table + RLS policy + 2 indexes).
+- New migration 0013: `personal_access_tokens` + `cli_auth_requests` tables, RLS, indexes, the cross-flow CHECK constraint.
 - New session-only routes for token CRUD.
+- New routes for CLI auth bridge (some unauthenticated by design — the start/exchange/poll endpoints — protected by PKCE + rate limits).
 - `/api/users/me` becomes the first Bearer-accepting endpoint.
 - Augment `Session.user` types if needed (`username` is already required by phase 6 — verify in `next-auth.d.ts`).
 
@@ -776,27 +947,56 @@ Secrets to add to repo settings (operator must do this manually before phase D):
 
 **Tasks (ordered):**
 
-1. **Write migration 0013** with the schema above. Include `pat_user_id_idx` (partial, active only) and `pat_token_hash_idx`. Add the RLS policy. Run locally via `pnpm supabase db push`.
+*PAT plumbing*
+
+1. **Write migration 0013** with the `personal_access_tokens` schema AND the `cli_auth_requests` schema (both from the design sections above). Include `pat_user_id_idx` (partial, active only), `pat_token_hash_idx`, the three `cli_auth_requests_*` indexes, and the cross-flow CHECK constraint. Add RLS policies (PAT owner-select; cli_auth_requests service-role-only). Run locally via `pnpm supabase db push`.
 2. **`lib/auth/scopes.ts`** with the const + `requireScope` helper. Unit test the helper.
 3. **`lib/auth/pat.ts`** — `generatePat`, `hashPat`, `isPatShape`. Unit test each.
-4. **`lib/auth/resolve.ts`** — `resolveAuth`, `resolvePat`. Unit test via a Supabase mock. Key cases: revoked, banned, malformed, valid, expired (only if OPC-1 lands on (b)/(c) — guard with an env-gated branch otherwise).
+4. **`lib/auth/resolve.ts`** — `resolveAuth`, `resolvePat`. Unit test via a Supabase mock. Key cases: revoked, banned, malformed, valid. (OPC-1 is decided as "never expire" so no expiry branch is needed.)
 5. **`lib/auth/pat-last-used.ts`** — debounce module + LRU. Unit test the debounce behavior with a fake clock.
 6. **Modify `lib/route-guard.ts`** — add `authKind` option, conditional origin enforcement. Update existing call sites: only `app/api/users/me/route.ts` in this phase, the rest are phase B.
 7. **Modify `app/api/users/me/route.ts`** — swap `getSession()` for `resolveAuth(req)`. Add Bearer support + CORS headers. Unit test the route with a token, a session, and no auth.
 8. **`app/api/users/me/tokens/route.ts`** — GET (list) and POST (create). Session-only. Generate via `generatePat`, persist hash + prefix, return the full token in the POST response. Tests.
 9. **`app/api/users/me/tokens/[id]/route.ts`** — DELETE (revoke). Session-only. Verify ownership via `user_id = ctx.userId`. Soft-delete by setting `revoked_at`. Tests.
-10. **`app/settings/tokens/page.tsx`** — server component that lists active tokens (call `GET /api/users/me/tokens` via Supabase directly, not by fetching our own API). Includes the create button (delegates to client component).
+10. **`app/settings/tokens/page.tsx`** — server component that lists active tokens (read via Supabase directly, not by fetching our own API). Includes the create button (delegates to client component).
 11. **`app/settings/tokens/TokensClient.tsx`** — client component with create dialog (name input + scope checkboxes), one-time display, revoke confirmation. Plays nicely with light/dark theme (see how Phase 12 admin pages do this).
 12. **Surface the link in `/settings`** — add a "Tokens" subnav entry next to "Profile". Modify `app/settings/page.tsx` if needed.
 13. **E2E test** for the full create-then-revoke flow.
-14. **Manual smoke** — run dev server, generate a token via the UI, hit `curl -H "Authorization: Bearer <token>" http://localhost:3010/api/users/me`. Expect 200 with the profile.
+
+*CLI auth bridge — loopback flow*
+
+14. **`lib/auth/pkce.ts`** — `verifyPkce(verifier, storedChallenge): boolean` (constant-time compare of `sha256(verifier)` against the stored challenge). Unit test happy + tampered.
+15. **`lib/auth/cli-auth.ts`** — request lifecycle helpers: `createLoopbackRequest`, `getRequestForDisplay`, `authorizeRequest`, `exchangeForToken`. Pure-ish (take a Supabase client); each is unit-tested via a mock.
+16. **`lib/rate-limit.ts`** — add the three new buckets (`cli_auth_start`, `cli_auth_exchange`, `cli_auth_device_poll`). Verify Upstash + memory fallback both serve the new buckets.
+17. **`app/api/cli/auth/start/route.ts`** — POST: validate input (request_id UUID, pkce_challenge base64url, redirect_uri matches `http://127.0.0.1:<port>/cb` shape, client_name 1–100 chars, scopes subset of `DEFAULT_SCOPES`). Rate-limit by IP. Insert row. Return `{ authorize_url }`. Tests.
+18. **`app/api/cli/auth/request/[request_id]/route.ts`** — GET, session-required. Returns `{ client_name, scopes, expires_at }` for the bridge page. 404 if request expired or not found. Tests.
+19. **`app/api/cli/auth/authorize/route.ts`** — POST, session-required. Validates the session user can authorize; mints PAT via `generatePat`; updates `cli_auth_requests` with `authorized_by, authorized_at, token_id`; returns `{ redirect_uri }` (which the bridge page then navigates to). Tests.
+20. **`app/api/cli/auth/exchange/route.ts`** — POST: validate `request_id` + `pkce_verifier`; check `authorized_at IS NOT NULL`, `exchanged_at IS NULL`, `expires_at > now()`. On success: mark exchanged, return `{ token, username }`. The PAT row is keyed; we look up its hash → return the full token by re-reading? **Implementation note:** because we never store the full token, we must produce it at authorize time and stash it in memory or in a short-lived column. Simplest: a `token_plaintext_encrypted` column on `cli_auth_requests` holding the token symmetrically encrypted with an env key (`CLI_AUTH_TOKEN_KEY`, 32 bytes hex). On exchange we decrypt + return + null the column. This keeps the plaintext out of the long-lived `personal_access_tokens` table. Tests.
+21. **`app/cli/auth/page.tsx`** + **`app/cli/auth/AuthorizeClient.tsx`** — bridge page that reads `?request_id=...`, fetches request details, renders the "Authorize" consent screen with scopes listed, calls authorize endpoint on click, then `window.location.replace(redirect_uri)`.
+
+*CLI auth bridge — device-code flow*
+
+22. **`lib/auth/cli-auth.ts` (extend)** — `createDeviceRequest`, `findRequestByUserCode`, `findRequestByDeviceCode`. `generateUserCode` returns `AGL-XXXX-XXXX` from 8 random base32 chars.
+23. **`app/api/cli/auth/device/start/route.ts`** — POST: validate input; insert row; return `{ user_code, device_code, verification_url, expires_in: 600, poll_interval: 5 }`. Rate-limit by IP. Tests.
+24. **`app/api/cli/auth/device/poll/route.ts`** — POST: input `{ device_code }`. Returns `{ status: 'pending'|'authorized', token?, username? }`. Rate-limit per-device_code. Tests.
+25. **`app/cli/auth/device/page.tsx`** — input box for the code, then same `AuthorizeClient` component once the code resolves to a request.
+
+*Cross-cutting*
+
+26. **Integration test** — full loopback flow via supertest-style harness (POST start, fake browser GET request, POST authorize with a session cookie, POST exchange, verify token works against `/api/users/me`).
+27. **Integration test** — full device flow with polling.
+28. **E2E `tests/e2e/cli-auth-bridge.spec.ts`** — Playwright signs in, navigates to a `/cli/auth?request_id=...` URL prepared by a test fixture, clicks Authorize, asserts the API exchange returns a working token.
+29. **Manual smoke** — run dev server, generate a token via the UI AND via a curl-driven simulation of the loopback flow, hit `/api/users/me` with both tokens.
 
 **Acceptance:**
-- Migration applies cleanly to a fresh Supabase project.
+- Migration applies cleanly to a fresh Supabase project; both new tables exist with the right constraints + indexes.
 - Vitest + Playwright all green.
 - `curl` with a valid Bearer to `/api/users/me` returns 200; with a revoked token returns 401; with no token returns 401.
 - The settings page renders correctly in light + dark mode.
-- The token is shown ONCE on creation and can never be re-read.
+- The token is shown ONCE on creation in the settings UI and can never be re-read.
+- A simulated loopback flow (curl scripted against the new routes) round-trips: start → authorize-via-session → exchange → returns a token usable on `/api/users/me`.
+- A simulated device flow: start → enter user_code in a browser-authorized session → poll returns the token.
+- `cli_auth_requests` rows expire (a request older than `expires_at` returns 410 Gone or similar on every endpoint that reads it).
 
 ---
 
@@ -948,7 +1148,12 @@ cli/
 5. **`cli/src/api/client.ts`** — fetch wrapper. `client.get(path)`, `client.post(path, body)`, `client.patch(path, body)`, `client.delete(path)`. Reads token + host from `Credentials`. Tests with `undici`'s `MockAgent`.
 6. **`cli/src/api/errors.ts`** — `ApiError extends Error` with `.status` and `.body`. Tests.
 7. **`cli/src/ui/prompt.ts`** + **`confirm.ts`** + **`format.ts`** — readline-based prompts, hidden mode for token entry. Tests of the prompt fn use a fake `process.stdin`.
-8. **`cli/src/commands/login.ts`** — open URL, prompt, validate shape, GET `/api/users/me`, save credential. Tests.
+8. **`cli/src/commands/login.ts`** — implements the loopback flow specified in "Design — CLI → `agentlab login` flow." Tasks inside this task:
+   - **8a.** `cli/src/auth/loopback-server.ts` — binds `127.0.0.1:0`, exposes a Promise that resolves on the first GET `/cb?request_id=...`. Includes a 5-minute hard timeout that closes the server with an error. Tests with a fake browser hitting the bound port.
+   - **8b.** `cli/src/auth/pkce.ts` — generates `pkce_verifier` (32 random bytes → base64url) and `pkce_challenge` (`base64url(sha256(verifier))`). Tests.
+   - **8c.** `cli/src/auth/loopback.ts` — orchestrates: bind server, POST start, open browser via `open`, wait for callback, POST exchange, return token + username.
+   - **8d.** `cli/src/auth/device.ts` — `--device` flag: POST device-start, print user code + verification URL, poll device-poll on the documented interval, return token on success.
+   - **8e.** `cli/src/commands/login.ts` — top-level dispatcher: if `--token` flag is set, use that directly; if `--device` flag, run device flow; otherwise run loopback flow with device-flow auto-fallback when `open` fails (no DISPLAY). Save credential on success. Tests for all three branches.
 9. **`cli/src/commands/logout.ts`** — delete credential file. Test it doesn't error if absent.
 10. **`cli/src/commands/whoami.ts`** — print `@<username>` from cached credential. No HTTP call (we save username at login). Test.
 11. **`cli/src/frontmatter.ts`** — `parseFile(path): { meta, body }`. Validate against a Zod schema that mirrors `PostCreateBody` but doesn't import it directly (the web package is a separate workspace; duplicate the rules and assert equivalence in a cross-workspace test). Tests for happy path, missing fields, invalid type, too many tags.
@@ -1081,8 +1286,9 @@ A consolidated view of what must be true after each phase. Implementers should b
 
 | Capability                                    | After A | After B | After C | After D | After E |
 | --------------------------------------------- | ------- | ------- | ------- | ------- | ------- |
-| `personal_access_tokens` table exists         | ✅      | ✅      | ✅      | ✅      | ✅      |
+| `personal_access_tokens` + `cli_auth_requests` tables exist | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `/settings/tokens` UI                         | ✅      | ✅      | ✅      | ✅      | ✅      |
+| `/cli/auth` (loopback) + `/cli/auth/device` bridge live | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `Authorization: Bearer agl_*` works on `/api/users/me` | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Bearer works on every mutating route          | ❌      | ✅      | ✅      | ✅      | ✅      |
 | CORS configured for cross-origin Bearer       | ❌      | ✅      | ✅      | ✅      | ✅      |
@@ -1095,6 +1301,24 @@ A consolidated view of what must be true after each phase. Implementers should b
 | `--json` output flag                          | ❌      | ❌      | ❌      | ❌      | ✅      |
 | Keychain (macOS/Linux with libsecret)         | ❌      | ❌      | ❌      | ❌      | ✅      |
 | Shell completions                             | ❌      | ❌      | ❌      | ❌      | ✅      |
+
+---
+
+## Post-Phase-E — Claude Code skills (non-blocking)
+
+Per operator decision on 2026-06-03 (review comment on OPC-2's thread), once the CLI is installable, we wrap it with a small set of Claude Code skills so an agent in a user's editor can publish, edit, and comment via natural-language prompts. This is a **separate workstream** that does NOT block CLI v0.1.0 launch — it lands as a follow-up after Phase E.
+
+**Sketch (not the full design):**
+- A `skills/agentlab/` directory at the repo root (or a separate `agentlab-skills` repo distributed via plugin marketplace — TBD).
+- One skill per top-level command:
+  - `publish` — "publish this buffer as an agentlab playbook/post/dive" → wraps `agentlab post create`.
+  - `edit-post` — "open my agentlab post titled X for editing" → wraps `agentlab post edit`.
+  - `comment` — "post this as a comment on <url>" → wraps `agentlab comment`.
+  - `whoami` — "what's my agentlab handle" → wraps `agentlab whoami`.
+- Skills invoke the CLI via the user's existing `~/.config/agentlab/credentials` — the same authentication state, no separate login flow inside the skill.
+- Skills should fail with a clear "run `agentlab login` first" message if no credential exists.
+
+**Open question (deferred):** ship the skills bundled with the npm package (so `npm i -g agentlab` installs them into the user's `~/.claude/skills/`), or as a separate Claude Code plugin published independently. The latter is the cleaner story (skill distribution and CLI distribution have different cadences); the former is one-step UX. Decide when the workstream picks up.
 
 ---
 
@@ -1114,7 +1338,7 @@ A consolidated view of what must be true after each phase. Implementers should b
 
 **Backward compatibility:** none required — this is a new surface. The single risk is the route-handler swap (Phase B), which is mechanical but touches ~17 files. Mitigation: each route is its own commit, and CI tests must stay green between each.
 
-**Database migration risk:** Phase A's migration only ADDs a table — no ALTER on hot tables, no backfills, no downtime risk. Routine Supabase `db push`.
+**Database migration risk:** Phase A's migration ADDs two tables (`personal_access_tokens`, `cli_auth_requests`) — no ALTER on hot tables, no backfills, no downtime risk. Routine Supabase `db push`.
 
 **Secret-scanning enrollment:** Once `agl_` is in production, file the GitHub secret-scanning provider registration form (https://docs.github.com/en/code-security/secret-scanning/secret-scanning-partner-program). This is operator-manual, ~30 min one-time. Add to the phase D runbook.
 
