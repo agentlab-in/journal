@@ -81,9 +81,11 @@ Trade-off captured: (a) is correct — anyone not using the CLI needs the spec. 
 **OPC-4. Free-tier rate limits.** ✅ **DECIDED (2026-06-03): same buckets as session.**
 PAT requests hit the **same** rate-limit buckets as session requests, keyed by `user:<user_id>`. Reason: a token IS the user. Trade-off: a script accidentally looping `agentlab post create` hits the publish limit (10/hr) like a logged-in user clicking publish in a loop would.
 
-**OPC-5. `agentlab post init` scaffolder.** ⏳ **PENDING (operator question on 2026-06-03).**
+**OPC-5. `agentlab post init` scaffolder.** ✅ **DECIDED (2026-06-03): defer to v0.2.0 (recommended default).**
 
-*Definition (in response to PR review):* `agentlab post init [name] [--type=playbook|post|dive]` would create a new local file `<name>.md` (defaulting to a slug of `<name>` plus `.md`) pre-populated with the YAML frontmatter block for the chosen type, plus a comment skeleton of the required structured sections for that type. For example:
+After answering the operator's "what does it do?" question on the PR thread with the definition below, the operator accepted the recommended default — `post init` lands in v0.2.0 alongside the other Phase E polish, not in v0.1.0. Phase C scope holds; authors copy the frontmatter from `/docs/api` for their first post.
+
+*Definition (kept for reference and for v0.2.0 implementation):* `agentlab post init [name] [--type=playbook|post|dive]` would create a new local file `<name>.md` (defaulting to a slug of `<name>` plus `.md`) pre-populated with the YAML frontmatter block for the chosen type, plus a comment skeleton of the required structured sections for that type. For example:
 
 ```bash
 $ agentlab post init trust-gate --type playbook
@@ -118,9 +120,9 @@ tags:
 
 The author then fills in the placeholders and runs `agentlab post create trust-gate.md`. For `--type post`, the section skeleton is omitted (`post` has no required sections per `app/api/posts/route.ts:REQUIRED_SECTION_KEYS`). For `--type dive`, the required keys are `tldr` + `the_question` — the skeleton mirrors that.
 
-**Recommended default (if no decision):** skip in v0.1.0 — `git init` doesn't scaffold either, frontmatter is documented, and skipping saves ~1 day of phase C work (parser + skeletons + tests for each type). The author can copy the frontmatter from the docs page.
+**Reason for the deferral:** `git init` doesn't scaffold either, frontmatter is documented at `/docs/api`, and skipping saves ~1 day of phase C work (parser + skeletons + tests for each type). The author copies the frontmatter from the docs page for their first post.
 
-**Trade-off if shipped:** ~120 LoC and ~80 LoC tests in phase C; small but non-zero. The first-post experience is friendlier — no copying frontmatter from docs.
+**v0.2.0 scope** (when this lands): ~120 LoC implementation + ~80 LoC tests. Tracked alongside Phase E polish — add it as a task there at execution time. The first-post UX gets friendlier (no copy-paste from docs).
 
 **OPC-6. Cover image upload in `post create`.** ✅ **DECIDED (2026-06-03): skip in v0.1.0 of CLI.**
 Covers go through `/api/uploads` which we still harden in Phase B for `uploads:write`, but the CLI does not exercise that path in v0.1.0. Authors who want a cover publish via the web UI. Trade-off accepted: terminal-only authors lose a feature in v0.1.0.
@@ -1248,8 +1250,10 @@ These three additions are scoped under phase C (not B) because they exist for th
 - Create: `cli/src/keychain.ts` — optional keytar integration with file fallback.
 - Create: `cli/src/completion/zsh.ts`, `cli/src/completion/bash.ts`, `cli/src/completion/fish.ts` — completion script generators.
 - Create: `cli/src/commands/completion.ts` — `agentlab completion <shell>` prints the script to stdout.
+- Create: `cli/src/commands/post-init.ts` — scaffolder per OPC-5 (deferred from v0.1.0). Generates `<name>.md` with frontmatter + per-type section skeleton.
+- Create: `cli/src/scaffold/templates.ts` — embedded skeleton strings keyed by `playbook | post | dive`.
 - Modify: `cli/package.json` — add `keytar` as an *optional* dependency (will install on Linux/macOS that have libsecret, will fail soft on platforms that don't).
-- Create: `cli/tests/keychain.test.ts`, `cli/tests/output.test.ts`, `cli/tests/completion.test.ts`.
+- Create: `cli/tests/keychain.test.ts`, `cli/tests/output.test.ts`, `cli/tests/completion.test.ts`, `cli/tests/post-init.test.ts`.
 
 **API/schema changes:** none.
 
@@ -1268,13 +1272,15 @@ These three additions are scoped under phase C (not B) because they exist for th
 4. **Migration helper** — first time keychain is enabled, move existing credential from file → keychain, leaving a stub file with a note. Tests.
 5. **`cli/src/completion/*.ts`** — completion scripts. Tests.
 6. **`cli/src/commands/completion.ts`** + register. Tests.
-7. **README updates** — `--json` examples, completion install instructions.
-8. **Release `cli-v0.2.0`.**
+7. **`cli/src/scaffold/templates.ts`** + **`cli/src/commands/post-init.ts`** — `agentlab post init [name] [--type=playbook|post|dive]`. Refuses to overwrite an existing file unless `--force`. The frontmatter matches what `agentlab post create` validates against `lib/posts/schema.ts` (and the per-type section requirements in `app/api/posts/route.ts`). Tests for all three types + overwrite refusal.
+8. **README updates** — `--json` examples, completion install instructions, `post init` walkthrough.
+9. **Release `cli-v0.2.0`.**
 
 **Acceptance:**
 - `agentlab post list --json` prints valid JSON parseable by `jq`.
 - `agentlab post list --json | jq '.[0].slug'` works.
 - `agentlab post create file.md --json` returns `{ "id": "...", "slug": "...", "url": "..." }`.
+- `agentlab post init trust-gate --type playbook` writes `trust-gate.md` containing the playbook frontmatter + 4-section skeleton; running `agentlab post create trust-gate.md` after filling placeholders publishes successfully.
 - On a Mac, the credential round-trips through Keychain after migration.
 - Completion script works in zsh.
 
