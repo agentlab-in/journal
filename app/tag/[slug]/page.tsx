@@ -4,7 +4,7 @@ import { notFound, permanentRedirect } from 'next/navigation'
 import type { Metadata } from 'next'
 import { createAnonServerSupabaseClient } from '@/lib/supabase/server'
 import { applyCursor, decodeCursor, encodeCursor } from '@/lib/feed/cursor'
-import { fetchAuthors, fetchTagsByPost } from '@/lib/feed/hydrate'
+import { fetchAuthors, fetchOrgsByPost, fetchTagsByPost } from '@/lib/feed/hydrate'
 import {
   resolveTypeFilter,
   resolveTimeFilter,
@@ -206,12 +206,11 @@ async function TagPostsList({
 
   // Hydrate authors + tags (anon RLS public-read covers both).
   const uniqueAuthorIds = Array.from(new Set(pageRows.map((r) => r.author_id)))
-  const [authorMap, tagMap] = await Promise.all([
+  const pageIds = pageRows.map((r) => r.id)
+  const [authorMap, tagMap, orgMap] = await Promise.all([
     fetchAuthors(db, uniqueAuthorIds),
-    fetchTagsByPost(
-      db,
-      pageRows.map((r) => r.id),
-    ),
+    fetchTagsByPost(db, pageIds),
+    fetchOrgsByPost(db, pageIds),
   ])
 
   const cards: PostCardData[] = []
@@ -233,6 +232,7 @@ async function TagPostsList({
         display_name: author.display_name ?? author.username,
         avatar_url: author.avatar_url,
       },
+      org: orgMap.get(r.id) ?? null,
       tags: tagMap.get(r.id) ?? [],
     })
   }

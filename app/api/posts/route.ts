@@ -218,7 +218,7 @@ export async function POST(req: NextRequest | Request): Promise<Response> {
   const resolvedMap = new Map<string, string>()
   const resolvedAnchors: Array<{ anchor: string; targetPostId: string; targetSlug: string }> = []
   for (const [anchor, resolved] of resolvedByAnchor) {
-    const url = postUrl(resolved.targetUsername, resolved.targetType, resolved.targetSlug)
+    const url = postUrl(resolved.targetLeadingSegment, resolved.targetType, resolved.targetSlug)
     resolvedMap.set(anchor, url)
     resolvedAnchors.push({
       anchor,

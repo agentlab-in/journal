@@ -34,6 +34,7 @@ vi.mock('@/lib/feed', () => ({
 
 vi.mock('@/lib/feed/hydrate', () => ({
   fetchAuthors: vi.fn(async () => new Map()),
+  fetchOrgsByPost: vi.fn(async () => new Map()),
   fetchTagNames: vi.fn(async () => new Map()),
   fetchTagsByPost: vi.fn(async () => new Map()),
 }))

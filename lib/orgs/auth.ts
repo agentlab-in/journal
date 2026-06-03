@@ -79,6 +79,27 @@ export async function requireOrgAdmin(
 }
 
 /**
+ * Boolean variant of `requireOrgAdmin` for server-component gates that
+ * can't consume a Response. Mirrors the same admin-role check but returns
+ * a plain boolean so callers can branch into `notFound()`/`redirect()`.
+ */
+export async function isOrgAdmin(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: SupabaseClient<any, any, any>,
+  orgId: string,
+  userId: string,
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('org_members')
+    .select('role')
+    .eq('org_id', orgId)
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (error || !data) return false
+  return (data as { role: string }).role === 'admin'
+}
+
+/**
  * Returns true iff `userId` is a member (any role) of `orgId`. Used by the
  * member-remove endpoint to support self-removal without admin rights.
  */

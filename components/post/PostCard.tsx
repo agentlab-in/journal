@@ -44,6 +44,12 @@ export interface PostCardData {
     display_name: string
     avatar_url: string | null
   }
+  /**
+   * Set when the post was published under an org (Phase 11). When present,
+   * the byline reads `{org.display_name} via @{author.username}` and the
+   * card link uses the org's vanity slug as the leading URL segment.
+   */
+  org?: { display_name: string; slug: string } | null
   /** Already filtered to approved tags, capped to top 2 by the caller. */
   tags: Array<{ slug: string; name: string }>
 }
@@ -53,13 +59,19 @@ export interface PostCardProps {
 }
 
 export function PostCard({ post }: PostCardProps) {
-  const { author } = post
+  const { author, org } = post
   // Defense-in-depth: usernames are DB-validated to a strict regex, but
   // encoding here makes PostCard safe against any future loosening of the
   // schema or a fixture that hand-rolls a PostCardData.
   const profileHref = `/${encodeURIComponent(author.username)}`
-  const initial = author.display_name.trim().charAt(0).toUpperCase() || '?'
-  const cardHref = postUrl(author.username, post.type, post.slug)
+  const orgHref = org ? `/${encodeURIComponent(org.slug)}` : null
+  const initial = (org?.display_name ?? author.display_name)
+    .trim()
+    .charAt(0)
+    .toUpperCase() || '?'
+  // Leading segment in the post URL matches what the publish API generates —
+  // org slug for org-authored posts, author username otherwise (T3/T4).
+  const cardHref = postUrl(org?.slug ?? author.username, post.type, post.slug)
 
   return (
     // `data-feed-card` + `data-href` opt this card into the j/k/Enter
@@ -95,12 +107,28 @@ export function PostCard({ post }: PostCardProps) {
           )}
         </Link>
         <div className="post-card__identity">
-          <Link href={profileHref} className="post-card__display-name">
-            {author.display_name}
-          </Link>{' '}
-          <Link href={profileHref} className="post-card__handle">
-            @{author.username}
-          </Link>
+          {org && orgHref ? (
+            // Org-authored: lead with the org display_name, link it to the
+            // org profile, then attribute the human author by handle.
+            <>
+              <Link href={orgHref} className="post-card__display-name">
+                {org.display_name}
+              </Link>{' '}
+              <span className="post-card__via">via</span>{' '}
+              <Link href={profileHref} className="post-card__handle">
+                @{author.username}
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link href={profileHref} className="post-card__display-name">
+                {author.display_name}
+              </Link>{' '}
+              <Link href={profileHref} className="post-card__handle">
+                @{author.username}
+              </Link>
+            </>
+          )}
         </div>
         <span aria-hidden="true" className="post-card__sep">·</span>
         <time dateTime={post.published_at} className="post-card__date">

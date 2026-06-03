@@ -199,7 +199,7 @@ export async function PATCH(
   for (const anchor of anchors) {
     const resolved = await resolveAnchor(anchor, { db: admin, currentUserId: userId })
     if (resolved) {
-      const url = postUrl(resolved.targetUsername, resolved.targetType, resolved.targetSlug)
+      const url = postUrl(resolved.targetLeadingSegment, resolved.targetType, resolved.targetSlug)
       resolvedMap.set(anchor, url)
       resolvedAnchors.push({
         targetPostId: resolved.targetPostId,

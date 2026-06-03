@@ -13,9 +13,11 @@ import {
 } from '@/lib/feed'
 import {
   fetchAuthors,
+  fetchOrgsByPost,
   fetchTagNames,
   fetchTagsByPost,
   type AuthorInfo,
+  type OrgInfo,
   type TagInfo,
 } from '@/lib/feed/hydrate'
 import { PostCard, type PostCardData } from '@/components/post/PostCard'
@@ -48,6 +50,7 @@ function buildCards(
   authorMap: Map<string, AuthorInfo>,
   tagNameMap: Map<string, string>,
   anonTagMap: Map<string, TagInfo[]>,
+  orgMap: Map<string, OrgInfo>,
 ): PostCardData[] {
   const cards: PostCardData[] = []
   for (const r of rows) {
@@ -76,6 +79,7 @@ function buildCards(
         display_name: author.display_name ?? author.username,
         avatar_url: author.avatar_url,
       },
+      org: orgMap.get(r.id) ?? null,
       tags,
     })
   }
@@ -125,7 +129,10 @@ async function FeedList({ viewerId }: { viewerId: string | null }) {
   // Hydrate authors. Use the same db client we used for the feed read so
   // the authed path bypasses RLS and the anon path stays on public reads.
   const uniqueAuthorIds = Array.from(new Set(rows.map((r) => r.author_id)))
-  const authorMap = await fetchAuthors(db, uniqueAuthorIds)
+  const [authorMap, orgMap] = await Promise.all([
+    fetchAuthors(db, uniqueAuthorIds),
+    fetchOrgsByPost(db, rows.map((r) => r.id)),
+  ])
 
   // Tag hydration — different shape depending on whether the rows came
   // back with `tag_slugs` (authed/For-You) or without (anon/Latest).
@@ -148,7 +155,7 @@ async function FeedList({ viewerId }: { viewerId: string | null }) {
     }
   }
 
-  const cards = buildCards(rows, authorMap, tagNameMap, anonTagMap)
+  const cards = buildCards(rows, authorMap, tagNameMap, anonTagMap, orgMap)
 
   if (cards.length === 0) {
     return (

@@ -9,17 +9,21 @@ interface Row {
   slug: string
   like_count: number
   published_at: string
+  org_id?: string | null
+  org_slug?: string | null
 }
 
 function rowToDbShape(r: Row) {
   return {
     id: r.id,
     author_id: r.author_id,
+    org_id: r.org_id ?? null,
     slug: r.slug,
     type: r.type,
     published_at: r.published_at,
     like_count: r.like_count,
     users: { username: r.username },
+    orgs: r.org_slug ? { slug: r.org_slug } : null,
   }
 }
 
@@ -133,9 +137,31 @@ describe('resolveAnchor', () => {
     })
     expect(res).toEqual({
       targetPostId: 'p1',
-      targetUsername: 'alice',
+      targetLeadingSegment: 'alice',
       targetType: 'playbook',
       targetSlug: 'agent-memory',
     })
+  })
+
+  it('uses org slug as leading segment when post is org-authored', async () => {
+    const db = mockDb([
+      {
+        id: 'p1',
+        author_id: 'a',
+        username: 'alice',
+        org_id: 'org-1',
+        org_slug: 'acme',
+        type: 'post',
+        slug: 'rag-eval',
+        like_count: 0,
+        published_at: '2026-01-01T00:00:00Z',
+      },
+    ])
+    const res = await resolveAnchor('RAG Eval', {
+      db: db as never,
+      currentUserId: me,
+    })
+    expect(res?.targetLeadingSegment).toBe('acme')
+    expect(res?.targetSlug).toBe('rag-eval')
   })
 })

@@ -42,7 +42,10 @@ import {
   type DraftManagerHandle,
   type DraftFormState,
 } from './DraftManager'
-import { PublishAsSelect } from './PublishAsSelect'
+import {
+  PublishAsSelect,
+  type PublishAsOrgOption,
+} from './PublishAsSelect'
 import { slug as toSlug } from '@/lib/posts/slug'
 import {
   validatePublishable,
@@ -61,6 +64,8 @@ export interface InitialPost {
   structured_sections: Record<string, string> | null
   edited_at: string | null
   published_at: string
+  /** When the post was published under an org, the org's UUID. */
+  org_id?: string | null
 }
 
 export interface EditorShellProps {
@@ -74,6 +79,12 @@ export interface EditorShellProps {
   editPostId?: string
   initialPost?: InitialPost
   initialTags?: TagOption[]
+  /**
+   * Orgs the caller can publish under. Empty list (or omitted) → the
+   * PublishAsSelect hides itself in new-post mode. Passed through to the
+   * select component verbatim.
+   */
+  userOrgs?: PublishAsOrgOption[]
   /**
    * Optional override for the DraftManager auto-save debounce. Used by E2E
    * tests so the test doesn't have to wait the production 30s for a draft
@@ -96,6 +107,7 @@ export function EditorShell({
   editPostId,
   initialPost,
   initialTags,
+  userOrgs,
   autoSaveMs,
 }: EditorShellProps) {
   const router = useRouter()
@@ -111,6 +123,13 @@ export function EditorShell({
   > | null>(initialPost?.structured_sections ?? null)
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(
     initialPost?.cover_image_url ?? null,
+  )
+  // Org identity to publish under. In edit mode this is seeded from the
+  // existing post's org_id and locked (org_id is immutable post-publish —
+  // /api/posts/[id] rejects mismatching values). In new mode it defaults to
+  // personal (null) and the picker (if rendered) lets the author switch.
+  const [orgId, setOrgId] = useState<string | null>(
+    initialPost?.org_id ?? null,
   )
 
   // ---- imperative APIs ---------------------------------------------------
@@ -320,6 +339,9 @@ export function EditorShell({
         cover_image_url: coverImageUrl ?? undefined,
       }
       if (mode === 'new') body.type = type
+      // Only send org_id on new posts — the PATCH route rejects any
+      // attempt to mutate it on an existing post (`org_id_immutable`).
+      if (mode === 'new' && orgId) body.org_id = orgId
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -355,6 +377,7 @@ export function EditorShell({
     tags,
     coverImageUrl,
     type,
+    orgId,
     router,
   ])
 
@@ -431,7 +454,14 @@ export function EditorShell({
           {mode === 'new' ? 'New post' : 'Edit post'}
         </h1>
         <div className="flex items-end gap-3">
-          <PublishAsSelect currentUsername={displayUsername} />
+          <PublishAsSelect
+            currentUsername={displayUsername}
+            userOrgs={userOrgs}
+            value={orgId}
+            onChange={setOrgId}
+            disabled={mode === 'edit'}
+            mode={mode}
+          />
           <button
             type="button"
             disabled={!validation.valid || publishing}

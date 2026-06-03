@@ -3,7 +3,7 @@ import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import { createAnonServerSupabaseClient } from '@/lib/supabase/server'
 import { applyCursor, decodeCursor, encodeCursor } from '@/lib/feed/cursor'
-import { fetchAuthors, fetchTagsByPost } from '@/lib/feed/hydrate'
+import { fetchAuthors, fetchOrgsByPost, fetchTagsByPost } from '@/lib/feed/hydrate'
 import { PostCard, type PostCardData } from '@/components/post/PostCard'
 import { KeyboardFeedNav } from '@/components/keyboard/KeyboardFeedNav'
 import { PostCardSkeleton } from '@/components/skeleton/PostCardSkeleton'
@@ -74,12 +74,11 @@ async function LatestList({ cursorEncoded }: LatestListProps) {
   // Hydrate authors + tags using the anon client — RLS public-read policies
   // on users / post_tags / tags expose what we need.
   const uniqueAuthorIds = Array.from(new Set(rows.map((r) => r.author_id)))
-  const [authorMap, tagMap] = await Promise.all([
+  const postIds = rows.map((r) => r.id)
+  const [authorMap, tagMap, orgMap] = await Promise.all([
     fetchAuthors(db, uniqueAuthorIds),
-    fetchTagsByPost(
-      db,
-      rows.map((r) => r.id),
-    ),
+    fetchTagsByPost(db, postIds),
+    fetchOrgsByPost(db, postIds),
   ])
 
   const cards: PostCardData[] = []
@@ -101,6 +100,7 @@ async function LatestList({ cursorEncoded }: LatestListProps) {
         display_name: author.display_name ?? author.username,
         avatar_url: author.avatar_url,
       },
+      org: orgMap.get(r.id) ?? null,
       tags: tagMap.get(r.id) ?? [],
     })
   }
