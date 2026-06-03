@@ -53,11 +53,12 @@ function formatDate(iso: string) {
   return DATE_FMT.format(new Date(iso))
 }
 
-const TARGET_TYPE_OPTIONS = ['post', 'comment', 'user', 'tag', 'report']
+const TARGET_TYPE_OPTIONS = ['post', 'comment', 'user', 'tag', 'report', 'org']
 
 interface PageSearchParams {
   actor?: string
   target_type?: string
+  target_id?: string
   cursor?: string
 }
 
@@ -69,10 +70,16 @@ export default async function AdminAuditPage({
   const sp = await searchParams
   const actor = sp?.actor?.trim() ?? undefined
   const target_type = sp?.target_type?.trim() ?? undefined
+  const target_id = sp?.target_id?.trim() ?? undefined
   const cursor = sp?.cursor ?? null
 
   const { rows, nextCursor } = await listAuditActions(
-    { actor: actor || undefined, target_type: target_type || undefined, cursor },
+    {
+      actor: actor || undefined,
+      target_type: target_type || undefined,
+      target_id: target_id || undefined,
+      cursor,
+    },
     50,
   )
   const restoredTargets = collectRestoredTargets(rows)
@@ -82,6 +89,7 @@ export default async function AdminAuditPage({
     const params = new URLSearchParams()
     if (actor) params.set('actor', actor)
     if (target_type) params.set('target_type', target_type)
+    if (target_id) params.set('target_id', target_id)
     for (const [k, v] of Object.entries(overrides)) {
       if (v) params.set(k, v)
       else params.delete(k)
@@ -136,10 +144,16 @@ export default async function AdminAuditPage({
           Filter
         </button>
 
-        {(actor || target_type) && (
+        {(actor || target_type || target_id) && (
           <Link href="/admin/audit" className="text-xs text-fg-subtle underline self-end pb-1.5">
             Clear filters
           </Link>
+        )}
+
+        {target_id && (
+          <span className="text-xs text-fg-subtle self-end pb-1.5">
+            Filtering target_id={target_id.slice(0, 8)}…
+          </span>
         )}
       </form>
 

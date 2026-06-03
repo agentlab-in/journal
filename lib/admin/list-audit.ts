@@ -18,6 +18,7 @@ export interface AuditActionRow {
 export interface AuditFilters {
   actor?: string // mod_user_id UUID
   target_type?: string
+  target_id?: string // mod_actions.target_id (UUID)
   cursor?: string | null // ISO created_at of last row on previous page
 }
 
@@ -29,7 +30,7 @@ export async function listAuditActions(
   filters: AuditFilters = {},
   limit = 50,
 ): Promise<{ rows: AuditActionRow[]; nextCursor: string | null }> {
-  const { actor, target_type, cursor } = filters
+  const { actor, target_type, target_id, cursor } = filters
 
   const admin = createAdminSupabaseClient()
 
@@ -45,6 +46,10 @@ export async function listAuditActions(
 
   if (target_type) {
     query = query.eq('target_type', target_type)
+  }
+
+  if (target_id) {
+    query = query.eq('target_id', target_id)
   }
 
   if (cursor) {
