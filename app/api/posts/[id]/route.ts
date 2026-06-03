@@ -10,6 +10,7 @@ import { renderToHtml } from '@/lib/posts/render'
 import { isReserved } from '@/lib/reserved-names'
 import { postUrl, type PostType } from '@/lib/posts/url'
 import { guardMutatingRequest } from '@/lib/route-guard'
+import { getActiveOrgById } from '@/lib/orgs/auth'
 import { logRouteError } from '@/lib/logging/error-log'
 
 export const runtime = 'nodejs'
@@ -30,6 +31,7 @@ const REQUIRED_SECTION_KEYS: Record<string, string[]> = {
 interface PostRow {
   id: string
   author_id: string
+  org_id: string | null
   slug: string
   type: string
   body_md: string
@@ -60,7 +62,7 @@ export async function PATCH(
   // Step 2: load post by id
   const { data: postRow, error: postFetchErr } = await admin
     .from('posts')
-    .select('id, author_id, slug, type, body_md, deleted_at')
+    .select('id, author_id, org_id, slug, type, body_md, deleted_at')
     .eq('id', postId)
     .single()
 
@@ -102,7 +104,14 @@ export async function PATCH(
     })
   }
 
-  const { title, summary, body_md, tags, cover_image_url } = parsed.data
+  const { title, summary, body_md, tags, cover_image_url, org_id: bodyOrgId } = parsed.data
+
+  // Step 5b: org_id is immutable post-publish — mirror slug_immutable semantics.
+  // Accept the field in the body so existing clients editing don't 400, but
+  // reject if the value differs from what's stored.
+  if (bodyOrgId !== undefined && bodyOrgId !== post.org_id) {
+    return json(400, { error: 'org_id_immutable' })
+  }
 
   // Step 6: cover_image_url bucket check
   if (cover_image_url !== undefined && !isValidCoverImageUrl(cover_image_url)) {
@@ -245,14 +254,20 @@ export async function PATCH(
   }
 
   // Step 14: update posts row
-  // Load author username for the URL response (fetched now using post.author_id for slug)
-  const { data: authorRow } = await admin
-    .from('users')
-    .select('username')
-    .eq('id', post.author_id)
-    .single()
-
-  const username = (authorRow as { username: string } | null)?.username ?? ''
+  // Resolve the URL leading segment: org slug when posted under an org, else
+  // the author's username (matches T4 routing and POST behavior).
+  let leadingSegment = ''
+  if (post.org_id) {
+    const org = await getActiveOrgById(admin, post.org_id)
+    leadingSegment = org?.slug ?? ''
+  } else {
+    const { data: authorRow } = await admin
+      .from('users')
+      .select('username')
+      .eq('id', post.author_id)
+      .single()
+    leadingSegment = (authorRow as { username: string } | null)?.username ?? ''
+  }
 
   const { error: updateErr } = await admin
     .from('posts')
@@ -275,7 +290,7 @@ export async function PATCH(
   return json(200, {
     id: postId,
     slug: post.slug,
-    url: postUrl(username, postType, post.slug),
+    url: postUrl(leadingSegment, postType, post.slug),
   })
 }
 

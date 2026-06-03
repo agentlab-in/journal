@@ -96,3 +96,30 @@ export async function isOrgMember(
     .maybeSingle()
   return Boolean(data)
 }
+
+/**
+ * Resolve an org by id. Returns null if no row exists OR the row is
+ * soft-deleted / banned — callers should 404 in all three cases for parity
+ * with the public-read RLS policy and getOrgBySlug.
+ */
+export async function getActiveOrgById(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: SupabaseClient<any, any, any>,
+  orgId: string,
+): Promise<{ id: string; slug: string } | null> {
+  const { data, error } = await supabase
+    .from('orgs')
+    .select('id, slug, deleted_at, banned_at')
+    .eq('id', orgId)
+    .maybeSingle()
+
+  if (error || !data) return null
+  const row = data as {
+    id: string
+    slug: string
+    deleted_at: string | null
+    banned_at: string | null
+  }
+  if (row.deleted_at !== null || row.banned_at !== null) return null
+  return { id: row.id, slug: row.slug }
+}
