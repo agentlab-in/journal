@@ -23,7 +23,7 @@ agentlab.in is specifically for technical writing about:
 - Agent orchestration patterns and frameworks
 - Tool use, memory, and planning systems for LLM-based agents
 - Evaluations, benchmarks, and reliability engineering for agents
-- Adjacent software engineering topics directly relevant to building agent systems
+- Adjacent software engineering topics directly relevant to building agent systems (e.g. "Tracing patterns for distributed agent workflows" = on-topic; "Intro to TypeScript generics" = off-topic)
 
 Content does not need to be exhaustive or perfect. Drafts, opinions, and works-in-progress are welcome — as long as they are genuine technical contributions, not filler.
 
@@ -39,13 +39,13 @@ Content is on-topic if it is meaningfully about AI agent infrastructure or close
 
 The following are considered off-topic and will be removed:
 
-- General programming tutorials with no agent-specific relevance
+- General programming tutorials with no agent-specific relevance (e.g. "Intro to TypeScript generics")
 - Product marketing or announcements with no technical substance
 - Opinion pieces about AI policy, ethics, or society (unless grounded in a technical implementation context)
 - Content about non-agent AI topics (e.g. pure ML theory, computer vision, NLP unrelated to agents)
 - Personal updates, career posts, or non-technical writing
 
-Off-topic content may be removed without warning. Repeated off-topic posting may result in account suspension.
+Off-topic content may be removed without warning. Repeated off-topic posting may, at the operator's discretion based on volume and severity, result in a ban.
 
 ---
 
@@ -60,11 +60,21 @@ The following content is prohibited on agentlab.in regardless of topic:
 - Unsolicited promotional comments on others' posts
 - Bot-generated or AI-mass-produced content with no original human contribution
 
-### 4.2 Plagiarism
+### 4.2 Plagiarism and Permitted Reuse
 
-- Publishing another person's work — in whole or in part — without clear attribution
-- Passing off content from another platform, blog, or publication as your own original writing
-- Reproducing substantial portions of third-party content without permission, even with attribution
+agentlab.in is built on the premise that distilling, summarising, critiquing, and learning from existing work is a core form of technical writing. The following uses are **permitted** when the original source is properly attributed:
+
+- Summaries, critiques, comparisons, and "what I learned from X" write-ups
+- Short quoted excerpts (with attribution)
+- Republishing material that is released under CC BY 4.0, CC0, the public domain, or another licence that explicitly permits republication
+- Independent reimplementations of an idea or pattern
+
+The following are **prohibited**:
+
+- Full reposts of paywalled or proprietary material that you do not have the right to redistribute
+- Raw scraped archives of someone else's work
+- Leaked proprietary content
+- Content claimed as original that is in fact someone else's
 
 If you are republishing your own content from elsewhere, disclose the original source.
 
@@ -93,6 +103,10 @@ Note: Security research, red-teaming write-ups, and vulnerability disclosures ar
 - Fabricated benchmarks, fake performance claims, or made-up attributions presented as fact
 - Content designed to deceive readers about the author's identity or the nature of the content
 
+### 4.7 Tag Suggestions
+
+Users may suggest tags at publish time. Tags are reviewed by the operator before they become usable on the platform. Rejected tag suggestions are soft-removed and may be re-proposed under a different slug. Tag slugs that match reserved usernames are rejected automatically.
+
 ---
 
 ## 5. Comment Standards
@@ -102,7 +116,8 @@ Comments are held to the same standards as posts. Additionally:
 - Comments must be substantively relevant to the post they appear on
 - Low-effort comments ("great post", "thanks") are discouraged but not removed
 - Comments that exist solely to promote a product or service will be removed
-- Threaded replies are limited to 5 levels of depth
+- Threaded replies are limited to 5 levels of depth (enforced at submission time by the `comment_depth_for_parent` database routine)
+- Comments that are mostly links may be rejected automatically by a URL-ratio heuristic
 
 ---
 
@@ -113,6 +128,8 @@ Your profile bio and avatar must not:
 - Contain prohibited content as defined in Section 4
 - Impersonate another person or organisation
 - Include contact information used for spam or unsolicited outreach
+
+Profiles are not pre-screened; bio violations are acted on only when reported.
 
 ---
 
@@ -128,7 +145,7 @@ If you see content that violates this policy, use the **in-app report button** o
 | Plagiarism | Content copied without attribution |
 | Other | Anything else that violates this policy |
 
-Reports go to a moderation queue reviewed by the platform operator. You will not be notified of the outcome of every report, but all reports are reviewed.
+Reports are reviewed by the platform operator in a reasonable timeframe; you will not be notified of the outcome of every report. Reports flagging legal violations should also be submitted via the [Grievance Officer](/grievance) process, which carries the statutory 15-day resolution SLA.
 
 False or bad-faith reports may result in action against the reporting account.
 
@@ -136,22 +153,22 @@ False or bad-faith reports may result in action against the reporting account.
 
 ## 8. Enforcement
 
-When content is found to violate this policy, the operator may take one or more of the following actions:
+When content is found to violate this policy, the operator may take one of the following actions:
 
 | Action | Typical trigger |
 |--------|----------------|
-| Content removal (soft delete, reason recorded) | Single violation, good-faith author |
-| Warning (via email if contact available) | First-time or borderline violation |
-| Temporary suspension | Repeated violations or moderate-severity breach |
+| Content removal (soft delete, reason recorded) | Single or repeated violation |
 | Permanent ban | Severe violation, repeated offences, spam operations |
 
-All enforcement actions are logged in a moderation audit table. There is no formal appeals process at launch. If you believe action was taken in error, email **harshit@agentlab.in**.
+All enforcement actions are logged in a moderation audit table. Previously soft-deleted content can be restored by the operator if removal was in error. There is no formal appeals process at launch; if you believe action was taken in error, email **harshit@agentlab.in**.
 
 ---
 
 ## 9. No Pre-Screening
 
 agentlab.in does not pre-screen content before publication. We act as an intermediary under Section 79 of the Information Technology Act, 2000 (India) and are not liable for user-generated content except to the extent required by applicable law.
+
+We will, however, act expeditiously to remove or disable access to content within 36 hours upon receipt of actual knowledge of unlawful content via a valid court order or government direction, per Rule 3(2)(b) of the IT Rules 2021. User reports under §7 are reviewed but do not by themselves trigger the 36-hour clock unless they meet that standard.
 
 Publication of content on agentlab.in does not constitute our endorsement of that content.
 
@@ -167,4 +184,4 @@ We may update this policy as the platform grows. Material changes will be announ
 
 **Harshit Singh Bhandari**  
 Email: harshit@agentlab.in  
-Grievance Officer: [agentlab.in/grievance](/grievance)
+Grievance Officer: see the [Grievance Officer Notice](/grievance)

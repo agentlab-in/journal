@@ -25,7 +25,7 @@ agentlab.in is a free, community publishing platform for technical writing about
 
 ### 3.1 GitHub Authentication
 
-All accounts are created via GitHub OAuth. By signing in, you authorise us to receive your GitHub username, display name, avatar URL, GitHub user ID, account creation date, and public repository count.
+All accounts are created via GitHub OAuth. By signing in, you authorise us to receive your GitHub username, display name, avatar URL, GitHub user ID, account creation date, public repository count, public bio, followers count, and (where you have made it public) email. See the [Privacy Policy](/privacy) §2.1 for what we do with each field.
 
 ### 3.2 Anti-Spam Gate
 
@@ -41,13 +41,15 @@ You must also not be banned from the Platform.
 
 You are responsible for all activity under your account. You must not share your session or allow others to use your account. We are not liable for losses caused by unauthorised account use that you fail to report.
 
+You may delete your account at any time from `/settings/profile`. Deletion anonymises your profile, removes your OAuth linkage and active sessions, and leaves any published posts and comments attributed to an anonymised handle. See the [Privacy Policy](/privacy) §8 for the full mechanics.
+
 ---
 
 ## 4. Content You Publish
 
 ### 4.1 Licence Grant
 
-By publishing any content on agentlab.in — including posts, playbooks, deep dives, and comments — you grant agentlab.in and all users of the Platform a worldwide, royalty-free, irrevocable licence to use, reproduce, distribute, and adapt your content under the terms of **Creative Commons Attribution 4.0 International (CC BY 4.0)**.
+By publishing any content on agentlab.in — including posts, playbooks, deep dives, and comments — you grant agentlab.in and all users of the Platform a worldwide, royalty-free licence to use, reproduce, distribute, and adapt your content under the terms of **Creative Commons Attribution 4.0 International (CC BY 4.0)**.
 
 **You retain copyright in your work.** This licence does not transfer ownership. It cannot be revoked for content already accessed and used by others under CC BY 4.0 before removal.
 
@@ -67,7 +69,7 @@ The Platform supports three content types:
 - **Playbooks** — structured, actionable guides
 - **Deep Dives** — long-form technical explorations
 
-Content is written in Markdown with a limited MDX component allowlist (Callout, Embed, Figure, Aside, Detail). Raw HTML and arbitrary scripts are sanitised server-side.
+Content is written in Markdown with a limited MDX component allowlist (Callout, Embed, Figure, Aside, detail; plus inline HTML elements such as `figcaption`, `sub`, and `sup`). Raw HTML and arbitrary scripts are sanitised server-side.
 
 ### 4.4 Prohibited Content
 
@@ -81,17 +83,19 @@ You must not publish content that:
 - Contains malicious code or links to malware
 - Constitutes plagiarism (publishing others' work without attribution)
 - Impersonates another person or entity
+- Contains misleading or fabricated technical claims (e.g. fake benchmarks, invented performance numbers, or made-up attributions presented as fact)
 
-Violation may result in content removal and account suspension or ban. See our Content Policy at agentlab.in/content-policy for full details.
+Violation may result in content removal and account ban. See our Content Policy at [agentlab.in/content-policy](/content-policy) for full details.
 
 ### 4.5 Uploaded Images
 
 Image uploads (cover images, inline images, avatars) are subject to:
 
 - Maximum file size: 2MB per file
-- Accepted formats: PNG, JPG, WebP, GIF
+- Accepted formats: PNG, JPG, WebP, GIF (verified by magic bytes, not by the upload header)
+- Maximum input dimensions: 6000×6000 pixels (rejected if larger)
 - EXIF metadata is stripped on upload
-- Files are converted to WebP server-side
+- Files are re-encoded to WebP server-side at quality 85, width capped to 1600px
 
 Do not upload images you do not have the right to use.
 
@@ -115,16 +119,18 @@ Anyone (including unauthenticated visitors) may read published content.
 
 ## 6. Moderation and Intermediary Status
 
-agentlab.in operates as an **intermediary** under **Section 79 of the Information Technology Act, 2000 (India)**. We do not pre-screen or endorse user content.
+agentlab.in operates as an **intermediary** under **Section 79 of the Information Technology Act, 2000 (India)**. We do not pre-screen or endorse user-published content.
 
 We will act on content that violates these Terms or our Content Policy when:
 
 - A user report is submitted via the in-app reporting tool
 - We independently become aware of a violation
+- We receive a valid court order or government direction under Rule 3(2)(b) of the IT Rules 2021 (we will act within 36 hours of receiving such an order)
 
 Admin actions available to the operator include:
 
 - Soft-deleting posts or comments (reason recorded)
+- Restoring previously soft-deleted posts or comments
 - Banning users
 - Approving or rejecting community-suggested tags
 - Resolving user reports
@@ -137,16 +143,7 @@ There is no formal appeals process at launch. If you believe moderation action w
 
 ## 7. DMCA and Copyright Claims
 
-If you believe content on agentlab.in infringes your copyright, please send a notice to **harshit@agentlab.in** with:
-
-1. Identification of the copyrighted work claimed to be infringed
-2. Identification of the infringing material and its URL on agentlab.in
-3. Your contact information (name, email, address)
-4. A statement that you have a good-faith belief that the use is not authorised
-5. A statement, under penalty of perjury, that the information is accurate and you are the copyright owner or authorised to act on their behalf
-6. Your electronic or physical signature
-
-We will review valid notices and take appropriate action, which may include removing the content.
+If you believe content on agentlab.in infringes your copyright, please follow the process in our [Copyright Takedown Policy](/dmca) — that document is the single source of truth for the notice format, counter-notice process, and timelines.
 
 ---
 
@@ -177,13 +174,13 @@ Nothing in these Terms limits liability for death, personal injury, or fraud cau
 
 ## 10. Limitation of Liability
 
-To the maximum extent permitted by applicable law, the operator's total liability to you for any claim arising from use of agentlab.in shall not exceed **zero monetary compensation** — the Platform is free and no consideration is exchanged.
+To the maximum extent permitted by applicable law, the operator's aggregate liability to you for any claim arising from your use of agentlab.in shall not exceed INR 1,000 (one thousand rupees) or the amount paid by you to the operator in the 12 months preceding the claim, whichever is greater.
 
 ---
 
 ## 11. Governing Law
 
-These Terms are governed by the laws of **India**. Any disputes shall be subject to the exclusive jurisdiction of the courts of **India**.
+These Terms are governed by the laws of **India**. Any disputes shall be subject to the exclusive jurisdiction of the courts of **Mumbai, Maharashtra, India**.
 
 ---
 
@@ -192,3 +189,5 @@ These Terms are governed by the laws of **India**. Any disputes shall be subject
 **Harshit Singh Bhandari**  
 Operator, agentlab.in  
 Email: harshit@agentlab.in
+
+Because all five legal contact addresses route to a single mailbox, non-urgent matters may take longer than the windows quoted in our [Privacy Policy](/privacy), [Grievance Officer Notice](/grievance), and [Copyright Takedown Policy](/dmca). Legally time-bound matters take priority.

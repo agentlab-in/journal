@@ -13,7 +13,7 @@ In accordance with the **Information Technology Act, 2000** and the **Informatio
 **Name:** Harshit Singh Bhandari  
 **Role:** Operator and Grievance Officer, agentlab.in  
 **Email:** harshit@agentlab.in  
-**Address:** India  
+**Address:** Mumbai, Maharashtra, India  
 
 ---
 
@@ -40,10 +40,10 @@ Please include in your email:
 
 | Action | Timeline |
 |--------|----------|
-| Acknowledgement of your grievance | Within **24 hours** of receipt |
-| Resolution or substantive response | Within **15 days** of receipt |
+| Acknowledgement of your grievance | As soon as practicable, and in any case no later than **24 hours** of receipt |
+| Resolution or substantive response | As soon as practicable, and in any case no later than **15 days** of receipt |
 
-These timelines apply to grievances submitted by email to the address above during normal operating days.
+These timelines are set by Rule 3(2) of the Information Technology (Intermediary Guidelines and Digital Media Ethics Code) Rules, 2021 and apply to grievances submitted by email to the address above. Because all five of our legal contact addresses route to a single mailbox, non-urgent matters may receive a longer initial response; legally time-bound matters take priority.
 
 ---
 
@@ -61,7 +61,7 @@ Use the email grievance process for:
 
 ## Scope
 
-This notice applies to agentlab.in as an intermediary under Section 79 of the Information Technology Act, 2000. agentlab.in does not pre-screen user content and is not liable for third-party content except to the extent required by applicable law.
+This notice applies to agentlab.in as an intermediary under Section 79 of the Information Technology Act, 2000. agentlab.in does not pre-screen user-published content and is not liable for third-party content except to the extent required by applicable law.
 
 ---
 
