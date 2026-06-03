@@ -108,7 +108,7 @@ export async function DELETE(req: NextRequest | Request): Promise<Response> {
   if (!session?.user?.id) return json(401, { error: 'unauthorized' })
   const userId = session.user.id
 
-  const guard = await guardMutatingRequest(req, { userId })
+  const guard = await guardMutatingRequest(req, { bucket: 'delete_account', userId })
   if (guard.failed) return guard.response
 
   let raw: unknown
@@ -166,23 +166,25 @@ export async function DELETE(req: NextRequest | Request): Promise<Response> {
     return json(500, { error: 'delete_failed', detail: updateErr.message })
   }
 
-  // Clear identity columns on next_auth.users. We keep the row itself so
-  // that posts.author_id (RESTRICTed FK back to public.users.id, which in
-  // turn FKs to next_auth.users.id) keeps resolving.
+  // Once public.users has been anonymised we are past the point of no
+  // return — stopping early would leave the caller able to log back in
+  // and see their old OAuth linkage attached to a `deleted-xxxxxxxx`
+  // profile. Run every remaining cleanup step regardless of individual
+  // failures and surface a partial_delete at the end if anything failed.
+  const failedOps: string[] = []
+
   const { error: authErr } = await admin
     .schema('next_auth')
     .from('users')
     .update({ email: null, name: null, image: null, github_login: null })
     .eq('id', userId)
   if (authErr) {
+    failedOps.push('anonymise_next_auth_users')
     logRouteError(authErr, {
       route: '/api/users/me',
       userId,
       extra: { op: 'anonymise_next_auth_users' },
     })
-    // Already past the point of no return on public.users — surface the
-    // partial-success state to the caller instead of pretending success.
-    return json(500, { error: 'partial_delete', detail: authErr.message })
   }
 
   // Drop the OAuth linkage so a re-signin with the same GitHub identity
@@ -194,6 +196,7 @@ export async function DELETE(req: NextRequest | Request): Promise<Response> {
     .delete()
     .eq('userId', userId)
   if (accountsErr) {
+    failedOps.push('delete_next_auth_accounts')
     logRouteError(accountsErr, {
       route: '/api/users/me',
       userId,
@@ -209,10 +212,19 @@ export async function DELETE(req: NextRequest | Request): Promise<Response> {
     .delete()
     .eq('userId', userId)
   if (sessionsErr) {
+    failedOps.push('delete_next_auth_sessions')
     logRouteError(sessionsErr, {
       route: '/api/users/me',
       userId,
       extra: { op: 'delete_next_auth_sessions' },
+    })
+  }
+
+  if (failedOps.length > 0) {
+    return json(500, {
+      error: 'partial_delete',
+      username: newUsername,
+      failed_ops: failedOps,
     })
   }
 

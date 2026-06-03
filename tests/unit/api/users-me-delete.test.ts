@@ -262,7 +262,11 @@ describe('DELETE /api/users/me — partial-failure surface', () => {
     sessionState.value = { user: { id: USER_ID } }
   })
 
-  it('returns 500 partial_delete when next_auth.users update fails after public.users succeeded', async () => {
+  it('returns 500 partial_delete and STILL runs accounts + sessions deletes when next_auth.users update fails', async () => {
+    // Regression for PR #34 review: an early-return after the
+    // next_auth.users failure used to leave the OAuth linkage + active
+    // session intact, so the caller could refresh and find themselves
+    // signed into a now-anonymised account.
     const client = makeFakeClient({
       nextAuthUsersUpdateError: { message: 'auth users fail' },
     })
@@ -273,6 +277,61 @@ describe('DELETE /api/users/me — partial-failure surface', () => {
     expect(res.status).toBe(500)
     const body = await res.json()
     expect(body.error).toBe('partial_delete')
+    expect(body.failed_ops).toContain('anonymise_next_auth_users')
+    expect(body.username).toMatch(/^deleted-[0-9a-f]{8}$/)
+
+    // Cleanup steps below the failure must still have run.
+    expect(client.nextAuthAccountsDeleteFilters).toEqual([{ field: 'userId', value: USER_ID }])
+    expect(client.nextAuthSessionsDeleteFilters).toEqual([{ field: 'userId', value: USER_ID }])
+  })
+
+  it('returns 500 partial_delete when next_auth.accounts delete fails (was previously a silent 200)', async () => {
+    const client = makeFakeClient({
+      accountsDeleteError: { message: 'accounts fail' },
+    })
+    currentFakeClient = client
+
+    const { DELETE } = await import('@/app/api/users/me/route')
+    const res = await DELETE(makeRequest({ confirm: 'delete' }))
+    expect(res.status).toBe(500)
+    const body = await res.json()
+    expect(body.error).toBe('partial_delete')
+    expect(body.failed_ops).toEqual(['delete_next_auth_accounts'])
+    // Sessions cleanup must still have run despite the accounts failure.
+    expect(client.nextAuthSessionsDeleteFilters).toEqual([{ field: 'userId', value: USER_ID }])
+  })
+
+  it('returns 500 partial_delete when next_auth.sessions delete fails', async () => {
+    const client = makeFakeClient({
+      sessionsDeleteError: { message: 'sessions fail' },
+    })
+    currentFakeClient = client
+
+    const { DELETE } = await import('@/app/api/users/me/route')
+    const res = await DELETE(makeRequest({ confirm: 'delete' }))
+    expect(res.status).toBe(500)
+    const body = await res.json()
+    expect(body.error).toBe('partial_delete')
+    expect(body.failed_ops).toEqual(['delete_next_auth_sessions'])
+  })
+
+  it('reports every failed op when multiple cleanup steps fail', async () => {
+    const client = makeFakeClient({
+      nextAuthUsersUpdateError: { message: 'users fail' },
+      accountsDeleteError: { message: 'accounts fail' },
+      sessionsDeleteError: { message: 'sessions fail' },
+    })
+    currentFakeClient = client
+
+    const { DELETE } = await import('@/app/api/users/me/route')
+    const res = await DELETE(makeRequest({ confirm: 'delete' }))
+    expect(res.status).toBe(500)
+    const body = await res.json()
+    expect(body.failed_ops).toEqual([
+      'anonymise_next_auth_users',
+      'delete_next_auth_accounts',
+      'delete_next_auth_sessions',
+    ])
   })
 
   it('is idempotent against a second call (handle already anonymised → still succeeds)', async () => {

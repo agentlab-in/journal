@@ -4,13 +4,33 @@ import { listAuditActions } from '@/lib/admin/list-audit'
 import type { AuditActionRow } from '@/lib/admin/list-audit'
 import RestoreButton from '@/components/admin/RestoreButton'
 
+function targetKey(targetType: string, targetId: string): string {
+  return `${targetType}:${targetId}`
+}
+
+/** Collect the set of targets already restored within the visible page. */
+function collectRestoredTargets(rows: AuditActionRow[]): Set<string> {
+  const restored = new Set<string>()
+  for (const row of rows) {
+    if (row.action === 'restore_post' && row.target_type === 'post') {
+      restored.add(targetKey(row.target_type, row.target_id))
+    } else if (row.action === 'restore_comment' && row.target_type === 'comment') {
+      restored.add(targetKey(row.target_type, row.target_id))
+    }
+  }
+  return restored
+}
+
 function restorableTarget(
   row: AuditActionRow,
+  restored: Set<string>,
 ): { type: 'post' | 'comment'; id: string } | null {
   if (row.action === 'delete_post' && row.target_type === 'post') {
+    if (restored.has(targetKey(row.target_type, row.target_id))) return null
     return { type: 'post', id: row.target_id }
   }
   if (row.action === 'delete_comment' && row.target_type === 'comment') {
+    if (restored.has(targetKey(row.target_type, row.target_id))) return null
     return { type: 'comment', id: row.target_id }
   }
   return null
@@ -55,6 +75,7 @@ export default async function AdminAuditPage({
     { actor: actor || undefined, target_type: target_type || undefined, cursor },
     50,
   )
+  const restoredTargets = collectRestoredTargets(rows)
 
   // Build base URL preserving current filters (minus cursor)
   function buildHref(overrides: Record<string, string | undefined>) {
@@ -171,7 +192,7 @@ export default async function AdminAuditPage({
                       <div className="flex items-center gap-3">
                         <span>{row.reason ?? '—'}</span>
                         {(() => {
-                          const t = restorableTarget(row)
+                          const t = restorableTarget(row, restoredTargets)
                           return t ? <RestoreButton targetType={t.type} targetId={t.id} /> : null
                         })()}
                       </div>
@@ -220,7 +241,7 @@ export default async function AdminAuditPage({
                   </p>
                 )}
                 {(() => {
-                  const t = restorableTarget(row)
+                  const t = restorableTarget(row, restoredTargets)
                   return t ? <RestoreButton targetType={t.type} targetId={t.id} /> : null
                 })()}
               </li>
