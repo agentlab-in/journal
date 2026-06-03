@@ -3,17 +3,18 @@
 **Effective Date:** June 4, 2026  
 **Platform:** agentlab.in  
 **Operator:** Harshit Singh Bhandari (individual, India)  
+**Address:** Mumbai, Maharashtra, India  
 **Copyright Contact:** harshit@agentlab.in
 
 ---
 
 ## 1. Overview
 
-agentlab.in respects the intellectual property rights of others and expects users to do the same. All user-published content on agentlab.in is licensed under Creative Commons Attribution 4.0 International (CC BY 4.0) — authors retain copyright and are responsible for ensuring they have the right to publish what they submit.
+agentlab.in respects the intellectual property rights of others and expects users to do the same. All user-published content on agentlab.in is licensed under Creative Commons Attribution 4.0 International (CC BY 4.0) — authors retain copyright and are responsible for ensuring they have the right to publish what they submit. Note that CC BY 4.0 only permits republishing of material whose author originally released it under CC BY 4.0 or a compatible licence; merely attributing a copyrighted work does not make republication permitted.
 
 This policy describes how to submit a copyright takedown notice if you believe content on agentlab.in infringes your copyright, and how the counter-notice process works.
 
-Although agentlab.in is operated from India and is primarily governed by Indian law, we follow a process modelled on the **Digital Millennium Copyright Act (DMCA)** as international best practice. This process is widely recognised and provides a clear, good-faith framework for resolving copyright disputes.
+Although agentlab.in is operated from India and is primarily governed by Indian law, we follow a process modelled on the **Digital Millennium Copyright Act (DMCA)** as international best practice. **This is a voluntary process the operator offers in addition to the statutory routes available under Indian law.** Indian copyright holders may also (a) file a grievance under our [Grievance Officer Notice](/grievance) for a Rule 3(2) response, or (b) obtain a court order under Section 81 of the Copyright Act, 1957, which we will action within 36 hours per Rule 3(2)(b) of the IT Rules 2021. The operator is not a registered DMCA agent with the US Copyright Office; this process does not constitute statutory DMCA safe-harbour.
 
 ---
 
@@ -23,6 +24,8 @@ If you are a copyright owner (or authorised to act on their behalf) and believe 
 
 **Email:** harshit@agentlab.in  
 **Subject line:** `Copyright Takedown Notice – agentlab.in`
+
+Subject lines help us triage, but we will not reject a notice solely for missing one.
 
 Your notice must include all of the following:
 
@@ -48,15 +51,18 @@ Upon receipt of a valid takedown notice:
 
 | Step | Timeline |
 |------|----------|
-| Acknowledgement of receipt | Within **24 hours** |
+| Acknowledgement of receipt | We aim to acknowledge within 24 hours; in any case no later than 72 hours |
 | Review of the notice | Within **5 business days** |
-| Action (removal or rejection with reason) | Within **10 business days** of receipt |
+| Action (removal or rejection with reason) | Within **7 calendar days** of receipt |
+| Action where the notice is accompanied by a valid court order | Within **36 hours**, per Rule 3(2)(b) of the IT Rules 2021 |
 
 If we determine the notice is valid, we will:
 
 - Remove or disable access to the infringing content
-- Notify the user who posted the content that it has been removed and why
+- Where the affected user has a contactable email on file (e.g. a public GitHub email), attempt to notify them. Users without contactable emails will see their content marked as removed in the app and may discover the action when they next sign in.
 - Inform that user of their right to submit a counter-notice
+
+Because all of our legal contact addresses route to a single mailbox, these timelines represent our published commitment; non-urgent matters may occasionally fall toward the longer end of each window.
 
 ---
 
@@ -77,20 +83,20 @@ Your counter-notice must include:
 
 3. **Your contact information** — your full name, email address, and mailing address.
 
-4. **Consent to jurisdiction** — a statement that you consent to the jurisdiction of the courts in your jurisdiction, and that you will accept service of process from the person who submitted the original takedown notice.
+4. **Consent to jurisdiction** — a statement that you consent to the exclusive jurisdiction of the courts of Mumbai, Maharashtra, India for any dispute arising from this counter-notice, consistent with our [Terms of Service](/terms) §11.
 
 5. **Signature** — your electronic or physical signature.
 
 Upon receipt of a valid counter-notice, we will:
 
 - Forward the counter-notice to the original complainant
-- Restore the content within **10–14 business days** unless the complainant notifies us that they have filed a court action
+- Restore the content between **10 and 14 business days** after receiving your counter-notice, unless the complainant notifies us that they have filed a court action
 
 ---
 
 ## 5. Repeat Infringers
 
-agentlab.in will terminate or permanently ban the accounts of users who are found to be repeat copyright infringers. A user may be considered a repeat infringer if they receive multiple valid takedown notices, or if they re-post content that has been previously removed for copyright infringement.
+agentlab.in will terminate or permanently ban the accounts of users who are found to be repeat copyright infringers. What constitutes "repeat" is at the operator's discretion based on volume and severity of valid notices; there is no automated strike system.
 
 ---
 
@@ -102,7 +108,9 @@ Submitting a takedown notice knowing it is materially false constitutes perjury 
 
 ## 7. Attribution Under CC BY 4.0
 
-All content published on agentlab.in is licensed under Creative Commons Attribution 4.0 International. If you are a content owner whose work has been republished with proper CC BY 4.0 attribution, that may constitute a permitted use. If you believe attribution is incorrect or insufficient, you may still contact us at harshit@agentlab.in and we will ask the author to correct it.
+If you are a copyright owner whose work was republished here under CC BY 4.0 **because you originally released it under CC BY 4.0 or a compatible licence**, and you believe the attribution is incorrect or insufficient, contact us at harshit@agentlab.in and we will ask the author to correct it.
+
+Works that you did not release under a permissive licence are **not** eligible for republishing on agentlab.in — those should be reported as infringement under §2 above.
 
 ---
 
@@ -110,6 +118,7 @@ All content published on agentlab.in is licensed under Creative Commons Attribut
 
 **Harshit Singh Bhandari**  
 Operator, agentlab.in  
+Address: Mumbai, Maharashtra, India  
 Email: harshit@agentlab.in
 
 For all copyright matters, use the subject lines specified above so your notice is routed correctly.
