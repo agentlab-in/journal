@@ -67,6 +67,10 @@ function renderEntry(e: AtomEntry): string {
     `    <published>${escapeXml(e.published)}</published>`,
     `    <updated>${escapeXml(e.updated)}</updated>`,
     `    <summary>${escapeXml(e.summary)}</summary>`,
+    // escapeXml handles XML-context safety only. HTML-context safety of the
+    // inner markup relies entirely on the upstream sanitize allowlist in
+    // lib/mdx/sanitize.ts — feed readers re-parse the escaped HTML, so
+    // anything that allowlist widens to (e.g. <iframe>) WILL be rendered.
     `    <content type="html">${escapeXml(e.contentHtml)}</content>`,
     '    <author>',
     `      <name>${escapeXml(authorLine)}</name>`,
