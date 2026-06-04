@@ -6,10 +6,14 @@ import { z } from 'zod'
  * Phase 0: NODE_ENV only.
  * Phase 1: NextAuth + GitHub OAuth + Supabase vars added below.
  *
- * All Phase 1 vars are optional in the schema so that
- * `pnpm typecheck && pnpm test && pnpm build` work in CI without secrets.
- * A runtime error is thrown at the point of use if a required var is absent
- * in production (see lib/auth.ts, lib/supabase/*.ts).
+ * Schema-level: most Phase 1 vars are `.optional()` so `pnpm typecheck`,
+ * `pnpm test`, and `pnpm build` work in CI without real secrets.
+ *
+ * Production-level: after parsing, when `NODE_ENV === 'production'` we
+ * additionally enforce that NEXTAUTH_SECRET (≥32 chars) and
+ * ADMIN_GITHUB_LOGINS (≥1 entry) are present. Missing values throw at
+ * import time, which fails fast on cold boot rather than at the first
+ * auth request.
  */
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']),
@@ -43,3 +47,30 @@ const envSchema = z.object({
 })
 
 export const env = envSchema.parse(process.env)
+
+/**
+ * Parsed admin GitHub login allowlist (lowercased, trimmed, empty entries
+ * dropped). Authoritative for "is this user an admin?" — callers should use
+ * `ADMIN_GITHUB_LOGINS` instead of re-splitting `env.ADMIN_GITHUB_LOGINS`.
+ */
+export const ADMIN_GITHUB_LOGINS: ReadonlyArray<string> = (
+  env.ADMIN_GITHUB_LOGINS ?? ''
+)
+  .split(',')
+  .map((s) => s.trim().toLowerCase())
+  .filter((s) => s.length > 0)
+
+if (env.NODE_ENV === 'production') {
+  const missing: string[] = []
+  if (!env.NEXTAUTH_SECRET || env.NEXTAUTH_SECRET.length < 32) {
+    missing.push('NEXTAUTH_SECRET (must be ≥32 chars)')
+  }
+  if (ADMIN_GITHUB_LOGINS.length === 0) {
+    missing.push('ADMIN_GITHUB_LOGINS (must list ≥1 GitHub login)')
+  }
+  if (missing.length > 0) {
+    throw new Error(
+      `Production env validation failed. Missing or invalid: ${missing.join(', ')}.`,
+    )
+  }
+}
