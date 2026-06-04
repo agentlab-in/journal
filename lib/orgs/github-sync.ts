@@ -88,6 +88,180 @@ async function fetchGithubOrgs(token: string): Promise<GithubOrg[] | null> {
   }
 }
 
+/**
+ * Materialize the public.orgs row for a single GitHub org. Tries the canonical
+ * github_org_id key first, then falls back to slug (legacy / manually seeded
+ * rows that haven't been attached yet), and finally inserts a fresh row.
+ *
+ * Returns null when the org should be skipped this run (soft-deleted, banned,
+ * slug-collision with an unrelated attached row, or a Supabase error on the
+ * lookup/write path — every error is already console.error'd here).
+ */
+async function reconcileOrg(
+  supabase: AdminSupabaseClient,
+  userId: string,
+  gh: GithubOrg,
+): Promise<{ orgId: string; orgInserted: boolean } | null> {
+  const slug = gh.login.toLowerCase()
+  const displayName = gh.name ?? gh.login
+  const bio = gh.description ?? null
+  const avatar = gh.avatar_url ?? null
+
+  try {
+    // 1. Look up by github_org_id first — this is the canonical key.
+    const { data: byGhId, error: byGhIdErr } = await supabase
+      .from('orgs')
+      .select('id, slug, github_org_id, deleted_at, banned_at')
+      .eq('github_org_id', gh.id)
+      .maybeSingle<OrgRowMinimal>()
+    if (byGhIdErr) {
+      console.error('[orgs/github-sync] lookup by github_org_id failed:', byGhIdErr.message)
+      return null
+    }
+
+    if (byGhId) {
+      if (byGhId.deleted_at !== null || byGhId.banned_at !== null) {
+        // Skip — don't resurrect a moderated org, don't insert membership.
+        return null
+      }
+      // Active: refresh metadata in place so renames + profile edits land.
+      const { error: updErr } = await supabase
+        .from('orgs')
+        .update({
+          slug,
+          display_name: displayName,
+          bio,
+          avatar_url: avatar,
+        })
+        .eq('id', byGhId.id)
+      if (updErr) {
+        console.error('[orgs/github-sync] update existing org failed:', updErr.message)
+      }
+      return { orgId: byGhId.id, orgInserted: false }
+    }
+
+    // 2. Not found by gh id — try by slug for collision with a legacy row.
+    const { data: bySlug, error: bySlugErr } = await supabase
+      .from('orgs')
+      .select('id, slug, github_org_id, deleted_at, banned_at')
+      .eq('slug', slug)
+      .maybeSingle<OrgRowMinimal>()
+    if (bySlugErr) {
+      console.error('[orgs/github-sync] lookup by slug failed:', bySlugErr.message)
+      return null
+    }
+
+    if (bySlug) {
+      if (bySlug.deleted_at !== null || bySlug.banned_at !== null) {
+        return null
+      }
+      if (bySlug.github_org_id !== null && bySlug.github_org_id !== gh.id) {
+        // Slug held by an unrelated already-attached row. Shouldn't happen
+        // under UNIQUE(github_org_id) + UNIQUE(slug) but be defensive.
+        console.error(
+          '[orgs/github-sync] slug collision: existing row attached to different github_org_id',
+          { slug, existing: bySlug.github_org_id, incoming: gh.id },
+        )
+        return null
+      }
+      // Active row holding the slug with no github_org_id → attach.
+      const { error: attachErr } = await supabase
+        .from('orgs')
+        .update({
+          github_org_id: gh.id,
+          display_name: displayName,
+          bio,
+          avatar_url: avatar,
+        })
+        .eq('id', bySlug.id)
+      if (attachErr) {
+        console.error('[orgs/github-sync] attach legacy row failed:', attachErr.message)
+        return null
+      }
+      return { orgId: bySlug.id, orgInserted: false }
+    }
+
+    // 3. Neither lookup matched → insert a fresh org row.
+    const { data: inserted, error: insErr } = await supabase
+      .from('orgs')
+      .insert({
+        slug,
+        display_name: displayName,
+        bio,
+        avatar_url: avatar,
+        created_by_user_id: userId,
+        github_org_id: gh.id,
+      })
+      .select('id')
+      .maybeSingle<{ id: string }>()
+    if (insErr || !inserted) {
+      console.error(
+        '[orgs/github-sync] insert org failed:',
+        insErr?.message ?? 'no row returned',
+      )
+      return null
+    }
+    return { orgId: inserted.id, orgInserted: true }
+  } catch (err) {
+    console.error('[orgs/github-sync] org reconcile threw:', err)
+    return null
+  }
+}
+
+/**
+ * Delete this user's memberships in GitHub-backed orgs they no longer belong
+ * to on GitHub. Memberships in orgs without a github_org_id (legacy / manually
+ * seeded) are left alone. Returns the slugs (or stringified gh ids as a last
+ * resort) that were removed, for the caller's report tuple.
+ */
+async function pruneStaleMemberships(
+  supabase: AdminSupabaseClient,
+  userId: string,
+  activeGithubOrgIds: Set<number>,
+): Promise<string[]> {
+  const removed: string[] = []
+  try {
+    const { data: existing, error: existingErr } = await supabase
+      .from('org_members')
+      .select('org_id, orgs(github_org_id, slug)')
+      .eq('user_id', userId)
+    if (existingErr) {
+      console.error('[orgs/github-sync] existing-memberships read failed:', existingErr.message)
+      return removed
+    }
+    if (!Array.isArray(existing)) return removed
+
+    // Supabase's typed return for an embedded relation is shaped as an array
+    // even on a single-FK join; normalize via `unknown` to a flexible shape.
+    const rows = existing as unknown as Array<{
+      org_id: string
+      orgs:
+        | { github_org_id: number | null; slug: string }
+        | Array<{ github_org_id: number | null; slug: string }>
+        | null
+    }>
+    for (const row of rows) {
+      const joined = Array.isArray(row.orgs) ? (row.orgs[0] ?? null) : row.orgs
+      const ghId = joined?.github_org_id ?? null
+      if (ghId === null) continue // legacy / manual — never prune
+      if (activeGithubOrgIds.has(ghId)) continue // still a member on GitHub
+      const { error: delErr } = await supabase
+        .from('org_members')
+        .delete()
+        .eq('org_id', row.org_id)
+        .eq('user_id', userId)
+      if (delErr) {
+        console.error('[orgs/github-sync] membership delete failed:', delErr.message)
+        continue
+      }
+      removed.push(joined?.slug ?? String(ghId))
+    }
+  } catch (err) {
+    console.error('[orgs/github-sync] prune threw:', err)
+  }
+  return removed
+}
+
 export async function syncUserGithubOrgs(opts: {
   supabase: AdminSupabaseClient
   userId: string
@@ -102,131 +276,22 @@ export async function syncUserGithubOrgs(opts: {
 
   const added = new Set<string>()
   const activeOrgIds: string[] = []
-  // Track gh-id -> login for prune reporting.
-  const ghIdToLogin = new Map<number, string>()
   // Set of gh-ids that wound up active in the DB this run.
   const activeGhIds = new Set<number>()
 
   for (const gh of ghOrgs) {
     const slug = gh.login.toLowerCase()
-    const displayName = gh.name ?? gh.login
-    const bio = gh.description ?? null
-    const avatar = gh.avatar_url ?? null
-    ghIdToLogin.set(gh.id, slug)
-
-    // 1. Look up by github_org_id first — this is the canonical key.
-    let orgId: string | null = null
-    let didInsert = false
-    try {
-      const { data: byGhId, error: byGhIdErr } = await supabase
-        .from('orgs')
-        .select('id, slug, github_org_id, deleted_at, banned_at')
-        .eq('github_org_id', gh.id)
-        .maybeSingle<OrgRowMinimal>()
-      if (byGhIdErr) {
-        console.error('[orgs/github-sync] lookup by github_org_id failed:', byGhIdErr.message)
-        continue
-      }
-
-      if (byGhId) {
-        if (byGhId.deleted_at !== null || byGhId.banned_at !== null) {
-          // Skip — don't resurrect a moderated org, don't insert membership.
-          continue
-        }
-        // Active: refresh metadata in place so renames + profile edits land.
-        const { error: updErr } = await supabase
-          .from('orgs')
-          .update({
-            slug,
-            display_name: displayName,
-            bio,
-            avatar_url: avatar,
-          })
-          .eq('id', byGhId.id)
-        if (updErr) {
-          console.error('[orgs/github-sync] update existing org failed:', updErr.message)
-        }
-        orgId = byGhId.id
-      } else {
-        // 2. Not found by gh id — try by slug for collision with a legacy row.
-        const { data: bySlug, error: bySlugErr } = await supabase
-          .from('orgs')
-          .select('id, slug, github_org_id, deleted_at, banned_at')
-          .eq('slug', slug)
-          .maybeSingle<OrgRowMinimal>()
-        if (bySlugErr) {
-          console.error('[orgs/github-sync] lookup by slug failed:', bySlugErr.message)
-          continue
-        }
-
-        if (bySlug) {
-          if (bySlug.deleted_at !== null || bySlug.banned_at !== null) {
-            continue
-          }
-          if (bySlug.github_org_id !== null && bySlug.github_org_id !== gh.id) {
-            // Slug held by an unrelated already-attached row. Shouldn't happen
-            // under UNIQUE(github_org_id) + UNIQUE(slug) but be defensive.
-            console.error(
-              '[orgs/github-sync] slug collision: existing row attached to different github_org_id',
-              { slug, existing: bySlug.github_org_id, incoming: gh.id },
-            )
-            continue
-          }
-          // Active row holding the slug with no github_org_id → attach.
-          const { error: attachErr } = await supabase
-            .from('orgs')
-            .update({
-              github_org_id: gh.id,
-              display_name: displayName,
-              bio,
-              avatar_url: avatar,
-            })
-            .eq('id', bySlug.id)
-          if (attachErr) {
-            console.error('[orgs/github-sync] attach legacy row failed:', attachErr.message)
-            continue
-          }
-          orgId = bySlug.id
-        } else {
-          // 3. Neither lookup matched → insert a fresh org row.
-          const { data: inserted, error: insErr } = await supabase
-            .from('orgs')
-            .insert({
-              slug,
-              display_name: displayName,
-              bio,
-              avatar_url: avatar,
-              created_by_user_id: userId,
-              github_org_id: gh.id,
-            })
-            .select('id')
-            .maybeSingle<{ id: string }>()
-          if (insErr || !inserted) {
-            console.error(
-              '[orgs/github-sync] insert org failed:',
-              insErr?.message ?? 'no row returned',
-            )
-            continue
-          }
-          orgId = inserted.id
-          didInsert = true
-          added.add(slug)
-        }
-      }
-    } catch (err) {
-      console.error('[orgs/github-sync] org reconcile threw:', err)
-      continue
-    }
-
-    if (!orgId) continue
+    const reconciled = await reconcileOrg(supabase, userId, gh)
+    if (!reconciled) continue
+    const { orgId, orgInserted } = reconciled
+    if (orgInserted) added.add(slug)
     activeOrgIds.push(orgId)
     activeGhIds.add(gh.id)
 
-    // 4. Membership upsert — idempotent via ON CONFLICT DO NOTHING.
+    // Membership upsert — idempotent via ON CONFLICT DO NOTHING. Check first
+    // so we can populate `added` accurately for users who are new to a reused
+    // org row.
     try {
-      // Check if the membership row already exists so we can populate `added`
-      // accurately (the org itself may be reused but this user might be new
-      // to it, and vice versa).
       const { data: existingMember } = await supabase
         .from('org_members')
         .select('user_id')
@@ -249,57 +314,13 @@ export async function syncUserGithubOrgs(opts: {
         } else {
           added.add(slug)
         }
-      } else if (didInsert) {
-        // Org was new but membership already existed — extremely unlikely but
-        // keep `added` honest: it was already tracked above.
       }
     } catch (err) {
       console.error('[orgs/github-sync] membership upsert threw:', err)
     }
   }
 
-  // 5. Prune stale memberships. Pull this user's existing memberships joined
-  // to orgs.github_org_id; delete the ones whose gh id is NOT in activeGhIds.
-  // Memberships to orgs without github_org_id (legacy / manually seeded) are
-  // left alone.
-  const removed: string[] = []
-  try {
-    const { data: existing, error: existingErr } = await supabase
-      .from('org_members')
-      .select('org_id, orgs(github_org_id, slug)')
-      .eq('user_id', userId)
-    if (existingErr) {
-      console.error('[orgs/github-sync] existing-memberships read failed:', existingErr.message)
-    } else if (Array.isArray(existing)) {
-      // Supabase's typed return for an embedded relation is shaped as an array
-      // even on a single-FK join; normalize via `unknown` to a flexible shape.
-      const rows = existing as unknown as Array<{
-        org_id: string
-        orgs:
-          | { github_org_id: number | null; slug: string }
-          | Array<{ github_org_id: number | null; slug: string }>
-          | null
-      }>
-      for (const row of rows) {
-        const joined = Array.isArray(row.orgs) ? (row.orgs[0] ?? null) : row.orgs
-        const ghId = joined?.github_org_id ?? null
-        if (ghId === null) continue // legacy / manual — never prune
-        if (activeGhIds.has(ghId)) continue // still a member on GitHub
-        const { error: delErr } = await supabase
-          .from('org_members')
-          .delete()
-          .eq('org_id', row.org_id)
-          .eq('user_id', userId)
-        if (delErr) {
-          console.error('[orgs/github-sync] membership delete failed:', delErr.message)
-          continue
-        }
-        removed.push(joined?.slug ?? String(ghId))
-      }
-    }
-  } catch (err) {
-    console.error('[orgs/github-sync] prune threw:', err)
-  }
+  const removed = await pruneStaleMemberships(supabase, userId, activeGhIds)
 
   return {
     added: Array.from(added),
