@@ -567,15 +567,27 @@ export const authOptions: NextAuthOptions = {
      */
     async signIn({ user, account, profile }) {
       console.error('[DIAG] events.signIn ENTERED. user.id:', user?.id, 'profile?:', !!profile, 'account?:', !!account)
-      if (!user.id || !profile) return
+      if (!user.id || !profile) {
+        console.error('[DIAG] BAILED at user.id/profile guard')
+        return
+      }
+      console.error('[DIAG] profile keys:', Object.keys(profile as object))
+      const _gh_diag = profile as GithubProfile
+      console.error('[DIAG] gh.login:', _gh_diag?.login, 'gh.created_at:', _gh_diag?.created_at, 'typeof gh.public_repos:', typeof _gh_diag?.public_repos, 'gh.public_repos:', _gh_diag?.public_repos)
 
       const gh = profile as GithubProfile
       if (!gh.login || !gh.created_at || typeof gh.public_repos !== 'number') {
+        console.error('[DIAG] BAILED at gh.login/created_at/public_repos guard. login:', gh.login, 'created_at:', gh.created_at, 'public_repos:', gh.public_repos)
         return
       }
+      console.error('[DIAG] passed gh shape guard')
 
       const cols = deriveAuditColumns(gh)
-      if (Number.isNaN(cols.github_account_age_days_at_signup)) return
+      if (Number.isNaN(cols.github_account_age_days_at_signup)) {
+        console.error('[DIAG] BAILED at NaN ageDays guard. cols:', cols)
+        return
+      }
+      console.error('[DIAG] passed ageDays guard, proceeding to supabase')
 
       // Each best-effort step below has its own try/catch so one failure
       // can't poison the others. Construct supabase up front; if THAT throws
