@@ -189,14 +189,14 @@ describe('PATCH /api/users/me — happy paths', () => {
   it('updates avatar_url only and returns 200 with the new row', async () => {
     const { PATCH } = await import('@/app/api/users/me/route')
     const res = await PATCH(
-      makeRequest({ avatar_url: 'https://cdn.example.com/u/avatar.webp' }),
+      makeRequest({ avatar_url: 'https://avatars.githubusercontent.com/u/12345?v=4' }),
     )
     expect(res.status).toBe(200)
     const body = await res.json()
-    expect(body.avatar_url).toBe('https://cdn.example.com/u/avatar.webp')
+    expect(body.avatar_url).toBe('https://avatars.githubusercontent.com/u/12345?v=4')
     expect(capturedUpdates).toHaveLength(1)
     expect(capturedUpdates[0].payload.avatar_url).toBe(
-      'https://cdn.example.com/u/avatar.webp',
+      'https://avatars.githubusercontent.com/u/12345?v=4',
     )
     expect('bio' in capturedUpdates[0].payload).toBe(false)
   })
@@ -206,16 +206,16 @@ describe('PATCH /api/users/me — happy paths', () => {
     const res = await PATCH(
       makeRequest({
         bio: 'About me.',
-        avatar_url: 'https://cdn.example.com/u/2.webp',
+        avatar_url: 'https://avatars.githubusercontent.com/u/67890',
       }),
     )
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body.bio).toBe('About me.')
-    expect(body.avatar_url).toBe('https://cdn.example.com/u/2.webp')
+    expect(body.avatar_url).toBe('https://avatars.githubusercontent.com/u/67890')
     expect(capturedUpdates[0].payload.bio).toBe('About me.')
     expect(capturedUpdates[0].payload.avatar_url).toBe(
-      'https://cdn.example.com/u/2.webp',
+      'https://avatars.githubusercontent.com/u/67890',
     )
   })
 

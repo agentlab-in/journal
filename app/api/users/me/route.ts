@@ -32,8 +32,6 @@ const AvatarUrlField = z
   .refine(
     (val) => {
       if (val === null || val === '') return true
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-      if (!supabaseUrl) return false
       let u: URL
       try {
         u = new URL(val)
@@ -41,18 +39,22 @@ const AvatarUrlField = z
         return false
       }
       if (u.pathname.includes('/../') || u.pathname.includes('/./')) return false
+      const okGithub =
+        u.origin === 'https://avatars.githubusercontent.com' &&
+        u.pathname.startsWith('/u/')
+      if (okGithub) return true
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      if (!supabaseUrl) return false
       let supa: URL
       try {
         supa = new URL(supabaseUrl)
       } catch {
         return false
       }
-      const okSupabase =
+      return (
         u.origin === supa.origin &&
         u.pathname.startsWith('/storage/v1/object/public/avatars/')
-      const okGithub =
-        u.origin === 'https://avatars.githubusercontent.com' && u.pathname.startsWith('/u/')
-      return okSupabase || okGithub
+      )
     },
     { message: 'avatar_url must be a Supabase avatars URL or GitHub avatar URL' },
   )
