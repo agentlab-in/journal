@@ -114,10 +114,12 @@ test.describe('Phase 12 moderation — admin gate', () => {
 // ---------------------------------------------------------------------------
 
 test.describe('Phase 12 moderation — /auth/blocked page', () => {
-  test('/auth/blocked?reason=banned renders suspension copy', async ({ page }) => {
-    // This test does not require auth or DB. The blocked page tries to call
-    // createAdminSupabaseClient for the banned_reason lookup, but the result
-    // is wrapped in try/catch and gracefully ignored on failure.
+  test('/auth/blocked?reason=banned (anon visitor) renders generic copy, no specific ban detail', async ({ page }) => {
+    // Security audit C2: the banned-reason rendering is bound to caller
+    // identity. An anon visitor (no session, or session.username !== login)
+    // must see only the generic "not accessible" copy — never the
+    // specific "your account has been suspended" / "suspensions are not
+    // appealable" lines that confirm a ban to a non-owner.
 
     const res = await page.goto('/auth/blocked?reason=banned', {
       waitUntil: 'domcontentloaded',
@@ -125,34 +127,36 @@ test.describe('Phase 12 moderation — /auth/blocked page', () => {
     // The page itself always renders (it's a static-ish page) — 200.
     expect(res?.status()).toBe(200)
 
-    // Heading should say "account suspended" when reason=banned.
+    // Heading still says "account suspended" — derived from the URL param,
+    // which the visitor already knows.
     await expect(page.getByRole('heading', { level: 1 })).toContainText(/account suspended/i)
 
-    // The ban-specific copy must include the non-appealable line.
-    await expect(page.getByText(/suspensions are not appealable/i)).toBeVisible()
+    // Generic copy that doesn't confirm existence or ban-state.
+    await expect(page.getByText(/this account is not accessible/i)).toBeVisible()
 
-    // "Your account has been suspended" copy should also appear.
-    await expect(page.getByText(/your account has been suspended/i)).toBeVisible()
+    // The pre-C2 owner-only copy must NOT leak to anon visitors.
+    await expect(page.getByText(/suspensions are not appealable/i)).toHaveCount(0)
+    await expect(page.getByText(/your account has been suspended/i)).toHaveCount(0)
   })
 
-  test('/auth/blocked?reason=banned&login=ghosthandle renders without crashing', async ({
+  test('/auth/blocked?reason=banned&login=ghosthandle renders generic copy for non-owners', async ({
     page,
   }) => {
-    // With a clearly-non-existent login, the Supabase lookup finds no row,
-    // bannedReason stays null, and the page renders generic suspension copy.
+    // Anon visitor probing an arbitrary handle: same generic copy. No
+    // confirmation of whether the handle exists or is suspended.
     const res = await page.goto('/auth/blocked?reason=banned&login=ghosthandle', {
       waitUntil: 'domcontentloaded',
     })
     expect(res?.status()).toBe(200)
 
-    // The heading still shows "account suspended".
     await expect(page.getByRole('heading', { level: 1 })).toContainText(/account suspended/i)
 
-    // The login is shown in the sub-heading.
+    // The login is echoed in the sub-heading (it came from the URL — no leak).
     await expect(page.getByText(/@ghosthandle/)).toBeVisible()
 
-    // Non-appealable line is always present for banned reason.
-    await expect(page.getByText(/suspensions are not appealable/i)).toBeVisible()
+    // Generic copy.
+    await expect(page.getByText(/this account is not accessible/i)).toBeVisible()
+    await expect(page.getByText(/suspensions are not appealable/i)).toHaveCount(0)
   })
 })
 
