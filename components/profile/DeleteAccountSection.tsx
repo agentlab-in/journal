@@ -32,7 +32,6 @@ export function DeleteAccountSection() {
         setError(body.error ?? `http_${res.status}`)
         return
       }
-      // signOut() drops the NextAuth client cookie and redirects to home.
       await signOut({ callbackUrl: '/' })
       router.refresh()
     } catch (err) {
@@ -43,48 +42,65 @@ export function DeleteAccountSection() {
   }
 
   return (
-    <section className="settings-section">
-      <h2 className="settings-section-heading">Delete account</h2>
-      <p className="settings-help">
-        Deletes your sign-in linkage and anonymises your profile (your handle
-        becomes <code>deleted-xxxxxxxx</code> and your bio, avatar, display
-        name, and stored GitHub email are cleared). Posts and comments you
-        published stay on the platform under CC BY 4.0, attributed to the
-        anonymised handle. This cannot be undone.
-      </p>
-
-      {!expanded ? (
-        <button
-          type="button"
-          onClick={() => setExpanded(true)}
-          className="settings-avatar-action settings-avatar-action--danger"
+    <section
+      className="settings-danger-zone"
+      aria-labelledby="settings-danger-zone-heading"
+    >
+      <header className="settings-danger-zone__bar">
+        <h2
+          id="settings-danger-zone-heading"
+          className="settings-danger-zone__title"
         >
-          Delete my account
-        </button>
-      ) : (
-        <div className="settings-field">
-          <label className="settings-field" htmlFor="delete-confirm">
-            <span className="settings-label">
-              Type <code>{CONFIRM_TEXT}</code> to confirm
-            </span>
-            <input
-              id="delete-confirm"
-              type="text"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              autoComplete="off"
-              disabled={busy}
-              className="settings-textarea"
-            />
+          Danger zone
+        </h2>
+      </header>
+
+      <div className="settings-danger-zone__row">
+        <div className="settings-danger-zone__copy">
+          <h3 className="settings-danger-zone__row-title">Delete account</h3>
+          <p className="settings-danger-zone__row-body">
+            Once you delete your account, the platform anonymises your handle
+            (it becomes <code>deleted-xxxxxxxx</code>) and removes your
+            authentication data. Posts and comments you wrote remain under the
+            anonymised handle, licensed CC BY 4.0. This cannot be undone.
+          </p>
+        </div>
+        {!expanded ? (
+          <button
+            type="button"
+            onClick={() => setExpanded(true)}
+            className="settings-danger-zone__button"
+          >
+            Delete account
+          </button>
+        ) : null}
+      </div>
+
+      {expanded ? (
+        <div className="settings-danger-zone__confirm">
+          <label
+            htmlFor="delete-confirm"
+            className="settings-field__label"
+          >
+            Type <code>{CONFIRM_TEXT}</code> to confirm
           </label>
+          <input
+            id="delete-confirm"
+            type="text"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            autoComplete="off"
+            disabled={busy}
+            className="settings-input"
+          />
           <div className="settings-actions">
             <button
               type="button"
               onClick={onDelete}
               disabled={busy || confirm !== CONFIRM_TEXT}
-              className="settings-avatar-action settings-avatar-action--danger"
+              className="settings-danger-zone__button"
             >
-              {busy ? 'Deleting…' : 'Permanently delete'}
+              {busy ? 'Deleting…' : 'Permanently delete account'}
             </button>
             <button
               type="button"
@@ -105,7 +121,7 @@ export function DeleteAccountSection() {
             )}
           </div>
         </div>
-      )}
+      ) : null}
     </section>
   )
 }

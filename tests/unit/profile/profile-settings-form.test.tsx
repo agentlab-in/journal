@@ -85,7 +85,7 @@ describe('<ProfileSettingsForm> — successful save redirects', () => {
     render(<ProfileSettingsForm {...DEFAULT_PROPS} bio="Updated bio." />)
 
     // Change bio so payload is non-empty
-    const textarea = screen.getByRole('textbox')
+    const textarea = screen.getByRole('textbox', { name: 'Bio' })
     fireEvent.change(textarea, { target: { value: 'New bio content.' } })
 
     submitForm()
@@ -174,7 +174,7 @@ describe('<ProfileSettingsForm> — save error', () => {
 
     render(<ProfileSettingsForm {...DEFAULT_PROPS} bio="Updated bio." />)
 
-    const textarea = screen.getByRole('textbox')
+    const textarea = screen.getByRole('textbox', { name: 'Bio' })
     fireEvent.change(textarea, { target: { value: 'Failing bio.' } })
 
     submitForm()
@@ -215,7 +215,7 @@ describe('<ProfileSettingsForm> — redirect timer cleanup', () => {
     const { unmount } = render(<ProfileSettingsForm {...DEFAULT_PROPS} bio="Updated bio." />)
 
     // Change bio so payload is non-empty
-    const textarea = screen.getByRole('textbox')
+    const textarea = screen.getByRole('textbox', { name: 'Bio' })
     fireEvent.change(textarea, { target: { value: 'New bio content.' } })
 
     submitForm()
