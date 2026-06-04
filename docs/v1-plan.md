@@ -913,7 +913,7 @@ Phases are numbered. Dependencies are explicit. Each phase is a coherent merge â
 **Depends on:** Phases 1, 4, 6.
 
 **Files:**
-- Create: `supabase/migrations/0013_orgs.sql` (orgs + org_members + posts.org_id; pinned_posts XOR refactor; reports/mod_actions target_type extension)
+- Create: `supabase/migrations/0017_orgs.sql` (orgs + org_members + posts.org_id; pinned_posts XOR refactor; reports/mod_actions target_type extension)
 - Create: `supabase/migrations/0021_github_orgs.sql` (orgs.github_org_id UNIQUE)
 - Create: `lib/orgs/github-sync.ts` (sync GitHub orgs â†’ `public.orgs` + `public.org_members` on sign-in)
 - Modify: `lib/auth.ts` (add `read:org` scope; `events.signIn` calls `syncUserGithubOrgs`)

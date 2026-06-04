@@ -98,7 +98,7 @@ dev branch DB if available.
 ### Account deletion blocked by `orgs.created_by_user_id`
 
 `public.orgs.created_by_user_id` is `ON DELETE RESTRICT` (see
-`supabase/migrations/0013_orgs.sql`). When Phase 11.5 sync materializes a
+`supabase/migrations/0017_orgs.sql`). When Phase 11.5 sync materializes a
 GitHub org for the first time it stamps that column with the signing-in
 user's id. If that user later deletes their account, Postgres rejects the
 delete with a FK violation pointing at `orgs`.

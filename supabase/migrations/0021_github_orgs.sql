@@ -20,7 +20,7 @@
 --
 -- org_members.role is intentionally left in place: under the GitHub-backed
 -- model every materialized membership is role='member', and the existing
--- CHECK (role IN ('admin','member')) from 0013_orgs.sql:69 is harmless under
+-- CHECK (role IN ('admin','member')) from 0017_orgs.sql:69 is harmless under
 -- that constraint. Keeping the column preserves forward-compatibility with
 -- any future admin concept without a destructive DROP COLUMN.
 -- =============================================================================

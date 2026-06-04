@@ -1,5 +1,5 @@
 -- =============================================================================
--- 0013_orgs.sql
+-- 0017_orgs.sql
 -- Phase 11 — Organizations as publishing entities.
 --
 -- Introduces:

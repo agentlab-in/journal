@@ -279,7 +279,7 @@ export const getCachedOrg = cache(
 /**
  * Fetch up to 6 pinned posts for an org, ordered by pin position.
  * Mirrors getPinnedPosts but scoped to org_id (the pinned_posts row
- * owner column was split into user_id XOR org_id in migration 0013).
+ * owner column was split into user_id XOR org_id in migration 0017).
  */
 export async function getOrgPinnedPosts(
   db: Pick<SupabaseClient, 'from'>,
