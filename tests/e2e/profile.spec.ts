@@ -102,6 +102,63 @@ test.describe('Phase 6 profile + settings', () => {
   })
 
   // -------------------------------------------------------------------------
+  // 1b. Two-column layout sanity (issue #52): sidebar is the <aside> landmark
+  //     and the posts column has filter chips for every post type.
+  // -------------------------------------------------------------------------
+  test('two-column layout renders sidebar + filter chips', async ({
+    page,
+    request,
+  }) => {
+    test.skip(!HAS_E2E_AUTH, SKIP_REASON)
+
+    const { username } = await createPostAsOwner(
+      request,
+      `layout-${Date.now()}`,
+    )
+
+    await page.goto(`/${username}`, { waitUntil: 'domcontentloaded' })
+
+    // The redesigned page wraps identity / actions / stats in an <aside>.
+    await expect(page.locator('aside.profile-sidebar')).toBeVisible()
+
+    // Filter chips for every post type live in the main column.
+    const filters = page.getByRole('tablist', { name: 'Filter by post type' })
+    await expect(filters).toBeVisible()
+    for (const label of ['All', 'Posts', 'Playbooks', 'Dives']) {
+      await expect(filters.getByRole('tab', { name: label })).toBeVisible()
+    }
+  })
+
+  // -------------------------------------------------------------------------
+  // 1c. Non-owner / anon sees the Follow button instead of Edit Profile.
+  //     Anon clicking Follow redirects to /auth/signin with a callbackUrl.
+  // -------------------------------------------------------------------------
+  test('anon sees Follow button; clicking it redirects to sign-in', async ({
+    page,
+    request,
+  }) => {
+    test.skip(!HAS_E2E_AUTH, SKIP_REASON)
+
+    const { username } = await createPostAsOwner(
+      request,
+      `follow-anon-${Date.now()}`,
+    )
+
+    // Visit anonymously — no Edit Profile, Follow button is the primary CTA.
+    await page.goto(`/${username}`, { waitUntil: 'domcontentloaded' })
+    await expect(page.getByRole('link', { name: 'Edit Profile' })).toHaveCount(0)
+
+    const followBtn = page.getByRole('button', { name: `Follow @${username}` })
+    await expect(followBtn).toBeVisible()
+
+    // Anon click should bounce through to /auth/signin with this page as
+    // the callbackUrl. We click and wait for the URL to settle.
+    await followBtn.click()
+    await page.waitForURL(/\/auth\/signin/, { timeout: 5000 })
+    expect(page.url()).toContain(`callbackUrl=${encodeURIComponent('/' + username)}`)
+  })
+
+  // -------------------------------------------------------------------------
   // 2. Owner-only affordances: Edit Profile + Pin buttons appear for owner;
   //    anonymous visitor does not see them.
   // -------------------------------------------------------------------------
