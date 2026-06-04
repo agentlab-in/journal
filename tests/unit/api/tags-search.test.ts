@@ -169,4 +169,45 @@ describe('GET /api/tags/search', () => {
     const json = await res.json()
     expect(json.error).toBe('query_failed')
   })
+
+  // H2 — PostgREST .or() injection guard. The previous implementation
+  // spliced user input into a multi-clause `.or()` string; a `,` or `.`
+  // in `q` could inject sibling predicates. We now issue two separate
+  // `.ilike()` queries, so PostgREST never parses user input as a token.
+  it('issues two separate ilike calls for non-empty q (no .or splice)', async () => {
+    await GET(req('?q=sec'))
+    const cols = supabaseMock.record.ilikeCalls.map(([c]) => c).sort()
+    expect(cols).toEqual(['name', 'slug'])
+    // Pattern is LIKE-escaped + suffixed with '%' — no metacharacters survive
+    // into the predicate value, but more importantly, no comma-splice path.
+    expect(supabaseMock.record.ilikeCalls.every(([, val]) => val.endsWith('%'))).toBe(true)
+  })
+
+  it('treats injection-style metacharacters in q as literal LIKE input', async () => {
+    // Each character that previously could have broken out of the .or() string
+    // is now passed through `.ilike()` as a single predicate argument; the
+    // route must not 500 and must not interpret commas/dots as token boundaries.
+    const res = await GET(req('?q=,is_approved.eq.false'))
+    expect(res.status).toBe(200)
+    // The literal comma + dots survive as part of the predicate value (LIKE
+    // wildcards `%`/`_` are escaped — `_` becomes `\_` — but `,` and `.` are
+    // not wildcards in LIKE, only in PostgREST's `.or()` token grammar, which
+    // we no longer touch).
+    expect(supabaseMock.record.ilikeCalls.length).toBe(2)
+    for (const [, val] of supabaseMock.record.ilikeCalls) {
+      expect(val.startsWith(',is')).toBe(true)
+      expect(val).toContain('.eq.false')
+      // `_` in `is_approved` is a LIKE wildcard, so it's escaped to `\_`.
+      expect(val).toContain('is\\_approved')
+    }
+  })
+
+  it('rejects q longer than 64 characters with 400', async () => {
+    const res = await GET(req(`?q=${'a'.repeat(65)}`))
+    expect(res.status).toBe(400)
+    const json = await res.json()
+    expect(json.error).toBe('query_too_long')
+    // No DB call should have been made.
+    expect(supabaseMock.record.table).toBeUndefined()
+  })
 })
