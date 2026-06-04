@@ -7,9 +7,21 @@ export interface ResolveOpts {
   currentUserId: string
 }
 
+/**
+ * Result of resolving a `[[wikilink]]` anchor to a post.
+ *
+ * `targetLeadingSegment` is what the URL builder prepends — the org slug
+ * when the target post was published under an org, otherwise the author's
+ * username. Callers should treat it as the opaque first path segment so
+ * they don't need to branch on org vs personal authorship.
+ *
+ * (The previous shape used `targetUsername` for this slot; renamed in
+ * Phase 11 / T5 so org-authored targets resolve to the org's vanity URL
+ * without forcing every caller to branch.)
+ */
 export interface ResolvedAnchor {
   targetPostId: string
-  targetUsername: string
+  targetLeadingSegment: string
   targetType: PostType
   targetSlug: string
 }
@@ -17,11 +29,13 @@ export interface ResolvedAnchor {
 interface Row {
   id: string
   author_id: string
+  org_id: string | null
   slug: string
   type: string
   published_at: string
   like_count: number
   users: { username: string } | null
+  orgs: { slug: string } | null
 }
 
 function pickTop(rows: Row[], currentUserId: string): Row | null {
@@ -42,7 +56,9 @@ function toResolved(row: Row): ResolvedAnchor | null {
   if (!row.users) return null
   return {
     targetPostId: row.id,
-    targetUsername: row.users.username,
+    // Prefer org slug when the post is published under an org — same precedence
+    // the publish path uses when building post URLs.
+    targetLeadingSegment: row.orgs?.slug ?? row.users.username,
     targetType: row.type as PostType,
     targetSlug: row.slug,
   }
@@ -55,10 +71,13 @@ export async function resolveAnchor(
   const target = toSlug(anchor)
   if (!target) return null
 
+  // `orgs` is a LEFT join — most posts have org_id = NULL and we still
+  // want them to resolve. The inner-join on users mirrors the prior
+  // behaviour: an author row is required for the post URL.
   const { data, error } = await opts.db
     .from('posts')
     .select(
-      'id, author_id, slug, type, published_at, like_count, users!inner(username)',
+      'id, author_id, org_id, slug, type, published_at, like_count, users!inner(username), orgs(slug)',
     )
     .eq('slug', target)
     .is('deleted_at', null)
@@ -102,7 +121,7 @@ export async function resolveAnchors(
   const { data, error } = await opts.db
     .from('posts')
     .select(
-      'id, author_id, slug, type, published_at, like_count, users!inner(username)',
+      'id, author_id, org_id, slug, type, published_at, like_count, users!inner(username), orgs(slug)',
     )
     .in('slug', [...slugSet])
     .is('deleted_at', null)

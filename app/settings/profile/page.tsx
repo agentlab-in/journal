@@ -4,6 +4,10 @@ import { getSession } from '@/lib/auth'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { ProfileSettingsForm } from '@/components/profile/ProfileSettingsForm'
 import { DeleteAccountSection } from '@/components/profile/DeleteAccountSection'
+import {
+  OrgsListSection,
+  type OrgListEntry,
+} from '@/components/settings/OrgsListSection'
 
 export const metadata: Metadata = {
   // Title resolves to `Profile settings — agentlab.in` via the layout template.
@@ -16,6 +20,16 @@ interface UserRow {
   display_name: string
   bio: string | null
   avatar_url: string | null
+}
+
+interface OrgMembershipRow {
+  orgs: {
+    id: string
+    slug: string
+    display_name: string
+    deleted_at: string | null
+    banned_at: string | null
+  } | null
 }
 
 export default async function ProfileSettingsPage() {
@@ -41,6 +55,25 @@ export default async function ProfileSettingsPage() {
 
   const row = data as UserRow
 
+  // Fetch the caller's orgs for the "Your orgs" section. Same join+filter
+  // shape as the /write page so we exclude soft-deleted/banned orgs.
+  const { data: memberRows } = await admin
+    .from('org_members')
+    .select('orgs!inner(id, slug, display_name, deleted_at, banned_at)')
+    .eq('user_id', session.user.id)
+
+  const orgs: OrgListEntry[] = []
+  for (const r of (memberRows ?? []) as unknown as OrgMembershipRow[]) {
+    if (!r.orgs) continue
+    if (r.orgs.deleted_at !== null || r.orgs.banned_at !== null) continue
+    orgs.push({
+      id: r.orgs.id,
+      slug: r.orgs.slug,
+      display_name: r.orgs.display_name,
+    })
+  }
+  orgs.sort((a, b) => a.display_name.localeCompare(b.display_name))
+
   return (
     <main id="main-content" className="settings-page">
       <h1 className="settings-heading">Profile settings</h1>
@@ -50,6 +83,7 @@ export default async function ProfileSettingsPage() {
         bio={row.bio}
         avatarUrl={row.avatar_url}
       />
+      <OrgsListSection orgs={orgs} />
       <DeleteAccountSection />
     </main>
   )

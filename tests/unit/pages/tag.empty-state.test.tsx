@@ -26,6 +26,7 @@ vi.mock('@/lib/supabase/server', () => ({
 
 vi.mock('@/lib/feed/hydrate', () => ({
   fetchAuthors: vi.fn(async () => new Map()),
+  fetchOrgsByPost: vi.fn(async () => new Map()),
   fetchTagsByPost: vi.fn(async () => new Map()),
 }))
 

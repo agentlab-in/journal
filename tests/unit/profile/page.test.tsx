@@ -11,6 +11,11 @@ vi.mock('@/lib/profile/lookup', () => ({
   getPinnedPosts: vi.fn(),
   getAuthoredPosts: vi.fn(),
   lookupProfileByUsername: vi.fn(),
+  // Phase 11 — orgs fall back path on /[username].
+  getCachedOrg: vi.fn(async () => null),
+  lookupOrgBySlug: vi.fn(),
+  getOrgPosts: vi.fn(async () => []),
+  getOrgPinnedPosts: vi.fn(async () => []),
 }))
 
 vi.mock('@/lib/profile/bio', () => ({

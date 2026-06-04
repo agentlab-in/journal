@@ -25,17 +25,33 @@ function makeQueryChain(result: { data: MaybeRow; error: unknown }) {
 /**
  * Build a fakeClient where the first `from` call (users lookup) resolves to
  * userResult, and the second (posts lookup) resolves to postResult.
+ *
+ * Phase 11: lookupPost now has an org branch — when the leading segment
+ * doesn't match a user, the next `from` call is `orgs`, then `posts`,
+ * then a second `users` (to hydrate the human author of an org-authored
+ * post). The optional `orgResult` / `authorResult` parameters wire those
+ * extra calls; left unset they default to null so the user-branch tests
+ * still see the user-then-posts call pattern.
  */
 function makeFakeClient(
   userResult: { data: MaybeRow; error: unknown },
   postResult: { data: MaybeRow; error: unknown },
+  orgResult: { data: MaybeRow; error: unknown } = { data: null, error: null },
+  authorResult: { data: MaybeRow; error: unknown } = { data: null, error: null },
 ) {
-  const userChain = makeQueryChain(userResult)
-  const postChain = makeQueryChain(postResult)
-  let callCount = 0
-  const fromFn = vi.fn(() => {
-    callCount++
-    return callCount === 1 ? userChain : postChain
+  const fromFn = vi.fn((table: string) => {
+    if (table === 'users' || table === 'users_public') {
+      // Heuristic: first users() call is the leading-segment lookup,
+      // any subsequent users() call is the author hydration on the org
+      // branch. Track call count on the fn so the second users() call
+      // returns authorResult.
+      const calls = (fromFn as unknown as { _usersCalls?: number })._usersCalls ?? 0
+      ;(fromFn as unknown as { _usersCalls: number })._usersCalls = calls + 1
+      return makeQueryChain(calls === 0 ? userResult : authorResult)
+    }
+    if (table === 'orgs') return makeQueryChain(orgResult)
+    if (table === 'posts') return makeQueryChain(postResult)
+    return makeQueryChain({ data: null, error: null })
   })
   return { from: fromFn }
 }
@@ -55,6 +71,7 @@ const USER_ROW = {
 const POST_ROW = {
   id: 'post-1',
   author_id: 'user-1',
+  org_id: null,
   type: 'post',
   slug: 'my-great-post',
   title: 'My Great Post',

@@ -45,8 +45,23 @@ export const AdminReportResolveBody = z
   })
   .strict()
 
+export const AdminOrgBanBody = z
+  .object({
+    org_id: z.string().uuid(),
+    reason: z.string().min(1).max(500),
+  })
+  .strict()
+
+export const AdminOrgUnbanBody = z
+  .object({
+    org_id: z.string().uuid(),
+  })
+  .strict()
+
 export type AdminBanInput = z.infer<typeof AdminBanBody>
 export type AdminUnbanInput = z.infer<typeof AdminUnbanBody>
 export type AdminTagApproveInput = z.infer<typeof AdminTagApproveBody>
 export type AdminTagRejectInput = z.infer<typeof AdminTagRejectBody>
 export type AdminReportResolveInput = z.infer<typeof AdminReportResolveBody>
+export type AdminOrgBanInput = z.infer<typeof AdminOrgBanBody>
+export type AdminOrgUnbanInput = z.infer<typeof AdminOrgUnbanBody>

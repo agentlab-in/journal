@@ -124,6 +124,7 @@ function findByComponentType(
 const BASE_POST: LookedUpPost = {
   id: 'post-1',
   author_id: 'user-1',
+  org_id: null,
   type: 'post',
   slug: 'my-post',
   title: 'My Post',
@@ -143,6 +144,7 @@ const BASE_POST: LookedUpPost = {
     avatar_url: null,
     bio: null,
   },
+  org: null,
   tags: [],
 }
 

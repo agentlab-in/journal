@@ -105,6 +105,14 @@ export default function ProfileMenu({
             Bookmarks
           </Link>
           <Link
+            href="/settings/profile#orgs"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            className="block px-3 py-2 font-mono text-sm text-fg hover:bg-bg-hover"
+          >
+            Your orgs
+          </Link>
+          <Link
             href="/settings/profile"
             role="menuitem"
             onClick={() => setOpen(false)}

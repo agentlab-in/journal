@@ -18,6 +18,11 @@ export interface AuthorInfo {
   avatar_url: string | null
 }
 
+export interface OrgInfo {
+  slug: string
+  display_name: string
+}
+
 export interface TagInfo {
   slug: string
   name: string
@@ -106,6 +111,45 @@ export async function fetchTagsByPost(
   for (const [id, list] of grouped) {
     list.sort((a, b) => (a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0))
     out.set(id, list.slice(0, 2))
+  }
+  return out
+}
+
+/**
+ * Look up the org (slug + display_name) for a set of post ids. Returns a
+ * Map keyed on post_id; posts not authored under an org are absent from
+ * the map (rather than mapped to null) so callers can `?? null` on lookup.
+ *
+ * Filters soft-deleted / banned orgs out — we don't want feeds to surface
+ * a `via @banned-org` byline even if RLS hasn't caught up. Honors the same
+ * posture as `getOrgBySlug` in `lib/orgs/auth.ts`.
+ */
+export async function fetchOrgsByPost(
+  db: Pick<SupabaseClient, 'from'>,
+  postIds: string[],
+): Promise<Map<string, OrgInfo>> {
+  const out = new Map<string, OrgInfo>()
+  if (postIds.length === 0) return out
+  const { data, error } = await db
+    .from('posts')
+    .select('id, org_id, orgs!inner(slug, display_name, deleted_at, banned_at)')
+    .in('id', postIds)
+    .not('org_id', 'is', null)
+  if (error || !Array.isArray(data)) return out
+  interface Row {
+    id: string
+    org_id: string | null
+    orgs: {
+      slug: string
+      display_name: string
+      deleted_at: string | null
+      banned_at: string | null
+    } | null
+  }
+  for (const r of data as unknown as Row[]) {
+    if (!r.orgs) continue
+    if (r.orgs.deleted_at !== null || r.orgs.banned_at !== null) continue
+    out.set(r.id, { slug: r.orgs.slug, display_name: r.orgs.display_name })
   }
   return out
 }

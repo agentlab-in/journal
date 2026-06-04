@@ -16,6 +16,7 @@ import { getSession } from '@/lib/auth'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { ensurePublicUser } from '@/lib/users/ensure-public-user'
 import { EditorShell, type InitialPost } from '@/components/editor/EditorShell'
+import type { PublishAsOrgOption } from '@/components/editor/PublishAsSelect'
 import type { TagOption } from '@/components/editor/TagPicker'
 import type { DraftType } from '@/lib/drafts'
 
@@ -32,6 +33,7 @@ export const metadata: Metadata = {
 interface PostRow {
   id: string
   author_id: string
+  org_id: string | null
   title: string
   summary: string
   type: DraftType
@@ -40,6 +42,17 @@ interface PostRow {
   structured_sections: Record<string, string> | null
   edited_at: string | null
   published_at: string
+}
+
+interface OrgMembershipRow {
+  org_id: string
+  orgs: {
+    id: string
+    slug: string
+    display_name: string
+    deleted_at: string | null
+    banned_at: string | null
+  } | null
 }
 
 interface TagJoinRow {
@@ -69,7 +82,7 @@ export default async function EditPostPage({
   const { data: post } = await supabase
     .from('posts')
     .select(
-      'id, author_id, title, summary, type, body_md, cover_image_url, structured_sections, edited_at, published_at',
+      'id, author_id, org_id, title, summary, type, body_md, cover_image_url, structured_sections, edited_at, published_at',
     )
     .eq('id', postId)
     .maybeSingle<PostRow>()
@@ -110,7 +123,28 @@ export default async function EditPostPage({
     structured_sections: post.structured_sections,
     edited_at: post.edited_at,
     published_at: post.published_at,
+    org_id: post.org_id,
   }
+
+  // Fetch user's orgs so the PublishAsSelect can render the org label even
+  // in edit mode (it's disabled but should still show the current org by
+  // display_name rather than just the raw UUID).
+  const { data: memberRows } = await supabase
+    .from('org_members')
+    .select('org_id, orgs!inner(id, slug, display_name, deleted_at, banned_at)')
+    .eq('user_id', session.user.id)
+
+  const userOrgs: PublishAsOrgOption[] = []
+  for (const r of (memberRows ?? []) as unknown as OrgMembershipRow[]) {
+    if (!r.orgs) continue
+    if (r.orgs.deleted_at !== null || r.orgs.banned_at !== null) continue
+    userOrgs.push({
+      id: r.orgs.id,
+      slug: r.orgs.slug,
+      display_name: r.orgs.display_name,
+    })
+  }
+  userOrgs.sort((a, b) => a.display_name.localeCompare(b.display_name))
 
   return (
     <main id="main-content" className="flex flex-1 flex-col">
@@ -120,6 +154,7 @@ export default async function EditPostPage({
         currentUsername={username}
         initialPost={initialPost}
         initialTags={initialTags}
+        userOrgs={userOrgs}
       />
     </main>
   )

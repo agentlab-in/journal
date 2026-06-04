@@ -13,6 +13,8 @@ const TagsField = z.array(TagSlug).min(1).max(5)
 const CoverUrlField = z.string().url().optional()
 const TypeField = z.enum(['post', 'playbook', 'dive'])
 
+const OrgIdField = z.string().uuid().optional()
+
 export const PostCreateBody = z
   .object({
     type: TypeField,
@@ -21,6 +23,7 @@ export const PostCreateBody = z
     body_md: BodyField,
     tags: TagsField,
     cover_image_url: CoverUrlField,
+    org_id: OrgIdField,
   })
   .strict()
 
@@ -31,6 +34,7 @@ export const PostPatchBody = z
     body_md: BodyField,
     tags: TagsField,
     cover_image_url: CoverUrlField,
+    org_id: OrgIdField,
   })
   .strict()
 

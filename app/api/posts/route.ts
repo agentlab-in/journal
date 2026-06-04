@@ -12,6 +12,7 @@ import { renderToHtml } from '@/lib/posts/render'
 import { findUniqueSlug } from '@/lib/posts/slug-collision'
 import { postUrl, type PostType } from '@/lib/posts/url'
 import { guardMutatingRequest } from '@/lib/route-guard'
+import { getActiveOrgById, isOrgMember } from '@/lib/orgs/auth'
 
 export const runtime = 'nodejs'
 
@@ -88,7 +89,7 @@ export async function POST(req: NextRequest | Request): Promise<Response> {
     })
   }
 
-  const { type, title, summary, body_md, tags, cover_image_url } = parsed.data
+  const { type, title, summary, body_md, tags, cover_image_url, org_id } = parsed.data
 
   // Step 4: cover_image_url bucket validation
   if (cover_image_url !== undefined && !isValidCoverImageUrl(cover_image_url)) {
@@ -129,6 +130,23 @@ export async function POST(req: NextRequest | Request): Promise<Response> {
   }
 
   const admin = createAdminSupabaseClient()
+
+  // Step 6b: org_id validation (if provided)
+  //   - 404 if org missing / soft-deleted / banned (matches RLS public-read semantics).
+  //   - 403 if caller is not a member.
+  // org_slug captured for URL building below; null when posting personally.
+  let orgSlug: string | null = null
+  if (org_id !== undefined) {
+    const org = await getActiveOrgById(admin, org_id)
+    if (!org) {
+      return json(404, { error: 'org_not_found' })
+    }
+    const member = await isOrgMember(admin, org_id, userId)
+    if (!member) {
+      return json(403, { error: 'not_org_member' })
+    }
+    orgSlug = org.slug
+  }
 
   // Step 7: find unique slug (after reserved check)
   let finalSlug: string
@@ -200,7 +218,7 @@ export async function POST(req: NextRequest | Request): Promise<Response> {
   const resolvedMap = new Map<string, string>()
   const resolvedAnchors: Array<{ anchor: string; targetPostId: string; targetSlug: string }> = []
   for (const [anchor, resolved] of resolvedByAnchor) {
-    const url = postUrl(resolved.targetUsername, resolved.targetType, resolved.targetSlug)
+    const url = postUrl(resolved.targetLeadingSegment, resolved.targetType, resolved.targetSlug)
     resolvedMap.set(anchor, url)
     resolvedAnchors.push({
       anchor,
@@ -226,10 +244,13 @@ export async function POST(req: NextRequest | Request): Promise<Response> {
   }
 
   // Step 13: insert posts row
+  // author_id is always the session user (for audit), org_id is set when
+  // publishing under an org (verified above).
   const { data: postRow, error: postInsertErr } = await admin
     .from('posts')
     .insert({
       author_id: userId,
+      org_id: org_id ?? null,
       type,
       slug: finalSlug,
       title,
@@ -278,9 +299,12 @@ export async function POST(req: NextRequest | Request): Promise<Response> {
   }
 
   // Step 17: return 201 with { id, slug, url }
+  // URL leading segment is the org slug when posting under an org, else the
+  // author username (matches T4 routing).
+  const leadingSegment = orgSlug ?? username
   return json(201, {
     id: postId,
     slug: finalSlug,
-    url: postUrl(username, type as PostType, finalSlug),
+    url: postUrl(leadingSegment, type as PostType, finalSlug),
   })
 }

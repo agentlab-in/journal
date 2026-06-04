@@ -8,6 +8,7 @@ type Result = { data: unknown; error: unknown }
 
 let postsResult: Result = { data: [], error: null }
 let tagsResult: Result = { data: [], error: null }
+let orgsResult: Result = { data: [], error: null }
 
 function makeChain(result: Result) {
   const chain = {
@@ -26,6 +27,7 @@ const fakeClient = {
   from: vi.fn((table: string) => {
     if (table === 'posts') return makeChain(postsResult)
     if (table === 'tags') return makeChain(tagsResult)
+    if (table === 'orgs') return makeChain(orgsResult)
     throw new Error(`unexpected table: ${table}`)
   }),
 }
@@ -47,6 +49,7 @@ const POST_A = {
   edited_at: null,
   published_at: '2026-01-01T00:00:00Z',
   users: { username: 'alice', updated_at: '2026-01-10T00:00:00Z' },
+  orgs: null,
 }
 
 const POST_B_EDITED = {
@@ -55,6 +58,7 @@ const POST_B_EDITED = {
   edited_at: '2026-03-01T00:00:00Z',
   published_at: '2026-02-01T00:00:00Z',
   users: { username: 'alice', updated_at: '2026-01-10T00:00:00Z' },
+  orgs: null,
 }
 
 const POST_C_OTHER_AUTHOR = {
@@ -63,6 +67,7 @@ const POST_C_OTHER_AUTHOR = {
   edited_at: null,
   published_at: '2026-04-01T00:00:00Z',
   users: { username: 'bob', updated_at: '2026-04-02T00:00:00Z' },
+  orgs: null,
 }
 
 const TAG_APPROVED = {
@@ -78,6 +83,7 @@ describe('app/sitemap', () => {
   beforeEach(() => {
     postsResult = { data: [], error: null }
     tagsResult = { data: [], error: null }
+    orgsResult = { data: [], error: null }
   })
 
   it('includes static routes (/, /latest, /tags, /search) with Date lastModified', async () => {

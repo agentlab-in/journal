@@ -11,6 +11,7 @@ import { ensurePublicUser } from '@/lib/users/ensure-public-user'
 import { deriveSignupFlags } from '@/lib/auth/soft-flag'
 import { hashBanFingerprintKey, syntheticProviderKey } from '@/lib/auth/ban-fingerprint'
 import { logRouteError } from '@/lib/logging/error-log'
+import { syncUserGithubOrgs } from '@/lib/orgs/github-sync'
 
 // ---------------------------------------------------------------------------
 // Gate types (exported for unit testing — pure function, no I/O)
@@ -203,7 +204,15 @@ function buildAdapter() {
   return SupabaseAdapter({ url, secret })
 }
 
-function buildGithubProvider() {
+// `read:org` is required by Phase 11.5 so events.signIn can pull the user's
+// GitHub-org memberships via /user/orgs and sync them into public.orgs +
+// org_members. GitHub will re-prompt existing users on their next sign-in to
+// consent to the new scope; if a user denies it, the access_token still
+// signs them in but /user/orgs returns 403 / [] and syncUserGithubOrgs
+// no-ops — sync is best-effort, not a sign-in requirement.
+export const GITHUB_OAUTH_SCOPE = 'read:user user:email read:org'
+
+export function buildGithubProvider() {
   const clientId = process.env.GITHUB_CLIENT_ID
   const clientSecret = process.env.GITHUB_CLIENT_SECRET
   if (!clientId || !clientSecret) {
@@ -214,9 +223,17 @@ function buildGithubProvider() {
     }
     // Build/typecheck/unit-test paths: provider is constructed with empty
     // strings so module load doesn't crash.
-    return GithubProvider({ clientId: clientId ?? '', clientSecret: clientSecret ?? '' })
+    return GithubProvider({
+      clientId: clientId ?? '',
+      clientSecret: clientSecret ?? '',
+      authorization: { params: { scope: GITHUB_OAUTH_SCOPE } },
+    })
   }
-  return GithubProvider({ clientId, clientSecret })
+  return GithubProvider({
+    clientId,
+    clientSecret,
+    authorization: { params: { scope: GITHUB_OAUTH_SCOPE } },
+  })
 }
 
 // ---------------------------------------------------------------------------
@@ -426,6 +443,10 @@ export const authOptions: NextAuthOptions = {
       // Fail-CLOSED: a Supabase error here used to bypass the check; combined
       // with the per-request `banned_at` recheck in getSession(), a transient
       // blip is recoverable on the next request, so denying sign-in is safe.
+      //
+      // banRowFound tracks (a) — Phase 11's downstream org-slug collision check
+      // skips for users that already legitimately hold their username.
+      let banRowFound = false
       try {
         const username = gh.login.toLowerCase()
         const supabase = createAdminSupabaseClient()
@@ -440,6 +461,7 @@ export const authOptions: NextAuthOptions = {
           return `/auth/blocked?reason=lookup_error&login=${encodeURIComponent(username)}`
         }
         if (banRow) {
+          banRowFound = true
           const redirect = decideBanRedirect({ login: username, banned_at: banRow.banned_at })
           if (redirect) {
             return redirect
@@ -498,6 +520,34 @@ export const authOptions: NextAuthOptions = {
         return `/auth/blocked?reason=lookup_error&login=${encodeURIComponent(gh.login.toLowerCase())}`
       }
 
+      // Phase 11: cross-table org-slug collision check.
+      // Only run for FUTURE users — existing public.users rows legitimately
+      // hold their username. If banRowFound is true the row already exists.
+      // Fail-open (matches ban-lookup posture). Cross-table uniqueness is not
+      // DB-enforced; this is a best-effort signup-time gate.
+      if (!banRowFound) {
+        try {
+          const username = gh.login.toLowerCase()
+          const safeLogin = /^[a-z0-9-]{1,39}$/i.test(username)
+            ? `&login=${encodeURIComponent(username)}`
+            : ''
+          const supabase = createAdminSupabaseClient()
+          const { data: orgRow, error: orgError } = await supabase
+            .from('orgs')
+            .select('id')
+            .eq('slug', username)
+            .maybeSingle<{ id: string }>()
+
+          if (orgError) {
+            console.error('[auth] org-slug lookup error (fail-open):', orgError.message)
+          } else if (orgRow) {
+            return `/auth/blocked?reason=username_taken_by_org${safeLogin}`
+          }
+        } catch (orgErr) {
+          console.error('[auth] org-slug lookup threw (fail-open):', orgErr)
+        }
+      }
+
       return true
     },
   },
@@ -514,19 +564,39 @@ export const authOptions: NextAuthOptions = {
      *
      * Best-effort: a Supabase write failure logs but never blocks login.
      */
-    async signIn({ user, profile }) {
-      if (!user.id || !profile) return
+    async signIn({ user, account }) {
+      if (!user.id) return
+      if (!account?.access_token) return
 
-      const gh = profile as GithubProfile
-      if (!gh.login || !gh.created_at || typeof gh.public_repos !== 'number') {
+      // The `profile` arg NextAuth passes here is the mapped User shape
+      // ({ id, name, email, image }), NOT the raw GitHub /user response —
+      // so the GitHub-specific fields we need (login, public_repos,
+      // created_at, bio, followers) come from a fresh /user fetch. This
+      // mirrors the pattern callbacks.signIn already uses.
+      let gh
+      try {
+        gh = await fetchGithubUser(account.access_token as string)
+      } catch (err) {
+        console.error('[auth] events.signIn: fetchGithubUser threw:', err)
         return
       }
+      if (!gh.login || !gh.created_at || typeof gh.public_repos !== 'number') return
 
       const cols = deriveAuditColumns(gh)
       if (Number.isNaN(cols.github_account_age_days_at_signup)) return
 
+      // Each best-effort step below has its own try/catch so one failure
+      // can't poison the others. Construct supabase up front; if THAT throws
+      // there's nothing useful to do here — log and bail.
+      let supabase: ReturnType<typeof createAdminSupabaseClient>
       try {
-        const supabase = createAdminSupabaseClient()
+        supabase = createAdminSupabaseClient()
+      } catch (err) {
+        console.error('[auth] createAdminSupabaseClient threw:', err)
+        return
+      }
+
+      try {
         const { error } = await supabase
           .schema('next_auth')
           .from('users')
@@ -535,56 +605,68 @@ export const authOptions: NextAuthOptions = {
         if (error) {
           console.error('[auth] audit-column update failed:', error.message)
         }
+      } catch (err) {
+        console.error('[auth] audit-column update threw:', err)
+      }
 
-        // Defensive backstop: even if the audit-column UPDATE fired the
-        // Phase 2 trigger successfully, call ensurePublicUser so any
-        // surviving missing public.users row gets healed on this sign-in
-        // without forcing a sign-out cycle. Best-effort.
-        try {
-          await ensurePublicUser(supabase, user.id)
-        } catch (innerErr) {
-          console.error('[auth] ensurePublicUser threw:', innerErr)
-        }
+      // Defensive backstop: even if the audit-column UPDATE fired the
+      // Phase 2 trigger successfully, call ensurePublicUser so any
+      // surviving missing public.users row gets healed on this sign-in
+      // without forcing a sign-out cycle. Best-effort.
+      try {
+        await ensurePublicUser(supabase, user.id)
+      } catch (err) {
+        console.error('[auth] ensurePublicUser threw:', err)
+      }
 
-        // Phase 14: derive signup_flags from the GitHub profile and write
-        // to public.users. Best-effort — moderators read this column as a
-        // soft-signal triage hint; failure must NEVER block login.
-        try {
-          // The raw GitHub profile NextAuth passes here may include `bio`,
-          // `email`, and `followers` on top of the typed GithubProfile —
-          // but we cannot trust their types at runtime (a malformed upstream
-          // response could deliver a number where a string is expected).
-          // Narrow each field via `typeof` so a wrong shape becomes `null`
-          // / `0` cleanly, rather than relying on the outer try/catch as a
-          // safety net when downstream code calls `.trim()` on a non-string.
-          const rawBio = (profile as { bio?: unknown }).bio
-          const rawEmail = (profile as { email?: unknown }).email
-          const rawFollowers = (profile as { followers?: unknown }).followers
-
-          const flags = deriveSignupFlags({
-            bio: typeof rawBio === 'string' ? rawBio : null,
-            email: typeof rawEmail === 'string' ? rawEmail : null,
-            followers: typeof rawFollowers === 'number' ? rawFollowers : 0,
+      // Phase 11.5: pull the user's GitHub-org memberships and reconcile
+      // them into public.orgs + org_members. The access_token is available
+      // because we requested `read:org` scope; if the user denied the scope
+      // at consent, /user/orgs returns 403 and syncUserGithubOrgs returns
+      // the no-op tuple.
+      try {
+        const result = await syncUserGithubOrgs({
+          supabase,
+          userId: user.id,
+          githubAccessToken: account.access_token as string,
+        })
+        if (result.added.length > 0 || result.removed.length > 0) {
+          console.info('[auth] github org sync delta:', {
+            userId: user.id,
+            added: result.added,
+            removed: result.removed,
+            total: result.total,
           })
-          const username = gh.login.toLowerCase()
-          const { error: flagsErr } = await supabase
-            .from('users')
-            .update({ signup_flags: flags })
-            .eq('username', username)
-          if (flagsErr) {
-            logRouteError(flagsErr, {
-              route: 'events.signIn:signup_flags',
-              userId: user.id,
-            })
-          }
-        } catch (flagsThrew) {
-          logRouteError(flagsThrew, {
+        }
+      } catch (err) {
+        console.error('[auth] github org sync threw:', err)
+      }
+
+      // Phase 14: derive signup_flags from the GitHub profile and write
+      // to public.users. Best-effort — moderators read this column as a
+      // soft-signal triage hint; failure must NEVER block login.
+      try {
+        const flags = deriveSignupFlags({
+          bio: gh.bio,
+          email: gh.email,
+          followers: gh.followers,
+        })
+        const username = gh.login.toLowerCase()
+        const { error: flagsErr } = await supabase
+          .from('users')
+          .update({ signup_flags: flags })
+          .eq('username', username)
+        if (flagsErr) {
+          logRouteError(flagsErr, {
             route: 'events.signIn:signup_flags',
             userId: user.id,
           })
         }
-      } catch (err) {
-        console.error('[auth] audit-column update threw:', err)
+      } catch (flagsThrew) {
+        logRouteError(flagsThrew, {
+          route: 'events.signIn:signup_flags',
+          userId: user.id,
+        })
       }
     },
   },
