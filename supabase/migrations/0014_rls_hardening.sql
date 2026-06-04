@@ -39,20 +39,24 @@
 -- ---------------------------------------------------------------------------
 -- 1. (C1) public.users_public — safe projection for anon/authenticated reads
 --
--- WITH (security_invoker = true) — the view executes with the calling
--- role's privileges, so RLS on public.users still applies when the view
--- is queried. The GRANT below is the actual access control; the
--- security_invoker setting is defense-in-depth so a future GRANT mistake
--- on the view doesn't accidentally elevate readers above the table policy.
+-- Uses default view semantics (security_definer-style) so that the view
+-- runs with the view owner's privileges on the underlying table. Anon and
+-- authenticated callers therefore do NOT need SELECT on public.users —
+-- which is exactly what we want, because the REVOKE below strips that
+-- GRANT from them. With security_invoker = true the view would fail for
+-- those roles after the revoke (caught in PR #43 review).
+--
+-- The security boundary is the column projection itself: this view only
+-- exposes the explicitly-listed safe columns, so anon/authenticated have
+-- no path to banned_at, banned_reason, banned_by, signup_flags, or
+-- updated_at no matter what permissions the view's owner role holds.
 --
 -- Column list mirrors what app/[username]/page.tsx, lib/profile/lookup.ts,
 -- and lib/feed/hydrate.ts already select; nothing private creeps through.
 -- ---------------------------------------------------------------------------
 DROP VIEW IF EXISTS public.users_public;
 
-CREATE VIEW public.users_public
-    WITH (security_invoker = true)
-    AS
+CREATE VIEW public.users_public AS
     SELECT
         id,
         username,
@@ -70,6 +74,8 @@ COMMENT ON VIEW public.users_public IS
     'Excludes banned_at, banned_reason, banned_by (0011), signup_flags (0012), '
     'updated_at, and email-bearing columns. Anon/authenticated clients should '
     'always query this view instead of the underlying table. '
+    'Runs with owner privileges (no security_invoker) so callers do not need '
+    'SELECT on public.users — the column projection is the security boundary. '
     'Service-role bypasses both the view and the underlying GRANT.';
 
 REVOKE ALL ON public.users_public FROM anon, authenticated;
