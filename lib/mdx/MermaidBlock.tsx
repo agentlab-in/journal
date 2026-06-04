@@ -65,14 +65,19 @@ export function MermaidBlock({ code }: MermaidBlockProps) {
   // hard-limit fallback below.
   const oversized = code.length > MERMAID_HARD_LIMIT
   const heavy = !oversized && code.length > MERMAID_CLICK_TO_RENDER
+  // Reset the gate when `code` shifts across the heavy/light boundary
+  // (e.g. an editor preview rerender swaps a 3000-char body for a
+  // 500-char body). React's prescribed pattern for "reset state when a
+  // prop changes" is to track the previous prop value and call
+  // setState during render — it skips the cascading rerender that an
+  // effect-based reset would cause. See
+  // https://react.dev/reference/react/useState#storing-information-from-previous-renders
   const [unlocked, setUnlocked] = useState<boolean>(!heavy)
-  // Reset the gate when `code` shifts across the heavy/light boundary.
-  // Without this, an editor-rerender that swaps a 3000-char body for a
-  // 500-char body would leave a small diagram stuck behind the button,
-  // and vice versa. The effect is a no-op while the category is stable.
-  useEffect(() => {
+  const [prevHeavy, setPrevHeavy] = useState<boolean>(heavy)
+  if (prevHeavy !== heavy) {
+    setPrevHeavy(heavy)
     setUnlocked(!heavy)
-  }, [heavy])
+  }
   const theme = useSyncExternalStore(
     subscribeToTheme,
     getMermaidTheme,
