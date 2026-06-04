@@ -11,6 +11,7 @@ import { ensurePublicUser } from '@/lib/users/ensure-public-user'
 import { deriveSignupFlags } from '@/lib/auth/soft-flag'
 import { hashBanFingerprintKey, syntheticProviderKey } from '@/lib/auth/ban-fingerprint'
 import { logRouteError } from '@/lib/logging/error-log'
+import { syncUserGithubOrgs } from '@/lib/orgs/github-sync'
 
 // ---------------------------------------------------------------------------
 // Gate types (exported for unit testing — pure function, no I/O)
@@ -203,7 +204,15 @@ function buildAdapter() {
   return SupabaseAdapter({ url, secret })
 }
 
-function buildGithubProvider() {
+// `read:org` is required by Phase 11.5 so events.signIn can pull the user's
+// GitHub-org memberships via /user/orgs and sync them into public.orgs +
+// org_members. GitHub will re-prompt existing users on their next sign-in to
+// consent to the new scope; if a user denies it, the access_token still
+// signs them in but /user/orgs returns 403 / [] and syncUserGithubOrgs
+// no-ops — sync is best-effort, not a sign-in requirement.
+export const GITHUB_OAUTH_SCOPE = 'read:user user:email read:org'
+
+export function buildGithubProvider() {
   const clientId = process.env.GITHUB_CLIENT_ID
   const clientSecret = process.env.GITHUB_CLIENT_SECRET
   if (!clientId || !clientSecret) {
@@ -214,9 +223,17 @@ function buildGithubProvider() {
     }
     // Build/typecheck/unit-test paths: provider is constructed with empty
     // strings so module load doesn't crash.
-    return GithubProvider({ clientId: clientId ?? '', clientSecret: clientSecret ?? '' })
+    return GithubProvider({
+      clientId: clientId ?? '',
+      clientSecret: clientSecret ?? '',
+      authorization: { params: { scope: GITHUB_OAUTH_SCOPE } },
+    })
   }
-  return GithubProvider({ clientId, clientSecret })
+  return GithubProvider({
+    clientId,
+    clientSecret,
+    authorization: { params: { scope: GITHUB_OAUTH_SCOPE } },
+  })
 }
 
 // ---------------------------------------------------------------------------
@@ -547,7 +564,7 @@ export const authOptions: NextAuthOptions = {
      *
      * Best-effort: a Supabase write failure logs but never blocks login.
      */
-    async signIn({ user, profile }) {
+    async signIn({ user, account, profile }) {
       if (!user.id || !profile) return
 
       const gh = profile as GithubProfile
@@ -577,6 +594,33 @@ export const authOptions: NextAuthOptions = {
           await ensurePublicUser(supabase, user.id)
         } catch (innerErr) {
           console.error('[auth] ensurePublicUser threw:', innerErr)
+        }
+
+        // Phase 11.5: pull the user's GitHub-org memberships and reconcile
+        // them into public.orgs + org_members. Independent try/catch so a
+        // sync failure can't poison the signup_flags write below. The
+        // access_token is available because we requested `read:org` scope;
+        // if the user denied the scope at consent, /user/orgs returns 403
+        // and syncUserGithubOrgs returns the no-op tuple.
+        try {
+          if (account?.access_token) {
+            const result = await syncUserGithubOrgs({
+              supabase,
+              userId: user.id,
+              githubAccessToken: account.access_token as string,
+            })
+            // Light info log so prod can confirm sync ran; no PII.
+            if (result.added.length > 0 || result.removed.length > 0) {
+              console.info('[auth] github org sync delta:', {
+                userId: user.id,
+                added: result.added,
+                removed: result.removed,
+                total: result.total,
+              })
+            }
+          }
+        } catch (syncErr) {
+          console.error('[auth] github org sync threw:', syncErr)
         }
 
         // Phase 14: derive signup_flags from the GitHub profile and write
