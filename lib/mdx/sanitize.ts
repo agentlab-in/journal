@@ -107,8 +107,31 @@ export const sanitizeSchema: Schema = {
   // defaultSchema.strip.
   strip: [...(defaultSchema.strip ?? ['script']), 'style'],
   // Treat `url` on <embed> like an href: only http(s).
+  // `srcSet` is listed defensively (L10): modern browsers already reject
+  // `javascript:` candidate URLs, but the default schema doesn't restrict
+  // protocols there — be explicit so future allowlist drift can't open a hole.
   protocols: {
     ...(defaultSchema.protocols ?? {}),
     url: ['http', 'https'],
+    srcSet: ['http', 'https'],
   },
 }
+
+/**
+ * Monotonically increasing version of the sanitize allowlist (H12). Bumped
+ * by the operator whenever `sanitizeSchema` (or anything in the MDX render
+ * pipeline that affects the stored `body_html`) gains or loses an
+ * affordance. Stored `posts.sanitize_version` is compared against this on
+ * read to decide whether a row's cached HTML is still consistent with the
+ * current allowlist.
+ *
+ * Bump policy:
+ *   - Add a tag/attribute/protocol that widens the allowlist → bump.
+ *   - Drop a tag/attribute/protocol that narrows the allowlist → bump.
+ *   - Cosmetic comment or rename with no behavioural change → don't bump.
+ *
+ * After bumping, an out-of-band sweep re-renders stale `body_html` rows.
+ * Until then `PostBodyStatic` emits a warning log per stale read.
+ */
+export const SANITIZE_VERSION = 1
+

@@ -8,11 +8,19 @@
  * Query params:
  *   q  - optional prefix to match against slug or name (ILIKE 'q%'). Empty or
  *        absent → returns the first 50 approved tags by alphabetical order.
+ *        Capped at 64 characters; longer values are rejected with 400.
  *
  * Response: { tags: { slug, name, parent_tag_slug }[] }
  *
  * The response is cached at the edge (s-maxage=60 / SWR=300) — tags change
  * infrequently and the picker can tolerate up to a minute of staleness.
+ *
+ * Security note (H2): the previous implementation interpolated `q` (after
+ * LIKE-escaping) into a single PostgREST `.or()` string. PostgREST parses
+ * `.or()` as comma-separated predicates, so an unescaped `,` or `.` in `q`
+ * could inject extra predicates. We now run the slug-prefix and name-prefix
+ * lookups as two separate `.ilike()` queries and merge them in the route,
+ * which removes the metacharacter surface entirely.
  */
 import type { NextRequest } from 'next/server'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
@@ -21,6 +29,9 @@ import { logRouteError } from '@/lib/logging/error-log'
 export const runtime = 'nodejs'
 
 const LIMIT = 50
+const MAX_Q_LENGTH = 64
+
+type TagRow = { slug: string; name: string; parent_tag_slug: string | null }
 
 function json(
   status: number,
@@ -41,43 +52,88 @@ export async function GET(req: NextRequest | Request): Promise<Response> {
   const qRaw = url.searchParams.get('q')
   const q = qRaw?.trim() ?? ''
 
-  const supabase = createAdminSupabaseClient()
-  let builder = supabase
-    .from('tags')
-    .select('slug, name, parent_tag_slug')
-    .eq('is_approved', true)
-
-  if (q.length > 0) {
-    // Escape the LIKE wildcards in user input so '%' and '_' don't broaden
-    // the search beyond what they typed.
-    const escaped = q.replace(/[\\%_]/g, (m) => `\\${m}`)
-    const pattern = `${escaped}%`
-    builder = builder.or(`slug.ilike.${pattern},name.ilike.${pattern}`)
+  if (q.length > MAX_Q_LENGTH) {
+    return json(400, { error: 'query_too_long' })
   }
 
-  // PostgREST rejects `nulls=first` on a column not part of the SELECT in some
-  // setups, and chaining two `.order()` calls when one column is nullable has
-  // bitten this codebase before. Order by slug only — the parent-first
-  // grouping is a display concern that the picker can do client-side.
-  const { data, error } = await builder
-    .order('slug', { ascending: true })
-    .limit(LIMIT)
+  const supabase = createAdminSupabaseClient()
 
-  if (error) {
-    logRouteError(error, {
+  // No filter: alphabetical first page.
+  if (q.length === 0) {
+    const { data, error } = await supabase
+      .from('tags')
+      .select('slug, name, parent_tag_slug')
+      .eq('is_approved', true)
+      .order('slug', { ascending: true })
+      .limit(LIMIT)
+
+    if (error) {
+      logRouteError(error, {
+        route: '/api/tags/search',
+        extra: { code: error.code, details: error.details, hint: error.hint },
+      })
+      return json(500, { error: 'query_failed', detail: error.message })
+    }
+
+    return json(
+      200,
+      { tags: data ?? [] },
+      { 'Cache-Control': 's-maxage=60, stale-while-revalidate=300' },
+    )
+  }
+
+  // Escape LIKE wildcards in user input so '%' and '_' don't broaden the
+  // search beyond what they typed. We do NOT need to escape PostgREST
+  // metacharacters (',', '.', '(', ')') here because the value is passed as
+  // an argument to `.ilike()` rather than spliced into a multi-clause `.or()`
+  // string — the supabase-js builder URL-encodes it as a single predicate
+  // value, not a parser-level token list.
+  const escaped = q.replace(/[\\%_]/g, (m) => `\\${m}`)
+  const pattern = `${escaped}%`
+
+  const [slugResult, nameResult] = await Promise.all([
+    supabase
+      .from('tags')
+      .select('slug, name, parent_tag_slug')
+      .eq('is_approved', true)
+      .ilike('slug', pattern)
+      .order('slug', { ascending: true })
+      .limit(LIMIT),
+    supabase
+      .from('tags')
+      .select('slug, name, parent_tag_slug')
+      .eq('is_approved', true)
+      .ilike('name', pattern)
+      .order('slug', { ascending: true })
+      .limit(LIMIT),
+  ])
+
+  const firstError = slugResult.error ?? nameResult.error
+  if (firstError) {
+    logRouteError(firstError, {
       route: '/api/tags/search',
       extra: {
-        code: error.code,
-        details: error.details,
-        hint: error.hint,
+        code: firstError.code,
+        details: firstError.details,
+        hint: firstError.hint,
       },
     })
-    return json(500, { error: 'query_failed', detail: error.message })
+    return json(500, { error: 'query_failed', detail: firstError.message })
   }
+
+  // Merge, dedupe by slug, sort, cap.
+  const bySlug = new Map<string, TagRow>()
+  for (const row of (slugResult.data ?? []) as TagRow[]) bySlug.set(row.slug, row)
+  for (const row of (nameResult.data ?? []) as TagRow[]) {
+    if (!bySlug.has(row.slug)) bySlug.set(row.slug, row)
+  }
+  const merged = Array.from(bySlug.values())
+    .sort((a, b) => a.slug.localeCompare(b.slug))
+    .slice(0, LIMIT)
 
   return json(
     200,
-    { tags: data ?? [] },
+    { tags: merged },
     { 'Cache-Control': 's-maxage=60, stale-while-revalidate=300' },
   )
 }
