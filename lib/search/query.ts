@@ -25,6 +25,14 @@ export interface ParsedSearchParams {
   tags: string[]
 }
 
+/**
+ * Hard cap on the free-text query. `websearch_to_tsquery` is roughly
+ * linear in input length but the upstream RPC has no ceiling of its own;
+ * a multi-MB `?q=` would drive needless RPC cost and produce useless
+ * snippets. 200 chars comfortably fits any honest search.
+ */
+export const MAX_Q_LENGTH = 200
+
 /** Pull the single first value out of a string-or-array query param. */
 function firstString(value: string | string[] | undefined): string | undefined {
   if (Array.isArray(value)) return value[0]
@@ -49,7 +57,13 @@ export function parseSearchParams(input: {
   tag?: string | string[]
 }): ParsedSearchParams {
   const rawQ = firstString(input.q)
-  const q = typeof rawQ === 'string' ? rawQ.trim() : ''
+  // Strip NUL defensively (some HTTP stacks let it through) then cap.
+  // The cap is enforced here, upstream of `runSearch`, so every search
+  // path (page render, future API) inherits it.
+  const q =
+    typeof rawQ === 'string'
+      ? rawQ.replace(/\0/g, '').trim().slice(0, MAX_Q_LENGTH)
+      : ''
 
   const rawType = firstString(input.type)
   const type: PostType | null =

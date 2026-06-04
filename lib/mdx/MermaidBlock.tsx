@@ -23,6 +23,14 @@ export interface MermaidBlockProps {
   code: string
 }
 
+// Size thresholds for client-side DoS guard. mermaid parses + lays out
+// every node on the main thread; a multi-megabyte diagram pinned the tab
+// during fuzz testing. We refuse to render anything past 8000 chars and
+// gate 2000-8000 behind an explicit click so a reader scrolling past a
+// post doesn't pay the cost for diagrams they aren't looking at.
+const MERMAID_HARD_LIMIT = 8000
+const MERMAID_CLICK_TO_RENDER = 2000
+
 // Read the current page theme as 'dark' | 'default' (mermaid's name for
 // its light theme). Returning a string keyed off data-theme means the
 // snapshot is referentially stable across reads and re-runs the effect
@@ -51,6 +59,25 @@ export function MermaidBlock({ code }: MermaidBlockProps) {
   const id = useId().replace(/[:]/g, '')
   const ref = useRef<HTMLDivElement | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // For diagrams in the 2000-8000 char range, wait for an explicit user
+  // click before paying the parse + layout cost. Diagrams under the
+  // threshold skip the gate; oversized diagrams skip directly to the
+  // hard-limit fallback below.
+  const oversized = code.length > MERMAID_HARD_LIMIT
+  const heavy = !oversized && code.length > MERMAID_CLICK_TO_RENDER
+  // Reset the gate when `code` shifts across the heavy/light boundary
+  // (e.g. an editor preview rerender swaps a 3000-char body for a
+  // 500-char body). React's prescribed pattern for "reset state when a
+  // prop changes" is to track the previous prop value and call
+  // setState during render — it skips the cascading rerender that an
+  // effect-based reset would cause. See
+  // https://react.dev/reference/react/useState#storing-information-from-previous-renders
+  const [unlocked, setUnlocked] = useState<boolean>(!heavy)
+  const [prevHeavy, setPrevHeavy] = useState<boolean>(heavy)
+  if (prevHeavy !== heavy) {
+    setPrevHeavy(heavy)
+    setUnlocked(!heavy)
+  }
   const theme = useSyncExternalStore(
     subscribeToTheme,
     getMermaidTheme,
@@ -58,11 +85,17 @@ export function MermaidBlock({ code }: MermaidBlockProps) {
   )
 
   useEffect(() => {
+    if (oversized || !unlocked) return
     let cancelled = false
     void (async () => {
       try {
         const mermaid = (await import('mermaid')).default
         await initMermaidOnce(theme)
+        // Per-render caps on top of `securityLevel: 'strict'` set by
+        // initMermaidOnce. mermaid treats initialize as a merge, so this
+        // adds the size limits without clobbering the theme. (We don't
+        // own `mermaid-init.ts`; the limits live here instead.)
+        mermaid.initialize({ maxEdges: 500, maxTextSize: 50_000 })
         const { svg } = await mermaid.render(`mermaid-${id}`, code)
         if (!cancelled && ref.current) {
           ref.current.innerHTML = svg
@@ -81,7 +114,28 @@ export function MermaidBlock({ code }: MermaidBlockProps) {
     return () => {
       cancelled = true
     }
-  }, [code, id, theme])
+  }, [code, id, theme, oversized, unlocked])
+
+  if (oversized) {
+    return (
+      <pre className="overflow-x-auto rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100">
+        <code>{`Diagram too large to render — max ${MERMAID_HARD_LIMIT} chars (this one is ${code.length}).`}</code>
+      </pre>
+    )
+  }
+
+  if (!unlocked) {
+    return (
+      <button
+        type="button"
+        onClick={() => setUnlocked(true)}
+        className="my-6 flex w-full items-center justify-center rounded-md border border-dashed border-zinc-300 bg-zinc-50 px-4 py-6 text-sm text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        aria-label="Render diagram"
+      >
+        Click to render diagram ({code.length.toLocaleString()} chars)
+      </button>
+    )
+  }
 
   if (error) {
     // Phase 13: dark variant on the error pill so the red callout doesn't

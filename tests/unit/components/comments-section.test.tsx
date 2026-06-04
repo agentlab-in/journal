@@ -5,7 +5,7 @@
  * work, so we await the call and then mount the result with React Testing
  * Library to inspect the DOM. The Supabase admin client is replaced with a
  * vi.fn that returns a chainable stub matching the
- *   admin.from(...).select(...).eq(...).order(...)
+ *   admin.from(...).select(...).eq(...).order(...).limit(...)
  * shape used by CommentsSection.
  */
 import React from 'react'
@@ -61,10 +61,12 @@ function fakeAdmin(rows: RawCommentRow[] | null, error: unknown = null) {
   const chain = {
     select: vi.fn(),
     eq: vi.fn(),
-    order: vi.fn(() => Promise.resolve({ data: rows, error })),
+    order: vi.fn(),
+    limit: vi.fn(() => Promise.resolve({ data: rows, error })),
   }
   chain.select.mockReturnValue(chain)
   chain.eq.mockReturnValue(chain)
+  chain.order.mockReturnValue(chain)
   return { from: vi.fn(() => chain) }
 }
 

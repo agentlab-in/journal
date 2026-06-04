@@ -57,6 +57,28 @@ export async function POST(req: NextRequest): Promise<Response> {
   const guard = await guardMutatingRequest(req, { bucket: 'image_upload', userId })
   if (guard.failed) return guard.response
 
+  // 1c. Cheap Content-Length pre-check. `req.formData()` materialises the
+  // entire multipart body in memory before the per-file size cap below
+  // gets a chance to fire, which is the H11 DoS primitive. Reject early
+  // when the advertised body size couldn't possibly fit under MAX_BYTES
+  // (plus a 4KB multipart-framing slop). Content-Length can lie — the
+  // post-parse `file.size` check still runs.
+  //
+  // Returns the same `file_too_large` code as the post-parse path: the
+  // upload UI (CoverImagePicker, ProfileSettingsForm) keys its error
+  // message off that string, so reusing it surfaces a sensible toast
+  // instead of "unknown error" when the pre-check fires.
+  const contentLengthHeader = req.headers.get('content-length')
+  if (contentLengthHeader !== null) {
+    const declaredLength = Number(contentLengthHeader)
+    if (
+      Number.isFinite(declaredLength) &&
+      declaredLength > MAX_BYTES + 4096
+    ) {
+      return json(413, { error: 'file_too_large' })
+    }
+  }
+
   // 2. Bucket
   const bucketParam = req.nextUrl.searchParams.get('bucket')
   const bucket = validateBucket(bucketParam)

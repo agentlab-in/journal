@@ -33,6 +33,12 @@ export async function CommentsSection({ postId }: CommentsSectionProps) {
   // Service-role read so soft-deleted rows come back too. Public RLS
   // hides them, but we need them to render the "[removed]" placeholder
   // and keep replies anchored to their original parent.
+  //
+  // The `.limit(500)` is a hard ceiling against H13: an unbounded fetch
+  // on a runaway/long-lived post would otherwise hand-roll a DoS into
+  // every page render. The cap sits well above any v1 post (current
+  // p99 < 30 comments). Real pagination is post-launch work; until then
+  // the 501st comment+ simply isn't rendered.
   const admin = createAdminSupabaseClient()
   const { data, error } = await admin
     .from('comments')
@@ -41,6 +47,7 @@ export async function CommentsSection({ postId }: CommentsSectionProps) {
     )
     .eq('post_id', postId)
     .order('created_at', { ascending: true })
+    .limit(500)
 
   // On a transient DB error we still want the page to render — just
   // without comments. Logging keeps it diagnosable.

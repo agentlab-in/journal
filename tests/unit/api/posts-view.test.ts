@@ -87,19 +87,20 @@ describe('POST /api/posts/[id]/view — RPC error is swallowed (fire-and-forget)
   })
 })
 
-describe('POST /api/posts/[id]/view — non-uuid id (no validation)', () => {
+describe('POST /api/posts/[id]/view — non-uuid id is rejected silently', () => {
   beforeEach(() => {
     capturedRpcs.length = 0
     currentFakeClient = makeViewClient()
   })
 
-  it('returns 204 for an invalid (non-uuid) id — DB call may just no-op', async () => {
+  it('returns 204 for an invalid (non-uuid) id and does NOT call the RPC', async () => {
+    // Security/w5 (H15): the route now refuses to call the increment RPC
+    // for non-UUID ids. The response stays 204 so a probing script can't
+    // tell a malformed id from a real-but-deleted post.
     const { POST } = await import('@/app/api/posts/[id]/view/route')
     const res = await POST(makeRequest('not-a-uuid') as never, makeContext('not-a-uuid'))
 
     expect(res.status).toBe(204)
-    // We still forward the id to the DB unchanged; the DB will silently no-op
-    expect(capturedRpcs).toHaveLength(1)
-    expect(capturedRpcs[0].args).toEqual({ p_id: 'not-a-uuid' })
+    expect(capturedRpcs).toHaveLength(0)
   })
 })
