@@ -183,4 +183,57 @@ describe('logRouteError', () => {
       expect(raw).not.toContain(s)
     }
   })
+
+  it('redacts bare PII keys (email, ip, ip_address, remote_addr) — M15', () => {
+    const emailVal = 'leak@example.com'
+    const ipVal = '203.0.113.42'
+    const ipAddrVal = '198.51.100.7'
+    const remoteAddrVal = '192.0.2.99'
+    logRouteError(new Error('x'), {
+      route: '/api/pii',
+      extra: {
+        email: emailVal,
+        user_email: emailVal,
+        ip: ipVal,
+        ip_address: ipAddrVal,
+        ipAddress: ipAddrVal,
+        remote_addr: remoteAddrVal,
+        remoteAddr: remoteAddrVal,
+        request_id: 'req-pii',
+      },
+    })
+    const payload = lastLogged()
+    expect(payload.email).toBe('[REDACTED]')
+    expect(payload.user_email).toBe('[REDACTED]')
+    expect(payload.ip).toBe('[REDACTED]')
+    expect(payload.ip_address).toBe('[REDACTED]')
+    expect(payload.ipAddress).toBe('[REDACTED]')
+    expect(payload.remote_addr).toBe('[REDACTED]')
+    expect(payload.remoteAddr).toBe('[REDACTED]')
+    expect(payload.request_id).toBe('req-pii')
+
+    const raw = consoleSpy.mock.calls.at(-1)?.[0] as string
+    for (const s of [emailVal, ipVal, ipAddrVal, remoteAddrVal]) {
+      expect(raw).not.toContain(s)
+    }
+  })
+
+  it('does not over-redact keys that merely contain "ip" as a substring', () => {
+    // "recipient", "description" both contain "ip" but should NOT be redacted.
+    // We only match bare `ip`, prefixed `ip[_-]?address`, and `remote[_-]?addr`.
+    logRouteError(new Error('x'), {
+      route: '/api/no-overreach',
+      extra: {
+        recipient: 'someone@example.com', // this is intentional — overreach check is on the KEY
+        description: 'safe-text',
+        zip: '94016',
+      },
+    })
+    const payload = lastLogged()
+    // Note: 'recipient' value happens to be an email-looking string but the
+    // KEY is 'recipient', not 'email' — redaction is key-based, not value-based.
+    expect(payload.recipient).toBe('someone@example.com')
+    expect(payload.description).toBe('safe-text')
+    expect(payload.zip).toBe('94016')
+  })
 })

@@ -45,13 +45,17 @@ function shapeError(err: unknown): ErrorShape {
  * Keys (case-insensitive, full key name) whose values are replaced with
  * `'[REDACTED]'` when spread from `ctx.extra` into the log record.
  *
- * Matches: authorization, Authorization, auth_token, accessToken,
- * password, cookies, api_key, apiKey, API-KEY, userSecret, etc.
+ * Matches the obvious credential families plus PII the GDPR/DPDP regimes
+ * treat as identifying: bare `email`, `ip` / `ip_address` / `remote_addr`.
+ * Examples of matches: authorization, Authorization, auth_token,
+ * accessToken, password, cookies, api_key, apiKey, API-KEY, userSecret,
+ * email, user_email, ip, ipAddress, remote_addr.
  *
  * Callers should still avoid putting raw secrets in `ctx.extra` — this is
  * a defence-in-depth net, not a license to log credentials.
  */
-const SENSITIVE_KEY_PATTERN = /authorization|token|secret|password|cookie|api[_-]?key/i
+const SENSITIVE_KEY_PATTERN =
+  /authorization|token|secret|password|cookie|api[_-]?key|email|ip[_-]?address|remote[_-]?addr|^ip$/i
 
 function redactExtra(
   extra: Record<string, unknown> | undefined,
@@ -67,10 +71,10 @@ function redactExtra(
 /**
  * Emit a single structured JSON line for a route error to console.error.
  *
- * Redaction policy: any key in `ctx.extra` whose name matches
- * `/authorization|token|secret|password|cookie|api[_-]?key/i`
- * (case-insensitive, full key name) has its value replaced with the
- * literal string `'[REDACTED]'` before serialization. This guards
+ * Redaction policy: any key in `ctx.extra` whose name matches the
+ * `SENSITIVE_KEY_PATTERN` regex (credentials and bare PII like email/ip)
+ * has its value replaced with the literal string `'[REDACTED]'` before
+ * serialization. This guards
  * against accidental secret leaks via the spread `...ctx.extra` payload.
  * Callers must still avoid putting raw secrets in `ctx.extra` — this is
  * defence-in-depth, not a license to log credentials.
