@@ -173,10 +173,15 @@ export async function POST(req: NextRequest | Request): Promise<Response> {
   }
 
   // Step 10: insert new pending tags
+  //
+  // public.tags.name is NOT NULL with no default (see 0002_content.sql), so
+  // we must derive a display name from the slug. Approving moderators can
+  // rewrite this in the admin UI; this is just the pending-state placeholder.
   if (newTagSlugs.length > 0) {
     const { error: tagInsertErr } = await admin.from('tags').insert(
       newTagSlugs.map((slug) => ({
         slug,
+        name: slug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
         is_approved: false,
         approved_by: null,
         approved_at: null,

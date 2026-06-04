@@ -290,6 +290,27 @@ export const authOptions: NextAuthOptions = {
 
   pages: { signIn: '/auth/signin' },
 
+  // Pin the session cookie config so a future change can't silently widen
+  // it to `domain: '.agentlab.in'` and start sharing sessions between dev
+  // and prod. NextAuth v4 defaults are the same shape — we just freeze
+  // them at the source.
+  cookies: {
+    sessionToken: {
+      name:
+        process.env.NODE_ENV === 'production'
+          ? '__Secure-next-auth.session-token'
+          : 'next-auth.session-token',
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+        // intentionally NO `domain` — keep cookies host-scoped so
+        // dev.agentlab.in and agentlab.in have separate sessions.
+      },
+    },
+  },
+
   callbacks: {
     /**
      * session callback — runs whenever a session is read (e.g. by
