@@ -53,9 +53,14 @@ export async function POST(req: Request): Promise<Response> {
     return json(401, { error: 'unauthorized' })
   }
 
-  // 1b. Origin guard — preview isn't bucketed (editor compiles on every
-  // keystroke; an RL would only frustrate authors).
-  const guard = await guardMutatingRequest(req, { userId: session.user.id })
+  // 1b. Origin + rate-limit guard. The editor debounces 300ms between
+  // compile calls; the `mdx_preview` ceiling (60/min/user) sits well above
+  // any honest typing cadence while shutting down a script that holds the
+  // editor open and pumps the endpoint.
+  const guard = await guardMutatingRequest(req, {
+    userId: session.user.id,
+    bucket: 'mdx_preview',
+  })
   if (guard.failed) return guard.response
 
   // 2. Parse JSON
