@@ -71,9 +71,9 @@ function postsHandler(opts: {
           })),
         }
       }
-      // wikilink resolve: select('id, author_id, slug, type, published_at, like_count, users!inner(username)').eq(...).is(...)
+      // wikilink resolve (batched): select(long).in('slug', [...]).is('deleted_at', null)
       return {
-        eq: vi.fn(() => ({
+        in: vi.fn(() => ({
           is: vi.fn(() => Promise.resolve({ data: [], error: null })),
         })),
       }
@@ -426,7 +426,8 @@ describe('POST /api/posts — post_references on resolved wikilinks', () => {
       likes: [{ count: 5 }],
     }
 
-    // Build a posts handler that handles both slug-collision (select slug) and wikilink resolve
+    // Build a posts handler that handles both slug-collision (select slug) and
+    // the batched wikilink resolve (select(long).in('slug', […]).is(…))
     const customPostsHandler = {
       select: vi.fn((cols: string) => {
         if (cols === 'slug') {
@@ -437,9 +438,9 @@ describe('POST /api/posts — post_references on resolved wikilinks', () => {
             })),
           }
         }
-        // wikilink resolve query
+        // wikilink resolve query (batched form)
         return {
-          eq: vi.fn(() => ({
+          in: vi.fn(() => ({
             is: vi.fn(() => Promise.resolve({ data: [resolvedPost], error: null })),
           })),
         }
