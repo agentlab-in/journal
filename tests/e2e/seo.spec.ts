@@ -19,7 +19,12 @@ test.describe('SEO routes', () => {
     expect(res.status()).toBe(200)
     const body = await res.text()
     expect(body).toContain('User-Agent: *')
-    expect(body).toContain('Disallow: /admin')
+    // Phase 14 / H8: production robots only Disallows /api/. The admin/
+    // write/settings/auth paths are protected at the handler and are
+    // intentionally omitted so robots.txt isn't a sitemap of sensitive
+    // surfaces.
+    expect(body).toContain('Disallow: /api/')
+    expect(body).not.toContain('Disallow: /admin')
     expect(body).toContain('Sitemap: https://agentlab.in/sitemap.xml')
   })
 
