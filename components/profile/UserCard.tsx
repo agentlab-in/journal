@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import Link from 'next/link'
 
 export interface UserCardProps {
@@ -27,8 +28,7 @@ export function UserCard({ username, displayName, avatarUrl, bio }: UserCardProp
   const preview = truncateBio(bio)
   return (
     <Link href={`/${username}`} className="user-card">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
+      <Image
         src={avatarUrl ?? '/icon.png'}
         alt=""
         className="user-card__avatar"

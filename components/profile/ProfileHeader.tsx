@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import Link from 'next/link'
 import { FollowButton } from './FollowButton'
 import { ReportButton } from '@/components/report/ReportButton'
@@ -65,8 +66,7 @@ export function ProfileHeader({
   return (
     <header className="profile-header">
       <div className="profile-header__top">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <Image
           src={avatarUrl ?? '/icon.png'}
           alt=""
           className="profile-avatar"

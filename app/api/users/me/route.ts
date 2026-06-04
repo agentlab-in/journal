@@ -5,6 +5,7 @@ import { getSession } from '@/lib/auth'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { guardMutatingRequest } from '@/lib/route-guard'
 import { logRouteError } from '@/lib/logging/error-log'
+import { sanitizeBio } from '@/lib/profile/sanitize-bio'
 
 export const runtime = 'nodejs'
 
@@ -16,10 +17,47 @@ function json(status: number, body: Record<string, unknown>): Response {
 }
 
 const BioField = z.string().max(2000).nullable()
+// Avatar URLs are stored verbatim and rendered everywhere — including OG
+// cards and a raw <img>/<Image> in profile headers. A loose
+// `startsWith('https://')` check would let any attacker-controlled host
+// land in the column, so we lock down to the two surfaces that can
+// legitimately produce an avatar: the Supabase `avatars` public bucket
+// and `avatars.githubusercontent.com/u/**` (the URL NextAuth seeds on
+// first sign-in). Literal `/..` / `/.` segments are rejected because
+// WHATWG URL normalisation collapses them before fetch, which would
+// otherwise allow breaking out of the `avatars` bucket.
 const AvatarUrlField = z
   .string()
-  .refine((s) => s.startsWith('https://'), { message: 'must start with https://' })
   .nullable()
+  .refine(
+    (val) => {
+      if (val === null || val === '') return true
+      let u: URL
+      try {
+        u = new URL(val)
+      } catch {
+        return false
+      }
+      if (u.pathname.includes('/../') || u.pathname.includes('/./')) return false
+      const okGithub =
+        u.origin === 'https://avatars.githubusercontent.com' &&
+        u.pathname.startsWith('/u/')
+      if (okGithub) return true
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      if (!supabaseUrl) return false
+      let supa: URL
+      try {
+        supa = new URL(supabaseUrl)
+      } catch {
+        return false
+      }
+      return (
+        u.origin === supa.origin &&
+        u.pathname.startsWith('/storage/v1/object/public/avatars/')
+      )
+    },
+    { message: 'avatar_url must be a Supabase avatars URL or GitHub avatar URL' },
+  )
 
 // `.strict()` makes the route reject unknown fields (display_name, username, …).
 // Both fields are optional individually; the no-fields-at-all case is handled
@@ -57,8 +95,11 @@ export async function PATCH(req: NextRequest | Request): Promise<Response> {
 
   const { bio, avatar_url } = parsed.data
   const update: Record<string, unknown> = {}
-  if (bio !== undefined) update.bio = bio
-  if (avatar_url !== undefined) update.avatar_url = avatar_url
+  if (bio !== undefined) update.bio = bio === null ? null : sanitizeBio(bio)
+  // Coerce '' → null so a cleared avatar persists as NULL instead of an
+  // empty string. `next/image` rejects an empty `src` at render time,
+  // which would break the profile header otherwise.
+  if (avatar_url !== undefined) update.avatar_url = avatar_url === '' ? null : avatar_url
 
   if (Object.keys(update).length === 0) {
     return json(400, { error: 'no_fields' })
