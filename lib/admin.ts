@@ -50,13 +50,18 @@ export async function requireAdmin(session: Session | null): Promise<string> {
  *   if (gate) return gate
  *   // ... admin-only work
  *
- * - Missing/anonymous session → 401 unauthorized
- * - Authed non-admin → 404 not_found (do not reveal the route exists)
+ * L7 — Both unauthenticated and authed-non-admin callers get the same
+ * 404 not_found shape. An asymmetric 401 leaks "this route exists and is
+ * admin-only" to anonymous probes, which defeats the misdirection
+ * `requireAdmin()` provides for the page version.
+ *
+ * - Missing/anonymous session → 404 not_found
+ * - Authed non-admin → 404 not_found
  * - Admin → null
  */
 export async function requireAdminApi(session: Session | null): Promise<Response | null> {
   if (!session?.user?.id) {
-    return json(401, { error: 'unauthorized' })
+    return json(404, { error: 'not_found' })
   }
   const admin = await resolveIsAdmin(session.user.id)
   if (!admin) {

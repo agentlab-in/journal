@@ -96,22 +96,22 @@ describe('requireAdminApi()', () => {
     expect(result).toBeNull()
   })
 
-  it('returns 401 { error: "unauthorized" } when session is null', async () => {
+  it('returns 404 { error: "not_found" } when session is null', async () => {
     const resp = await requireAdminApi(null)
     expect(resp).not.toBeNull()
-    expect(resp!.status).toBe(401)
+    expect(resp!.status).toBe(404)
     const body = await resp!.json()
-    expect(body).toEqual({ error: 'unauthorized' })
+    expect(body).toEqual({ error: 'not_found' })
     expect(resolveIsAdmin).not.toHaveBeenCalled()
   })
 
-  it('returns 401 { error: "unauthorized" } when session has no user.id', async () => {
+  it('returns 404 { error: "not_found" } when session has no user.id', async () => {
     const session = { user: { email: 'x@y.com' }, expires: '2099-12-31' } as unknown as Session
     const resp = await requireAdminApi(session)
     expect(resp).not.toBeNull()
-    expect(resp!.status).toBe(401)
+    expect(resp!.status).toBe(404)
     const body = await resp!.json()
-    expect(body).toEqual({ error: 'unauthorized' })
+    expect(body).toEqual({ error: 'not_found' })
   })
 
   it('returns 404 { error: "not_found" } when user is authed but not an admin', async () => {
