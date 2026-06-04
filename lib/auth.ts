@@ -414,6 +414,7 @@ export const authOptions: NextAuthOptions = {
      * NextAuth v4 supports returning a redirect string from this callback.
      */
     async signIn({ account }) {
+      console.error('[DIAG] callbacks.signIn ENTERED. account.access_token present:', !!account?.access_token)
       // No access token means something went wrong upstream.
       if (!account?.access_token) return false
 
@@ -565,6 +566,7 @@ export const authOptions: NextAuthOptions = {
      * Best-effort: a Supabase write failure logs but never blocks login.
      */
     async signIn({ user, account, profile }) {
+      console.error('[DIAG] events.signIn ENTERED. user.id:', user?.id, 'profile?:', !!profile, 'account?:', !!account)
       if (!user.id || !profile) return
 
       const gh = profile as GithubProfile
