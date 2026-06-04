@@ -9,6 +9,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { ensurePublicUser } from '@/lib/users/ensure-public-user'
 import { deriveSignupFlags } from '@/lib/auth/soft-flag'
+import { hashBanFingerprintKey, syntheticProviderKey } from '@/lib/auth/ban-fingerprint'
 import { logRouteError } from '@/lib/logging/error-log'
 
 // ---------------------------------------------------------------------------
@@ -417,9 +418,14 @@ export const authOptions: NextAuthOptions = {
         return result.redirect
       }
 
-      // Ban check — query public.users for banned_at.
-      // Fail-open: if the lookup errors, allow sign-in and let the API
-      // layer enforce on the next request.
+      // Ban check — three layers:
+      //   (a) public.users.banned_at for the OAuth-mapped user row;
+      //   (b) ban_fingerprints by sha256(email) — same human, new GitHub account;
+      //   (c) ban_fingerprints by providerAccountId — same GitHub account, new email.
+      //
+      // Fail-CLOSED: a Supabase error here used to bypass the check; combined
+      // with the per-request `banned_at` recheck in getSession(), a transient
+      // blip is recoverable on the next request, so denying sign-in is safe.
       try {
         const username = gh.login.toLowerCase()
         const supabase = createAdminSupabaseClient()
@@ -430,15 +436,66 @@ export const authOptions: NextAuthOptions = {
           .maybeSingle<{ id: string; banned_at: string | null }>()
 
         if (banError) {
-          console.error('[auth] ban lookup error (fail-open):', banError.message)
-        } else if (banRow) {
+          console.error('[auth] ban lookup error (fail-closed):', banError.message)
+          return `/auth/blocked?reason=lookup_error&login=${encodeURIComponent(username)}`
+        }
+        if (banRow) {
           const redirect = decideBanRedirect({ login: username, banned_at: banRow.banned_at })
           if (redirect) {
             return redirect
           }
         }
+
+        // Fingerprint match — covers re-ban evasion with a second GitHub
+        // account or a renamed/reused email.
+        const candidateHashes: string[] = []
+        if (gh.email && gh.email.trim().length > 0) {
+          candidateHashes.push(hashBanFingerprintKey(gh.email))
+        }
+        const providerAccountIdRaw =
+          typeof account.providerAccountId === 'string' ? account.providerAccountId.trim() : ''
+        const providerAccountId = providerAccountIdRaw.length > 0 ? providerAccountIdRaw : null
+        if (providerAccountId) {
+          // Synthetic hash mirrors the writer in /api/admin/ban for the
+          // email-less path so a fingerprint stored under `gh:<id>` still
+          // matches even when this sign-in lacks an email.
+          candidateHashes.push(hashBanFingerprintKey(syntheticProviderKey(providerAccountId)))
+        }
+
+        if (candidateHashes.length > 0) {
+          const { data: hashMatch, error: hashErr } = await supabase
+            .from('ban_fingerprints')
+            .select('email_hash')
+            .in('email_hash', candidateHashes)
+            .limit(1)
+            .maybeSingle<{ email_hash: string }>()
+          if (hashErr) {
+            console.error('[auth] ban_fingerprints email lookup error (fail-closed):', hashErr.message)
+            return `/auth/blocked?reason=lookup_error&login=${encodeURIComponent(username)}`
+          }
+          if (hashMatch) {
+            return `/auth/blocked?reason=banned&login=${encodeURIComponent(username)}`
+          }
+        }
+
+        if (providerAccountId) {
+          const { data: idMatch, error: idErr } = await supabase
+            .from('ban_fingerprints')
+            .select('email_hash')
+            .eq('provider_account_id', providerAccountId)
+            .limit(1)
+            .maybeSingle<{ email_hash: string }>()
+          if (idErr) {
+            console.error('[auth] ban_fingerprints provider lookup error (fail-closed):', idErr.message)
+            return `/auth/blocked?reason=lookup_error&login=${encodeURIComponent(username)}`
+          }
+          if (idMatch) {
+            return `/auth/blocked?reason=banned&login=${encodeURIComponent(username)}`
+          }
+        }
       } catch (banErr) {
-        console.error('[auth] ban lookup threw (fail-open):', banErr)
+        console.error('[auth] ban lookup threw (fail-closed):', banErr)
+        return `/auth/blocked?reason=lookup_error&login=${encodeURIComponent(gh.login.toLowerCase())}`
       }
 
       return true
@@ -589,5 +646,35 @@ export async function getSession(): Promise<Session | null> {
       } as Session
     }
   }
-  return getServerSession(authOptions)
+
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.id) return session
+
+  // Per-request banned check. The 0015 session-invalidator trigger deletes
+  // sessions when a user is banned, so a live cookie usually fails the
+  // adapter's session lookup first — but a moderator may flip banned_at via
+  // SQL or a backfill path that bypasses the trigger, and the trigger only
+  // fires on the UPDATE; so we recheck here to keep banned users out of
+  // every authenticated request (read or write).
+  try {
+    const supabase = createAdminSupabaseClient()
+    const { data, error } = await supabase
+      .from('users')
+      .select('banned_at')
+      .eq('id', session.user.id)
+      .maybeSingle<{ banned_at: string | null }>()
+    if (error) {
+      console.error('[auth] per-request ban lookup error:', error.message)
+      // Fail-closed: drop the session rather than letting a banned user act.
+      return null
+    }
+    if (data?.banned_at) {
+      return null
+    }
+  } catch (err) {
+    console.error('[auth] per-request ban lookup threw:', err)
+    return null
+  }
+
+  return session
 }

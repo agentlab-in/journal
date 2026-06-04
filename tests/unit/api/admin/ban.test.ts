@@ -41,26 +41,45 @@ const ALREADY_BANNED_USER_ROW = { id: TARGET_ID, username: 'testuser', banned_at
 
 // ---------------------------------------------------------------------------
 // Fake client builder
+//
+// New route shape (W4):
+//   public.users           SELECT id/username/banned_at; UPDATE banned_at
+//   next_auth.sessions     SELECT id (trigger-cleanup verification — no DELETE)
+//   next_auth.users        SELECT email (fingerprint source)
+//   next_auth.accounts     SELECT providerAccountId (fingerprint source)
+//   public.ban_fingerprints UPSERT
+//   public.mod_actions     INSERT
 // ---------------------------------------------------------------------------
 
 interface FakeClientOpts {
   userRow?: unknown
   updateError?: { message: string } | null
-  sessionsDeleteResult?: unknown[]
-  sessionsDeleteError?: { message: string } | null
+  sessionsRemaining?: unknown[]
+  sessionsSelectError?: { message: string } | null
   modActionsError?: { message: string } | null
+  fingerprintError?: { message: string } | null
+  emailRow?: { email: string | null } | null
+  accountRow?: { providerAccountId: string | null } | null
+  emailLookupError?: { message: string } | null
+  accountLookupError?: { message: string } | null
 }
 
 function makeFakeClient(opts: FakeClientOpts = {}) {
   const {
     userRow = VALID_USER_ROW,
     updateError = null,
-    sessionsDeleteResult = [],
-    sessionsDeleteError = null,
+    sessionsRemaining = [],
+    sessionsSelectError = null,
     modActionsError = null,
+    fingerprintError = null,
+    emailRow = { email: 'test@example.com' },
+    accountRow = { providerAccountId: '12345' },
+    emailLookupError = null,
+    accountLookupError = null,
   } = opts
 
-  // Track schema() calls to differentiate next_auth from public
+  const fingerprintUpsertFn = vi.fn(async () => ({ error: fingerprintError }))
+
   return {
     from: vi.fn((table: string) => {
       if (table === 'users') {
@@ -71,17 +90,20 @@ function makeFakeClient(opts: FakeClientOpts = {}) {
             data: userRow,
             error: userRow ? null : { message: 'not found' },
           })),
-          update: vi.fn().mockReturnThis(),
+          update: vi.fn(() => ({
+            eq: vi.fn(async () => ({ error: updateError })),
+          })),
         }
-        // update() needs to return a chain that resolves
-        usersChain.update = vi.fn(() => ({
-          eq: vi.fn(async () => ({ error: updateError })),
-        }))
         return usersChain
       }
       if (table === 'mod_actions') {
         return {
           insert: vi.fn(async () => ({ error: modActionsError })),
+        }
+      }
+      if (table === 'ban_fingerprints') {
+        return {
+          upsert: fingerprintUpsertFn,
         }
       }
       return {
@@ -93,72 +115,122 @@ function makeFakeClient(opts: FakeClientOpts = {}) {
     schema: vi.fn(() => ({
       from: vi.fn((table: string) => {
         if (table === 'sessions') {
-          const sessionsDeleteChain = {
-            delete: vi.fn().mockReturnThis(),
-            eq: vi.fn().mockReturnThis(),
-            select: vi.fn(async () => ({
-              data: sessionsDeleteResult,
-              error: sessionsDeleteError,
+          // SELECT id FROM next_auth.sessions WHERE userId = ?
+          return {
+            select: vi.fn().mockReturnThis(),
+            eq: vi.fn(async () => ({
+              data: sessionsRemaining,
+              error: sessionsSelectError,
             })),
           }
-          return sessionsDeleteChain
+        }
+        if (table === 'users') {
+          // SELECT email FROM next_auth.users WHERE id = ?
+          return {
+            select: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
+            maybeSingle: vi.fn(async () => ({
+              data: emailLookupError ? null : emailRow,
+              error: emailLookupError,
+            })),
+          }
+        }
+        if (table === 'accounts') {
+          // SELECT providerAccountId FROM next_auth.accounts WHERE userId=? AND provider='github'
+          const accountsChain = {
+            select: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
+            maybeSingle: vi.fn(async () => ({
+              data: accountLookupError ? null : accountRow,
+              error: accountLookupError,
+            })),
+          }
+          return accountsChain
         }
         return {
           select: vi.fn().mockReturnThis(),
           eq: vi.fn().mockReturnThis(),
-          single: vi.fn(async () => ({ data: null, error: null })),
+          maybeSingle: vi.fn(async () => ({ data: null, error: null })),
         }
       }),
     })),
+    fingerprintUpsertFn,
   }
 }
 
-// More targeted fake client that tracks calls precisely for happy path
 function makeHappyFakeClient(opts: {
-  sessionsDeleteResult?: unknown[]
   modActionsError?: { message: string } | null
+  sessionsRemaining?: unknown[]
 } = {}) {
-  const { sessionsDeleteResult = [{ id: 'sess-1' }], modActionsError = null } = opts
+  const { modActionsError = null, sessionsRemaining = [] } = opts
 
   const usersUpdateEqFn = vi.fn(async () => ({ error: null }))
-  const usersSelectChain = {
-    select: vi.fn().mockReturnThis(),
-    eq: vi.fn().mockReturnThis(),
-    maybeSingle: vi.fn(async () => ({ data: VALID_USER_ROW, error: null })),
-  }
-  const usersUpdateChain = {
-    eq: usersUpdateEqFn,
-  }
+  const usersUpdateChain = { eq: usersUpdateEqFn }
 
-  const sessionsDeleteSelectFn = vi.fn(async () => ({
-    data: sessionsDeleteResult,
+  const sessionsSelectEqFn = vi.fn(async () => ({
+    data: sessionsRemaining,
     error: null,
   }))
   const sessionsChain = {
-    delete: vi.fn().mockReturnThis(),
-    eq: vi.fn().mockReturnThis(),
-    select: sessionsDeleteSelectFn,
+    select: vi.fn().mockReturnThis(),
+    eq: sessionsSelectEqFn,
   }
+
+  const naUsersChain = {
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    maybeSingle: vi.fn(async () => ({ data: { email: 'test@example.com' }, error: null })),
+  }
+
+  const naAccountsChain = {
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    maybeSingle: vi.fn(async () => ({ data: { providerAccountId: '12345' }, error: null })),
+  }
+
   const modActionsInsertFn = vi.fn(async () => ({ error: modActionsError }))
+  const fingerprintUpsertFn = vi.fn(async () => ({ error: null }))
 
   const schemaFn = vi.fn(() => ({
-    from: vi.fn(() => sessionsChain),
+    from: vi.fn((table: string) => {
+      if (table === 'sessions') return sessionsChain
+      if (table === 'users') return naUsersChain
+      if (table === 'accounts') return naAccountsChain
+      return naUsersChain
+    }),
   }))
 
   const fromFn = vi.fn((table: string) => {
     if (table === 'users') {
       return {
-        ...usersSelectChain,
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        maybeSingle: vi.fn(async () => ({ data: VALID_USER_ROW, error: null })),
         update: vi.fn(() => usersUpdateChain),
       }
     }
     if (table === 'mod_actions') {
       return { insert: modActionsInsertFn }
     }
-    return usersSelectChain
+    if (table === 'ban_fingerprints') {
+      return { upsert: fingerprintUpsertFn }
+    }
+    return {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn(async () => ({ data: null, error: null })),
+    }
   })
 
-  return { from: fromFn, schema: schemaFn, usersUpdateEqFn, modActionsInsertFn, sessionsDeleteSelectFn, schemaFn }
+  return {
+    from: fromFn,
+    schema: schemaFn,
+    usersUpdateEqFn,
+    modActionsInsertFn,
+    sessionsSelectEqFn,
+    schemaFn,
+    fingerprintUpsertFn,
+  }
 }
 
 function makeRequest(body: unknown) {
@@ -296,14 +368,93 @@ describe('POST /api/admin/ban — 400 already_banned', () => {
   })
 })
 
+describe('POST /api/admin/ban — 500 ban_partial when trigger leaves sessions behind', () => {
+  beforeEach(() => {
+    sessionState.value = { user: { id: ADMIN_ID } }
+    adminGateResult = null
+    currentFakeClient = makeFakeClient({ sessionsRemaining: [{ id: 'leftover-1' }] })
+  })
+
+  it('returns 500 ban_partial when sessions remain after UPDATE (trigger inactive)', async () => {
+    const { POST } = await import('@/app/api/admin/ban/route')
+    const res = await POST(makeRequest({ user_id: TARGET_ID, reason: 'spam' }))
+    expect(res.status).toBe(500)
+    const body = await res.json()
+    expect(body.error).toBe('ban_partial')
+  })
+
+  it('returns 500 ban_partial when sessions SELECT errors', async () => {
+    currentFakeClient = makeFakeClient({
+      sessionsSelectError: { message: 'rpc broke' },
+    })
+    const { POST } = await import('@/app/api/admin/ban/route')
+    const res = await POST(makeRequest({ user_id: TARGET_ID, reason: 'spam' }))
+    expect(res.status).toBe(500)
+    const body = await res.json()
+    expect(body.error).toBe('ban_partial')
+  })
+})
+
+describe('POST /api/admin/ban — 500 ban_partial when fingerprint write paths fail', () => {
+  beforeEach(() => {
+    sessionState.value = { user: { id: ADMIN_ID } }
+    adminGateResult = null
+  })
+
+  it('returns 500 ban_partial when next_auth.users email lookup errors', async () => {
+    currentFakeClient = makeFakeClient({
+      emailLookupError: { message: 'rpc broke' },
+    })
+    const { POST } = await import('@/app/api/admin/ban/route')
+    const res = await POST(makeRequest({ user_id: TARGET_ID, reason: 'spam' }))
+    expect(res.status).toBe(500)
+    const body = await res.json()
+    expect(body.error).toBe('ban_partial')
+  })
+
+  it('returns 500 ban_partial when next_auth.accounts lookup errors', async () => {
+    currentFakeClient = makeFakeClient({
+      accountLookupError: { message: 'rpc broke' },
+    })
+    const { POST } = await import('@/app/api/admin/ban/route')
+    const res = await POST(makeRequest({ user_id: TARGET_ID, reason: 'spam' }))
+    expect(res.status).toBe(500)
+    const body = await res.json()
+    expect(body.error).toBe('ban_partial')
+  })
+
+  it('returns 500 ban_partial when neither email nor providerAccountId is available', async () => {
+    currentFakeClient = makeFakeClient({
+      emailRow: { email: null },
+      accountRow: { providerAccountId: null },
+    })
+    const { POST } = await import('@/app/api/admin/ban/route')
+    const res = await POST(makeRequest({ user_id: TARGET_ID, reason: 'spam' }))
+    expect(res.status).toBe(500)
+    const body = await res.json()
+    expect(body.error).toBe('ban_partial')
+  })
+
+  it('returns 500 ban_partial when ban_fingerprints upsert errors', async () => {
+    currentFakeClient = makeFakeClient({
+      fingerprintError: { message: 'unique violation' },
+    })
+    const { POST } = await import('@/app/api/admin/ban/route')
+    const res = await POST(makeRequest({ user_id: TARGET_ID, reason: 'spam' }))
+    expect(res.status).toBe(500)
+    const body = await res.json()
+    expect(body.error).toBe('ban_partial')
+  })
+})
+
 describe('POST /api/admin/ban — 200 happy path', () => {
   beforeEach(() => {
     sessionState.value = { user: { id: ADMIN_ID } }
     adminGateResult = null
   })
 
-  it('bans user, deletes sessions, writes mod_actions, returns 200', async () => {
-    const client = makeHappyFakeClient({ sessionsDeleteResult: [{ id: 'sess-1' }, { id: 'sess-2' }] })
+  it('bans user, verifies sessions cleared, writes fingerprint + mod_actions, returns 200', async () => {
+    const client = makeHappyFakeClient()
     currentFakeClient = client
     const { POST } = await import('@/app/api/admin/ban/route')
     const res = await POST(makeRequest({ user_id: TARGET_ID, reason: 'violates ToS' }))
@@ -314,8 +465,17 @@ describe('POST /api/admin/ban — 200 happy path', () => {
     // Users UPDATE was called
     expect(client.from).toHaveBeenCalledWith('users')
 
-    // next_auth sessions DELETE was triggered
+    // next_auth schema used for sessions verification + email/account lookup
     expect(client.schemaFn).toHaveBeenCalledWith('next_auth')
+
+    // Ban fingerprint upsert was issued
+    expect(client.fingerprintUpsertFn).toHaveBeenCalledTimes(1)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fpCall = (client.fingerprintUpsertFn.mock.calls as any[][])[0]![0]
+    expect(typeof fpCall.email_hash).toBe('string')
+    expect(fpCall.email_hash).toHaveLength(64) // sha256 hex
+    expect(fpCall.provider_account_id).toBe('12345')
+    expect(fpCall.user_id).toBe(TARGET_ID)
 
     // mod_actions INSERT was called
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -324,7 +484,6 @@ describe('POST /api/admin/ban — 200 happy path', () => {
     expect(modCall.target_type).toBe('user')
     expect(modCall.target_id).toBe(TARGET_ID)
     expect(modCall.reason).toBe('violates ToS')
-    expect(modCall.metadata.sessions_deleted).toBe(2)
     expect(modCall.metadata.username).toBe('testuser')
   })
 
@@ -338,13 +497,14 @@ describe('POST /api/admin/ban — 200 happy path', () => {
     expect(body.ok).toBe(true)
   })
 
-  it('asserts next_auth.sessions DELETE was issued for the target userId', async () => {
+  it('verifies next_auth.sessions was queried for the target userId', async () => {
     const client = makeHappyFakeClient()
     currentFakeClient = client
     const { POST } = await import('@/app/api/admin/ban/route')
     await POST(makeRequest({ user_id: TARGET_ID, reason: 'spam' }))
 
-    // Verify the schema('next_auth') call
     expect(client.schemaFn).toHaveBeenCalledWith('next_auth')
+    // sessions SELECT terminator received the userId equality
+    expect(client.sessionsSelectEqFn).toHaveBeenCalledWith('userId', TARGET_ID)
   })
 })
