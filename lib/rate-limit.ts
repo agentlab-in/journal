@@ -21,6 +21,8 @@ export type RateLimitBucket =
   | 'report'
   | 'image_upload'
   | 'delete_account'
+  | 'mdx_preview'
+  | 'view_count'
 
 export interface RateLimitResult {
   success: boolean
@@ -52,6 +54,14 @@ const BUCKETS: Record<RateLimitBucket, BucketSpec> = {
   // an authed caller spamming the endpoint without the legitimate use case
   // (one delete per account) ever hitting the ceiling.
   delete_account: { limit: 3, windowMs: 60 * 60 * 1000, windowDuration: '1 h' },
+  // Editor preview compiles on every keystroke (debounced 300ms), so the
+  // ceiling is generous — defends against a script hammering the endpoint
+  // without throttling honest authors.
+  mdx_preview: { limit: 60, windowMs: 60 * 1000, windowDuration: '1 m' },
+  // Anonymous view beacon. Keyed by IP (not user) at the call site since
+  // the route is unauth. 60/min lets normal browsing through; a script
+  // forging Origin and pumping increments gets shut down.
+  view_count: { limit: 60, windowMs: 60 * 1000, windowDuration: '1 m' },
 }
 
 // ---------------------------------------------------------------------------
@@ -156,6 +166,33 @@ const USE_FALLBACK =
   !env.UPSTASH_REDIS_REST_URL ||
   !env.UPSTASH_REDIS_REST_TOKEN
 
+// Fail-open by default: if Upstash is unreachable, allow the request
+// rather than 500-ing every mutation. Set RATE_LIMIT_FAIL_OPEN=false to
+// hard-fail (closed) on Upstash errors — useful for high-risk endpoints
+// during an incident.
+const FAIL_OPEN = process.env.RATE_LIMIT_FAIL_OPEN !== 'false'
+
+const UPSTASH_TIMEOUT_MS = 1000
+
+let warnedAboutUpstashFailure = false
+
+/** Race a promise against a setTimeout reject. Used to cap Upstash calls. */
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('upstash_timeout')), ms)
+    p.then(
+      (v) => {
+        clearTimeout(t)
+        resolve(v)
+      },
+      (e) => {
+        clearTimeout(t)
+        reject(e)
+      },
+    )
+  })
+}
+
 export async function checkRateLimit(
   bucket: RateLimitBucket,
   identifier: string,
@@ -175,15 +212,34 @@ export async function checkRateLimit(
     return checkMemory(bucket, identifier, spec)
   }
 
-  const limiter = getUpstashLimiter(bucket)
-  const res = await limiter.limit(identifier)
-  const resetSeconds = Math.ceil(res.reset / 1000)
-  const nowSeconds = Math.floor(Date.now() / 1000)
-  return {
-    success: res.success,
-    remaining: res.remaining,
-    reset: resetSeconds,
-    retryAfter: res.success ? 0 : Math.max(0, resetSeconds - nowSeconds),
+  try {
+    const limiter = getUpstashLimiter(bucket)
+    const res = await withTimeout(limiter.limit(identifier), UPSTASH_TIMEOUT_MS)
+    const resetSeconds = Math.ceil(res.reset / 1000)
+    const nowSeconds = Math.floor(Date.now() / 1000)
+    return {
+      success: res.success,
+      remaining: res.remaining,
+      reset: resetSeconds,
+      retryAfter: res.success ? 0 : Math.max(0, resetSeconds - nowSeconds),
+    }
+  } catch (err) {
+    if (!warnedAboutUpstashFailure) {
+      warnedAboutUpstashFailure = true
+      console.warn(
+        `[rate-limit] Upstash call failed (${err instanceof Error ? err.message : 'unknown'}); ` +
+          `policy=${FAIL_OPEN ? 'fail-open' : 'fail-closed'}`,
+      )
+    }
+    if (FAIL_OPEN) {
+      // Allow the request through. `remaining: 0` signals "we couldn't
+      // count this one" to any caller that inspects it without making
+      // the result look like a real near-limit response.
+      return { success: true, remaining: 0, reset: 0, retryAfter: 0 }
+    }
+    // Fail-closed: refuse with a short retry-after so callers back off
+    // briefly instead of hammering Upstash through the outage.
+    return { success: false, remaining: 0, reset: 0, retryAfter: 5 }
   }
 }
 
@@ -199,4 +255,5 @@ export function __resetForTests(): void {
   upstashLimiters.clear()
   cachedRedis = null
   warnedAboutFallback = false
+  warnedAboutUpstashFailure = false
 }

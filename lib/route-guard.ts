@@ -58,7 +58,20 @@ export async function guardMutatingRequest(
   // it) gets origin-only protection — IP-based limits would belong in
   // edge middleware, not here.
   if (opts.bucket && opts.userId) {
-    const result = await checkRateLimit(opts.bucket, `user:${opts.userId}`)
+    // `checkRateLimit` already handles Upstash failures internally (timeout
+    // + fail-open/closed policy). The belt-and-braces try/catch here is so
+    // a future code change inside `checkRateLimit` — or an unexpected
+    // synchronous throw — cannot 500 every mutation handler. We log and
+    // proceed; the in-module warn covers the diagnostic story.
+    let result
+    try {
+      result = await checkRateLimit(opts.bucket, `user:${opts.userId}`)
+    } catch (err) {
+      console.warn(
+        `[route-guard] checkRateLimit threw unexpectedly: ${err instanceof Error ? err.message : 'unknown'}`,
+      )
+      return { failed: false }
+    }
     if (!result.success) {
       return {
         failed: true,
