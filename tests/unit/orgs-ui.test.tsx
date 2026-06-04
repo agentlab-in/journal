@@ -9,8 +9,8 @@
  *  5. OrgsListSection: read-only — empty-state copy + rows + View link only.
  */
 import React from 'react'
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, fireEvent } from '@testing-library/react'
 
 // Single shared router mock for the whole file. PublishAsSelect doesn't use
 // it, but other components imported by the editor tree may; keep the mock
@@ -19,6 +19,13 @@ const mockPush = vi.fn()
 const mockRefresh = vi.fn()
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush, refresh: mockRefresh }),
+}))
+
+// next-auth/react is used by RefreshOrgsButton. Mock signIn so tests can
+// assert the args without triggering a real OAuth redirect.
+const mockSignIn = vi.fn((..._args: unknown[]) => Promise.resolve(undefined))
+vi.mock('next-auth/react', () => ({
+  signIn: (...args: unknown[]) => mockSignIn(...args),
 }))
 
 import {
@@ -146,11 +153,15 @@ describe('<PostCard> byline', () => {
 // ---------------------------------------------------------------------------
 
 describe('<OrgsListSection>', () => {
+  beforeEach(() => {
+    mockSignIn.mockClear()
+  })
+
   it('renders the read-only empty-state copy when the caller has no orgs', () => {
     render(<OrgsListSection orgs={[]} />)
     expect(
       screen.getByText(
-        /you’re not in any orgs yet\. join a github org and sign back in/i,
+        /you’re not in any orgs yet\. join a github org, then refresh/i,
       ),
     ).toBeDefined()
     // No /settings/orgs/new CTA — that surface no longer exists.
@@ -160,6 +171,13 @@ describe('<OrgsListSection>', () => {
     expect(
       screen.queryByRole('link', { name: /create another org/i }),
     ).toBeNull()
+  })
+
+  it('renders the RefreshOrgsButton in the empty state', () => {
+    render(<OrgsListSection orgs={[]} />)
+    expect(
+      screen.getByRole('button', { name: /refresh from github/i }),
+    ).toBeDefined()
   })
 
   it('renders each org as a row with display_name, slug, and a View link to /<slug>', () => {
@@ -181,6 +199,33 @@ describe('<OrgsListSection>', () => {
     expect(viewLinks).toHaveLength(2)
     expect(viewLinks[0].getAttribute('href')).toBe('/acme')
     expect(viewLinks[1].getAttribute('href')).toBe('/globex')
+  })
+
+  it('renders the RefreshOrgsButton alongside the list in the populated state', () => {
+    render(
+      <OrgsListSection
+        orgs={[
+          { id: 'org-1', slug: 'acme', display_name: 'Acme' },
+          { id: 'org-2', slug: 'globex', display_name: 'Globex' },
+        ]}
+      />,
+    )
+    // List is present...
+    expect(screen.getAllByRole('link', { name: /view/i })).toHaveLength(2)
+    // ...and the refresh button is too.
+    expect(
+      screen.getByRole('button', { name: /refresh from github/i }),
+    ).toBeDefined()
+  })
+
+  it('clicking the refresh button calls signIn("github", { callbackUrl: "/settings/profile#orgs" })', () => {
+    render(<OrgsListSection orgs={[]} />)
+    const button = screen.getByRole('button', { name: /refresh from github/i })
+    fireEvent.click(button)
+    expect(mockSignIn).toHaveBeenCalledTimes(1)
+    expect(mockSignIn).toHaveBeenCalledWith('github', {
+      callbackUrl: '/settings/profile#orgs',
+    })
   })
 
   it('does not render Leave buttons or Manage links', () => {
