@@ -24,7 +24,10 @@ export function proxy(request: NextRequest) {
     return NextResponse.next()
   }
   if (!isAllowedOrigin(request.headers.get('origin'))) {
-    return new NextResponse('Forbidden', { status: 403 })
+    // Match the JSON shape returned by `guardMutatingRequest` in
+    // lib/route-guard.ts so the backstop and per-handler guard are
+    // indistinguishable to clients and log aggregators.
+    return NextResponse.json({ error: 'forbidden_origin' }, { status: 403 })
   }
   return NextResponse.next()
 }
