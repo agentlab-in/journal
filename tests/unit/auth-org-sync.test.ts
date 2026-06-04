@@ -23,6 +23,11 @@ const ensurePublicUser = vi.fn()
 const createAdminSupabaseClient = vi.fn()
 const logRouteError = vi.fn()
 const deriveSignupFlags = vi.fn((..._args: unknown[]) => ({}))
+const fetchGithubUser = vi.fn()
+
+vi.mock('@/lib/github', () => ({
+  fetchGithubUser: (...args: unknown[]) => fetchGithubUser(...args),
+}))
 
 vi.mock('@/lib/orgs/github-sync', () => ({
   syncUserGithubOrgs: (...args: unknown[]) => syncUserGithubOrgs(...args),
@@ -145,10 +150,24 @@ describe('authOptions.events.signIn — github org sync wiring', () => {
     createAdminSupabaseClient.mockReset()
     logRouteError.mockReset()
     deriveSignupFlags.mockReset().mockReturnValue({})
+    fetchGithubUser.mockReset()
 
     createAdminSupabaseClient.mockReturnValue(buildAdminSupabaseStub())
     ensurePublicUser.mockResolvedValue('alice')
     syncUserGithubOrgs.mockResolvedValue({ added: [], removed: [], total: 0 })
+    // events.signIn now refetches /user via fetchGithubUser instead of
+    // trusting the stripped `profile` arg. Provide a full GitHubUser-shaped
+    // response so the gh-shape guard passes.
+    fetchGithubUser.mockResolvedValue({
+      login: 'alice',
+      public_repos: 7,
+      created_at: '2024-01-01T00:00:00Z',
+      name: 'Alice',
+      bio: 'hi',
+      avatar_url: 'https://example.com/a.png',
+      email: 'alice@example.com',
+      followers: 10,
+    })
 
     infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {})
     errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})

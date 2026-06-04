@@ -414,7 +414,6 @@ export const authOptions: NextAuthOptions = {
      * NextAuth v4 supports returning a redirect string from this callback.
      */
     async signIn({ account }) {
-      console.error('[DIAG] callbacks.signIn ENTERED. account.access_token present:', !!account?.access_token)
       // No access token means something went wrong upstream.
       if (!account?.access_token) return false
 
@@ -565,29 +564,26 @@ export const authOptions: NextAuthOptions = {
      *
      * Best-effort: a Supabase write failure logs but never blocks login.
      */
-    async signIn({ user, account, profile }) {
-      console.error('[DIAG] events.signIn ENTERED. user.id:', user?.id, 'profile?:', !!profile, 'account?:', !!account)
-      if (!user.id || !profile) {
-        console.error('[DIAG] BAILED at user.id/profile guard')
-        return
-      }
-      console.error('[DIAG] profile keys:', Object.keys(profile as object))
-      const _gh_diag = profile as GithubProfile
-      console.error('[DIAG] gh.login:', _gh_diag?.login, 'gh.created_at:', _gh_diag?.created_at, 'typeof gh.public_repos:', typeof _gh_diag?.public_repos, 'gh.public_repos:', _gh_diag?.public_repos)
+    async signIn({ user, account }) {
+      if (!user.id) return
+      if (!account?.access_token) return
 
-      const gh = profile as GithubProfile
-      if (!gh.login || !gh.created_at || typeof gh.public_repos !== 'number') {
-        console.error('[DIAG] BAILED at gh.login/created_at/public_repos guard. login:', gh.login, 'created_at:', gh.created_at, 'public_repos:', gh.public_repos)
+      // The `profile` arg NextAuth passes here is the mapped User shape
+      // ({ id, name, email, image }), NOT the raw GitHub /user response —
+      // so the GitHub-specific fields we need (login, public_repos,
+      // created_at, bio, followers) come from a fresh /user fetch. This
+      // mirrors the pattern callbacks.signIn already uses.
+      let gh
+      try {
+        gh = await fetchGithubUser(account.access_token as string)
+      } catch (err) {
+        console.error('[auth] events.signIn: fetchGithubUser threw:', err)
         return
       }
-      console.error('[DIAG] passed gh shape guard')
+      if (!gh.login || !gh.created_at || typeof gh.public_repos !== 'number') return
 
       const cols = deriveAuditColumns(gh)
-      if (Number.isNaN(cols.github_account_age_days_at_signup)) {
-        console.error('[DIAG] BAILED at NaN ageDays guard. cols:', cols)
-        return
-      }
-      console.error('[DIAG] passed ageDays guard, proceeding to supabase')
+      if (Number.isNaN(cols.github_account_age_days_at_signup)) return
 
       // Each best-effort step below has its own try/catch so one failure
       // can't poison the others. Construct supabase up front; if THAT throws
@@ -629,27 +625,18 @@ export const authOptions: NextAuthOptions = {
       // at consent, /user/orgs returns 403 and syncUserGithubOrgs returns
       // the no-op tuple.
       try {
-        console.info('[auth] events.signIn fired. account present:', !!account, 'has access_token:', !!account?.access_token)
-        if (account?.access_token) {
-          const result = await syncUserGithubOrgs({
-            supabase,
-            userId: user.id,
-            githubAccessToken: account.access_token as string,
-          })
-          console.info('[auth] sync returned:', {
+        const result = await syncUserGithubOrgs({
+          supabase,
+          userId: user.id,
+          githubAccessToken: account.access_token as string,
+        })
+        if (result.added.length > 0 || result.removed.length > 0) {
+          console.info('[auth] github org sync delta:', {
             userId: user.id,
             added: result.added,
             removed: result.removed,
             total: result.total,
           })
-          if (result.added.length > 0 || result.removed.length > 0) {
-            console.info('[auth] github org sync delta:', {
-              userId: user.id,
-              added: result.added,
-              removed: result.removed,
-              total: result.total,
-            })
-          }
         }
       } catch (err) {
         console.error('[auth] github org sync threw:', err)
@@ -659,21 +646,10 @@ export const authOptions: NextAuthOptions = {
       // to public.users. Best-effort — moderators read this column as a
       // soft-signal triage hint; failure must NEVER block login.
       try {
-        // The raw GitHub profile NextAuth passes here may include `bio`,
-        // `email`, and `followers` on top of the typed GithubProfile —
-        // but we cannot trust their types at runtime (a malformed upstream
-        // response could deliver a number where a string is expected).
-        // Narrow each field via `typeof` so a wrong shape becomes `null`
-        // / `0` cleanly, rather than relying on the outer try/catch as a
-        // safety net when downstream code calls `.trim()` on a non-string.
-        const rawBio = (profile as { bio?: unknown }).bio
-        const rawEmail = (profile as { email?: unknown }).email
-        const rawFollowers = (profile as { followers?: unknown }).followers
-
         const flags = deriveSignupFlags({
-          bio: typeof rawBio === 'string' ? rawBio : null,
-          email: typeof rawEmail === 'string' ? rawEmail : null,
-          followers: typeof rawFollowers === 'number' ? rawFollowers : 0,
+          bio: gh.bio,
+          email: gh.email,
+          followers: gh.followers,
         })
         const username = gh.login.toLowerCase()
         const { error: flagsErr } = await supabase
