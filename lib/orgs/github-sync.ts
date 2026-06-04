@@ -262,6 +262,17 @@ async function pruneStaleMemberships(
   return removed
 }
 
+/**
+ * Reconcile a user's GitHub org memberships against `public.orgs` +
+ * `public.org_members`. Called once per sign-in from `events.signIn`.
+ *
+ * Return shape:
+ * - `added`: lowercased org logins this run made newly visible to the user —
+ *   either because the org row itself was inserted, OR because the user joined
+ *   a pre-existing org row for the first time. (Both are "new to this user.")
+ * - `removed`: lowercased org slugs whose membership row this run pruned.
+ * - `total`: count of active GitHub orgs the user belongs to after sync.
+ */
 export async function syncUserGithubOrgs(opts: {
   supabase: AdminSupabaseClient
   userId: string

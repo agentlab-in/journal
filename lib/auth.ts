@@ -575,8 +575,18 @@ export const authOptions: NextAuthOptions = {
       const cols = deriveAuditColumns(gh)
       if (Number.isNaN(cols.github_account_age_days_at_signup)) return
 
+      // Each best-effort step below has its own try/catch so one failure
+      // can't poison the others. Construct supabase up front; if THAT throws
+      // there's nothing useful to do here — log and bail.
+      let supabase: ReturnType<typeof createAdminSupabaseClient>
       try {
-        const supabase = createAdminSupabaseClient()
+        supabase = createAdminSupabaseClient()
+      } catch (err) {
+        console.error('[auth] createAdminSupabaseClient threw:', err)
+        return
+      }
+
+      try {
         const { error } = await supabase
           .schema('next_auth')
           .from('users')
@@ -585,83 +595,82 @@ export const authOptions: NextAuthOptions = {
         if (error) {
           console.error('[auth] audit-column update failed:', error.message)
         }
+      } catch (err) {
+        console.error('[auth] audit-column update threw:', err)
+      }
 
-        // Defensive backstop: even if the audit-column UPDATE fired the
-        // Phase 2 trigger successfully, call ensurePublicUser so any
-        // surviving missing public.users row gets healed on this sign-in
-        // without forcing a sign-out cycle. Best-effort.
-        try {
-          await ensurePublicUser(supabase, user.id)
-        } catch (innerErr) {
-          console.error('[auth] ensurePublicUser threw:', innerErr)
-        }
+      // Defensive backstop: even if the audit-column UPDATE fired the
+      // Phase 2 trigger successfully, call ensurePublicUser so any
+      // surviving missing public.users row gets healed on this sign-in
+      // without forcing a sign-out cycle. Best-effort.
+      try {
+        await ensurePublicUser(supabase, user.id)
+      } catch (err) {
+        console.error('[auth] ensurePublicUser threw:', err)
+      }
 
-        // Phase 11.5: pull the user's GitHub-org memberships and reconcile
-        // them into public.orgs + org_members. Independent try/catch so a
-        // sync failure can't poison the signup_flags write below. The
-        // access_token is available because we requested `read:org` scope;
-        // if the user denied the scope at consent, /user/orgs returns 403
-        // and syncUserGithubOrgs returns the no-op tuple.
-        try {
-          if (account?.access_token) {
-            const result = await syncUserGithubOrgs({
-              supabase,
-              userId: user.id,
-              githubAccessToken: account.access_token as string,
-            })
-            // Light info log so prod can confirm sync ran; no PII.
-            if (result.added.length > 0 || result.removed.length > 0) {
-              console.info('[auth] github org sync delta:', {
-                userId: user.id,
-                added: result.added,
-                removed: result.removed,
-                total: result.total,
-              })
-            }
-          }
-        } catch (syncErr) {
-          console.error('[auth] github org sync threw:', syncErr)
-        }
-
-        // Phase 14: derive signup_flags from the GitHub profile and write
-        // to public.users. Best-effort — moderators read this column as a
-        // soft-signal triage hint; failure must NEVER block login.
-        try {
-          // The raw GitHub profile NextAuth passes here may include `bio`,
-          // `email`, and `followers` on top of the typed GithubProfile —
-          // but we cannot trust their types at runtime (a malformed upstream
-          // response could deliver a number where a string is expected).
-          // Narrow each field via `typeof` so a wrong shape becomes `null`
-          // / `0` cleanly, rather than relying on the outer try/catch as a
-          // safety net when downstream code calls `.trim()` on a non-string.
-          const rawBio = (profile as { bio?: unknown }).bio
-          const rawEmail = (profile as { email?: unknown }).email
-          const rawFollowers = (profile as { followers?: unknown }).followers
-
-          const flags = deriveSignupFlags({
-            bio: typeof rawBio === 'string' ? rawBio : null,
-            email: typeof rawEmail === 'string' ? rawEmail : null,
-            followers: typeof rawFollowers === 'number' ? rawFollowers : 0,
+      // Phase 11.5: pull the user's GitHub-org memberships and reconcile
+      // them into public.orgs + org_members. The access_token is available
+      // because we requested `read:org` scope; if the user denied the scope
+      // at consent, /user/orgs returns 403 and syncUserGithubOrgs returns
+      // the no-op tuple.
+      try {
+        if (account?.access_token) {
+          const result = await syncUserGithubOrgs({
+            supabase,
+            userId: user.id,
+            githubAccessToken: account.access_token as string,
           })
-          const username = gh.login.toLowerCase()
-          const { error: flagsErr } = await supabase
-            .from('users')
-            .update({ signup_flags: flags })
-            .eq('username', username)
-          if (flagsErr) {
-            logRouteError(flagsErr, {
-              route: 'events.signIn:signup_flags',
+          // Light info log so prod can confirm sync ran; no PII.
+          if (result.added.length > 0 || result.removed.length > 0) {
+            console.info('[auth] github org sync delta:', {
               userId: user.id,
+              added: result.added,
+              removed: result.removed,
+              total: result.total,
             })
           }
-        } catch (flagsThrew) {
-          logRouteError(flagsThrew, {
+        }
+      } catch (err) {
+        console.error('[auth] github org sync threw:', err)
+      }
+
+      // Phase 14: derive signup_flags from the GitHub profile and write
+      // to public.users. Best-effort — moderators read this column as a
+      // soft-signal triage hint; failure must NEVER block login.
+      try {
+        // The raw GitHub profile NextAuth passes here may include `bio`,
+        // `email`, and `followers` on top of the typed GithubProfile —
+        // but we cannot trust their types at runtime (a malformed upstream
+        // response could deliver a number where a string is expected).
+        // Narrow each field via `typeof` so a wrong shape becomes `null`
+        // / `0` cleanly, rather than relying on the outer try/catch as a
+        // safety net when downstream code calls `.trim()` on a non-string.
+        const rawBio = (profile as { bio?: unknown }).bio
+        const rawEmail = (profile as { email?: unknown }).email
+        const rawFollowers = (profile as { followers?: unknown }).followers
+
+        const flags = deriveSignupFlags({
+          bio: typeof rawBio === 'string' ? rawBio : null,
+          email: typeof rawEmail === 'string' ? rawEmail : null,
+          followers: typeof rawFollowers === 'number' ? rawFollowers : 0,
+        })
+        const username = gh.login.toLowerCase()
+        const { error: flagsErr } = await supabase
+          .from('users')
+          .update({ signup_flags: flags })
+          .eq('username', username)
+        if (flagsErr) {
+          logRouteError(flagsErr, {
             route: 'events.signIn:signup_flags',
             userId: user.id,
           })
         }
-      } catch (err) {
-        console.error('[auth] audit-column update threw:', err)
+      } catch (flagsThrew) {
+        logRouteError(flagsThrew, {
+          route: 'events.signIn:signup_flags',
+          userId: user.id,
+        })
       }
     },
   },

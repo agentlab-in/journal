@@ -92,3 +92,20 @@ Set these in the Vercel project (Production scope) before merging develop → ma
 
 Preview env scope should mirror Production except Supabase points at a
 dev branch DB if available.
+
+## Known operational gotchas
+
+### Account deletion blocked by `orgs.created_by_user_id`
+
+`public.orgs.created_by_user_id` is `ON DELETE RESTRICT` (see
+`supabase/migrations/0013_orgs.sql`). When Phase 11.5 sync materializes a
+GitHub org for the first time it stamps that column with the signing-in
+user's id. If that user later deletes their account, Postgres rejects the
+delete with a FK violation pointing at `orgs`.
+
+Resolution (manual, support-side):
+
+1. Find any other active member:
+   `SELECT user_id FROM public.org_members WHERE org_id = '<org-id>' LIMIT 1`.
+2. Re-point: `UPDATE public.orgs SET created_by_user_id = '<other-user-id>' WHERE id = '<org-id>'`. Retry the delete.
+3. If no other member exists, soft-delete the org first (`UPDATE public.orgs SET deleted_at = now() WHERE id = '<org-id>'`) so its public surfaces drop; then re-point `created_by_user_id` to an admin user id so the FK is satisfied, and retry the delete. A future sign-in by a GitHub member of that org will NOT resurrect the row (soft-delete is sticky to admin moderation); if a clean restart is desired, also `UPDATE public.orgs SET github_org_id = NULL` so the next sync inserts a fresh row instead.
