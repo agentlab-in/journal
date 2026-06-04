@@ -79,7 +79,12 @@ export async function Embed({ url, provider }: EmbedProps) {
   } catch {
     return <Fallback url={url} />
   }
-  if (host.endsWith('twitter.com') || host.endsWith('x.com')) {
+  // Exact host or true subdomain only — a bare `endsWith` would match
+  // `aaa-twitter.com`, letting an attacker-controlled lookalike host
+  // route through the Twitter fallback.
+  const isTwitter = host === 'twitter.com' || host.endsWith('.twitter.com')
+  const isX = host === 'x.com' || host.endsWith('.x.com')
+  if (isTwitter || isX) {
     return <Fallback url={url} />
   }
   const result = await fetchOEmbed(url)
