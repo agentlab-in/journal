@@ -96,7 +96,10 @@ export async function PATCH(req: NextRequest | Request): Promise<Response> {
   const { bio, avatar_url } = parsed.data
   const update: Record<string, unknown> = {}
   if (bio !== undefined) update.bio = bio === null ? null : sanitizeBio(bio)
-  if (avatar_url !== undefined) update.avatar_url = avatar_url
+  // Coerce '' → null so a cleared avatar persists as NULL instead of an
+  // empty string. `next/image` rejects an empty `src` at render time,
+  // which would break the profile header otherwise.
+  if (avatar_url !== undefined) update.avatar_url = avatar_url === '' ? null : avatar_url
 
   if (Object.keys(update).length === 0) {
     return json(400, { error: 'no_fields' })

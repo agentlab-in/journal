@@ -31,4 +31,15 @@ describe('isValidCoverImageUrl', () => {
     expect(isValidCoverImageUrl('')).toBe(false)
     expect(isValidCoverImageUrl('not-a-url')).toBe(false)
   })
+  it('rejects a path with /../ segments that would escape the covers bucket', () => {
+    // WHATWG URL parsing collapses `..` at parse time so the resulting
+    // pathname lands under `/authenticated/...`, not `/covers/...` —
+    // the prefix check is what actually rejects this. The literal
+    // string would otherwise pass the old `startsWith` test.
+    expect(
+      isValidCoverImageUrl(
+        'https://abc.supabase.co/storage/v1/object/public/covers/../authenticated/key.png',
+      ),
+    ).toBe(false)
+  })
 })

@@ -233,6 +233,16 @@ describe('PATCH /api/users/me — happy paths', () => {
     expect(capturedUpdates[0].payload.avatar_url).toBeNull()
   })
 
+  it('coerces an empty-string avatar_url to NULL on persist', async () => {
+    // An empty string would otherwise reach <Image> as `src=""` and break
+    // the profile render. Stored as NULL so the `?? '/icon.png'` fallback
+    // kicks in everywhere.
+    const { PATCH } = await import('@/app/api/users/me/route')
+    const res = await PATCH(makeRequest({ avatar_url: '' }))
+    expect(res.status).toBe(200)
+    expect(capturedUpdates[0].payload.avatar_url).toBeNull()
+  })
+
   it('scopes the UPDATE to the session user id', async () => {
     const { PATCH } = await import('@/app/api/users/me/route')
     const res = await PATCH(makeRequest({ bio: 'scoped' }))
