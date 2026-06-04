@@ -78,4 +78,17 @@ describe('lib/env', () => {
     expect(env.NODE_ENV).toBe('production')
     expect(ADMIN_GITHUB_LOGINS).toEqual(['harshit', 'octocat'])
   })
+
+  it('skips the production gate during `next build` (NEXT_PHASE=phase-production-build)', async () => {
+    // Vercel preview builds run with NODE_ENV=production but may not have
+    // the runtime secrets wired up. The gate must not trip during the
+    // build phase or `next build` (and Collecting page data) explodes.
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('NEXT_PHASE', 'phase-production-build')
+    vi.stubEnv('NEXTAUTH_SECRET', undefined as unknown as string)
+    vi.stubEnv('ADMIN_GITHUB_LOGINS', undefined as unknown as string)
+    const mod = await import('@/lib/env')
+    expect(mod.env.NODE_ENV).toBe('production')
+    expect(mod.ADMIN_GITHUB_LOGINS).toEqual([])
+  })
 })

@@ -9,11 +9,14 @@ import { z } from 'zod'
  * Schema-level: most Phase 1 vars are `.optional()` so `pnpm typecheck`,
  * `pnpm test`, and `pnpm build` work in CI without real secrets.
  *
- * Production-level: after parsing, when `NODE_ENV === 'production'` we
- * additionally enforce that NEXTAUTH_SECRET (≥32 chars) and
- * ADMIN_GITHUB_LOGINS (≥1 entry) are present. Missing values throw at
- * import time, which fails fast on cold boot rather than at the first
- * auth request.
+ * Production-level: after parsing, when `NODE_ENV === 'production'` AND
+ * we are not in the `next build` phase, we additionally enforce that
+ * NEXTAUTH_SECRET (≥32 chars) and ADMIN_GITHUB_LOGINS (≥1 entry) are
+ * present. Missing values throw at import time at server cold-boot, which
+ * fails fast instead of letting auth break on the first request. The
+ * `NEXT_PHASE` guard exists so that `next build` (and Vercel preview
+ * builds, where these vars may be intentionally absent) can collect page
+ * data without tripping the production-runtime gate.
  */
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']),
@@ -60,7 +63,9 @@ export const ADMIN_GITHUB_LOGINS: ReadonlyArray<string> = (
   .map((s) => s.trim().toLowerCase())
   .filter((s) => s.length > 0)
 
-if (env.NODE_ENV === 'production') {
+const IS_NEXT_BUILD = process.env.NEXT_PHASE === 'phase-production-build'
+
+if (env.NODE_ENV === 'production' && !IS_NEXT_BUILD) {
   const missing: string[] = []
   if (!env.NEXTAUTH_SECRET || env.NEXTAUTH_SECRET.length < 32) {
     missing.push('NEXTAUTH_SECRET (must be ≥32 chars)')
