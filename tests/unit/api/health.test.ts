@@ -1,13 +1,17 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 // ---------------------------------------------------------------------------
-// Mock: @/lib/supabase/admin
+// Mock: @/lib/supabase/server
 // ---------------------------------------------------------------------------
+// Note: the health route was switched to the anon server client (M2 — security
+// audit 2026-06-01) so that an unauthenticated probe doesn't load the
+// service-role key. The mock surface is the same — only the factory name
+// changed.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let currentFakeClient: any = {}
 
-vi.mock('@/lib/supabase/admin', () => ({
-  createAdminSupabaseClient: vi.fn(() => currentFakeClient),
+vi.mock('@/lib/supabase/server', () => ({
+  createAnonServerSupabaseClient: vi.fn(() => currentFakeClient),
 }))
 
 function makeClient(opts: { error?: { message: string } | null; throws?: boolean } = {}) {

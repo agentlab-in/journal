@@ -9,19 +9,20 @@
  *   200 { ok: true,  db: 'ok'   } — DB query succeeded
  *   503 { ok: false, db: 'down' } — DB query errored or threw
  *
- * The DB ping is a trivial `select id from users limit 1` so an outage
- * (network, RLS misconfig, table dropped) surfaces here. We never read row
- * data — only the error channel matters.
+ * The DB ping uses the anon Supabase client against `public.posts` (which
+ * has a public-read RLS policy filtered to `deleted_at IS NULL`). This
+ * exercises the real anon path: an RLS misconfig, DB outage, or table
+ * drop all surface here. No service-role key is touched.
  */
-import { createAdminSupabaseClient } from '@/lib/supabase/admin'
+import { createAnonServerSupabaseClient } from '@/lib/supabase/server'
 
 export const runtime = 'nodejs'
 
 export async function GET(): Promise<Response> {
   let db: 'ok' | 'down' = 'ok'
   try {
-    const admin = createAdminSupabaseClient()
-    const { error } = await admin.from('users').select('id').limit(1)
+    const anon = createAnonServerSupabaseClient()
+    const { error } = await anon.from('posts').select('id').limit(1)
     if (error) db = 'down'
   } catch {
     db = 'down'
