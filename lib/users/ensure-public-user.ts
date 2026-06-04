@@ -31,6 +31,9 @@ interface NextAuthAccountRow {
 }
 
 async function fetchGithubLoginById(githubUserId: string): Promise<string | null> {
+  // GitHub user IDs are positive integers. Anything else (path traversal,
+  // URL injection, unexpected provider ids) must not reach the request line.
+  if (!/^\d+$/.test(githubUserId)) return null
   try {
     const res = await fetch(`https://api.github.com/user/${githubUserId}`, {
       headers: {
