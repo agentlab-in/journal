@@ -80,9 +80,16 @@ interface PostRow {
  * - no user or post matches the given params
  * - the post has been soft-deleted
  *
- * @param db Must be a service-role client. RLS on the `tags` table filters
- *   out unapproved rows for non-service-role clients; pages render unapproved
- *   tags muted, so a non-service-role caller would silently lose them.
+ * @param db Must be a service-role client. The post-detail page renders
+ *   unapproved tags muted (the `tag-pending` class on app/[username]/[type]/[slug]/page.tsx);
+ *   RLS on `public.tags` hides unapproved rows from anon/authenticated, so
+ *   the anon client would silently drop those joined tags from the response.
+ *   We keep this on service-role despite the M14 audit finding because the
+ *   page UX intentionally surfaces pending tags to the post author and
+ *   moderators, and switching here would regress that. The user/post columns
+ *   we read are otherwise public (no banned_at / signup_flags), and
+ *   public.users_public (migration 0014) is used for the author projection
+ *   as defense-in-depth in case the client is ever passed an anon client.
  */
 export async function lookupPost(
   db: Pick<SupabaseClient, 'from'>,
@@ -94,9 +101,10 @@ export async function lookupPost(
   // 2. Reject mixed-case usernames (canonical URLs are lowercase)
   if (params.username !== params.username.toLowerCase()) return null
 
-  // Step 1: look up user by username
+  // Step 1: look up user by username via the safe-projection view —
+  // see migration 0014_rls_hardening.sql.
   const { data: userData, error: userError } = await db
-    .from('users')
+    .from('users_public')
     .select('id, username, display_name, avatar_url, bio')
     .eq('username', params.username)
     .maybeSingle()

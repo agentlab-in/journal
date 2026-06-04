@@ -110,8 +110,10 @@ function mapPost(post: PostRow): ProfilePost {
  *
  * Returns null when the username contains uppercase letters (the route
  * handler should already have canonicalized first) or when no user row
- * matches. RLS lets anon clients read public.users, so any Supabase
- * client works here.
+ * matches. Reads from `public.users_public` — the safe projection view
+ * over `public.users` that excludes ban + signup-flag columns (migration
+ * 0014). Anon, authenticated, and service-role clients all work; anon
+ * is the right default since no private columns are needed here.
  */
 export async function lookupProfileByUsername(
   db: Pick<SupabaseClient, 'from'>,
@@ -120,7 +122,7 @@ export async function lookupProfileByUsername(
   if (username !== username.toLowerCase()) return null
 
   const { data, error } = await db
-    .from('users')
+    .from('users_public')
     .select(
       'id, username, display_name, bio, avatar_url, github_login, created_at, follower_count, following_count',
     )

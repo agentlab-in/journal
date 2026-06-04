@@ -12,9 +12,13 @@
  * page so the rerank has breadth — global top-30 alone would surface the
  * same handful of posts to every viewer.
  *
- * Both functions take a Supabase client (typically the service-role one
- * from `lib/supabase/server.ts` for `getForYouFeed`; either works for
- * `getLatestFeed` — anon RLS already exposes non-deleted posts).
+ * Both functions take a Supabase client. `getForYouFeed` requires a
+ * service-role client (it transitively calls `getViewerTagAffinity`,
+ * which reads owner-only likes / bookmarks / follows — see that file's
+ * docstring for the M14 audit context). `getLatestFeed` reads only
+ * `public.posts` for public columns and works equally well with the
+ * anon client; the anon home-page render in `app/page.tsx` already
+ * passes one.
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getViewerTagAffinity } from './affinity'
