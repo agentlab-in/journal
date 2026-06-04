@@ -294,22 +294,29 @@ export const authOptions: NextAuthOptions = {
   // it to `domain: '.agentlab.in'` and start sharing sessions between dev
   // and prod. NextAuth v4 defaults are the same shape — we just freeze
   // them at the source.
-  cookies: {
-    sessionToken: {
-      name:
-        process.env.NODE_ENV === 'production'
-          ? '__Secure-next-auth.session-token'
-          : 'next-auth.session-token',
-      options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: process.env.NODE_ENV === 'production',
-        // intentionally NO `domain` — keep cookies host-scoped so
-        // dev.agentlab.in and agentlab.in have separate sessions.
+  //
+  // `useSecureCookies` mirrors NextAuth's own derivation
+  // (node_modules/next-auth/core/init.js): the Secure flag and the
+  // `__Secure-` name prefix flip on when NEXTAUTH_URL is https, not
+  // on NODE_ENV. Keying on NODE_ENV would regress dev-over-https
+  // setups (ngrok, `vercel dev`, etc.) where NextAuth would otherwise
+  // write a `__Secure-` cookie.
+  cookies: (() => {
+    const useSecureCookies = process.env.NEXTAUTH_URL?.startsWith('https://') ?? false
+    return {
+      sessionToken: {
+        name: `${useSecureCookies ? '__Secure-' : ''}next-auth.session-token`,
+        options: {
+          httpOnly: true,
+          sameSite: 'lax' as const,
+          path: '/',
+          secure: useSecureCookies,
+          // intentionally NO `domain` — keep cookies host-scoped so
+          // dev.agentlab.in and agentlab.in have separate sessions.
+        },
       },
-    },
-  },
+    }
+  })(),
 
   callbacks: {
     /**
