@@ -280,10 +280,18 @@ export async function syncUserGithubOrgs(opts: {
 }): Promise<{ added: string[]; removed: string[]; total: number }> {
   const { supabase, userId, githubAccessToken } = opts
 
+  console.info('[orgs/github-sync] sync starting for user', userId)
   const ghOrgs = await fetchGithubOrgs(githubAccessToken)
   if (ghOrgs === null) {
+    console.warn('[orgs/github-sync] fetchGithubOrgs returned null — aborting sync')
     return { added: [], removed: [], total: 0 }
   }
+  console.info(
+    '[orgs/github-sync] GitHub returned',
+    ghOrgs.length,
+    'orgs:',
+    ghOrgs.map((o) => o.login),
+  )
 
   const added = new Set<string>()
   const activeOrgIds: string[] = []

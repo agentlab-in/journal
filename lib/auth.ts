@@ -615,13 +615,19 @@ export const authOptions: NextAuthOptions = {
       // at consent, /user/orgs returns 403 and syncUserGithubOrgs returns
       // the no-op tuple.
       try {
+        console.info('[auth] events.signIn fired. account present:', !!account, 'has access_token:', !!account?.access_token)
         if (account?.access_token) {
           const result = await syncUserGithubOrgs({
             supabase,
             userId: user.id,
             githubAccessToken: account.access_token as string,
           })
-          // Light info log so prod can confirm sync ran; no PII.
+          console.info('[auth] sync returned:', {
+            userId: user.id,
+            added: result.added,
+            removed: result.removed,
+            total: result.total,
+          })
           if (result.added.length > 0 || result.removed.length > 0) {
             console.info('[auth] github org sync delta:', {
               userId: user.id,
