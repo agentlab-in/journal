@@ -60,6 +60,8 @@ interface FakeClientOpts {
   fingerprintError?: { message: string } | null
   emailRow?: { email: string | null } | null
   accountRow?: { providerAccountId: string | null } | null
+  emailLookupError?: { message: string } | null
+  accountLookupError?: { message: string } | null
 }
 
 function makeFakeClient(opts: FakeClientOpts = {}) {
@@ -72,6 +74,8 @@ function makeFakeClient(opts: FakeClientOpts = {}) {
     fingerprintError = null,
     emailRow = { email: 'test@example.com' },
     accountRow = { providerAccountId: '12345' },
+    emailLookupError = null,
+    accountLookupError = null,
   } = opts
 
   const fingerprintUpsertFn = vi.fn(async () => ({ error: fingerprintError }))
@@ -125,7 +129,10 @@ function makeFakeClient(opts: FakeClientOpts = {}) {
           return {
             select: vi.fn().mockReturnThis(),
             eq: vi.fn().mockReturnThis(),
-            maybeSingle: vi.fn(async () => ({ data: emailRow, error: null })),
+            maybeSingle: vi.fn(async () => ({
+              data: emailLookupError ? null : emailRow,
+              error: emailLookupError,
+            })),
           }
         }
         if (table === 'accounts') {
@@ -133,7 +140,10 @@ function makeFakeClient(opts: FakeClientOpts = {}) {
           const accountsChain = {
             select: vi.fn().mockReturnThis(),
             eq: vi.fn().mockReturnThis(),
-            maybeSingle: vi.fn(async () => ({ data: accountRow, error: null })),
+            maybeSingle: vi.fn(async () => ({
+              data: accountLookupError ? null : accountRow,
+              error: accountLookupError,
+            })),
           }
           return accountsChain
         }
@@ -376,6 +386,58 @@ describe('POST /api/admin/ban — 500 ban_partial when trigger leaves sessions b
   it('returns 500 ban_partial when sessions SELECT errors', async () => {
     currentFakeClient = makeFakeClient({
       sessionsSelectError: { message: 'rpc broke' },
+    })
+    const { POST } = await import('@/app/api/admin/ban/route')
+    const res = await POST(makeRequest({ user_id: TARGET_ID, reason: 'spam' }))
+    expect(res.status).toBe(500)
+    const body = await res.json()
+    expect(body.error).toBe('ban_partial')
+  })
+})
+
+describe('POST /api/admin/ban — 500 ban_partial when fingerprint write paths fail', () => {
+  beforeEach(() => {
+    sessionState.value = { user: { id: ADMIN_ID } }
+    adminGateResult = null
+  })
+
+  it('returns 500 ban_partial when next_auth.users email lookup errors', async () => {
+    currentFakeClient = makeFakeClient({
+      emailLookupError: { message: 'rpc broke' },
+    })
+    const { POST } = await import('@/app/api/admin/ban/route')
+    const res = await POST(makeRequest({ user_id: TARGET_ID, reason: 'spam' }))
+    expect(res.status).toBe(500)
+    const body = await res.json()
+    expect(body.error).toBe('ban_partial')
+  })
+
+  it('returns 500 ban_partial when next_auth.accounts lookup errors', async () => {
+    currentFakeClient = makeFakeClient({
+      accountLookupError: { message: 'rpc broke' },
+    })
+    const { POST } = await import('@/app/api/admin/ban/route')
+    const res = await POST(makeRequest({ user_id: TARGET_ID, reason: 'spam' }))
+    expect(res.status).toBe(500)
+    const body = await res.json()
+    expect(body.error).toBe('ban_partial')
+  })
+
+  it('returns 500 ban_partial when neither email nor providerAccountId is available', async () => {
+    currentFakeClient = makeFakeClient({
+      emailRow: { email: null },
+      accountRow: { providerAccountId: null },
+    })
+    const { POST } = await import('@/app/api/admin/ban/route')
+    const res = await POST(makeRequest({ user_id: TARGET_ID, reason: 'spam' }))
+    expect(res.status).toBe(500)
+    const body = await res.json()
+    expect(body.error).toBe('ban_partial')
+  })
+
+  it('returns 500 ban_partial when ban_fingerprints upsert errors', async () => {
+    currentFakeClient = makeFakeClient({
+      fingerprintError: { message: 'unique violation' },
     })
     const { POST } = await import('@/app/api/admin/ban/route')
     const res = await POST(makeRequest({ user_id: TARGET_ID, reason: 'spam' }))

@@ -1,4 +1,3 @@
-import crypto from 'node:crypto'
 import type { NextAuthOptions, Session } from 'next-auth'
 import { getServerSession } from 'next-auth/next'
 import GithubProvider from 'next-auth/providers/github'
@@ -10,11 +9,8 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { ensurePublicUser } from '@/lib/users/ensure-public-user'
 import { deriveSignupFlags } from '@/lib/auth/soft-flag'
+import { hashBanFingerprintKey, syntheticProviderKey } from '@/lib/auth/ban-fingerprint'
 import { logRouteError } from '@/lib/logging/error-log'
-
-function sha256Lower(value: string): string {
-  return crypto.createHash('sha256').update(value.toLowerCase()).digest('hex')
-}
 
 // ---------------------------------------------------------------------------
 // Gate types (exported for unit testing — pure function, no I/O)
@@ -453,14 +449,17 @@ export const authOptions: NextAuthOptions = {
         // Fingerprint match — covers re-ban evasion with a second GitHub
         // account or a renamed/reused email.
         const candidateHashes: string[] = []
-        if (gh.email) candidateHashes.push(sha256Lower(gh.email))
-        const providerAccountId =
-          typeof account.providerAccountId === 'string' ? account.providerAccountId : null
+        if (gh.email && gh.email.trim().length > 0) {
+          candidateHashes.push(hashBanFingerprintKey(gh.email))
+        }
+        const providerAccountIdRaw =
+          typeof account.providerAccountId === 'string' ? account.providerAccountId.trim() : ''
+        const providerAccountId = providerAccountIdRaw.length > 0 ? providerAccountIdRaw : null
         if (providerAccountId) {
           // Synthetic hash mirrors the writer in /api/admin/ban for the
           // email-less path so a fingerprint stored under `gh:<id>` still
           // matches even when this sign-in lacks an email.
-          candidateHashes.push(sha256Lower(`gh:${providerAccountId}`))
+          candidateHashes.push(hashBanFingerprintKey(syntheticProviderKey(providerAccountId)))
         }
 
         if (candidateHashes.length > 0) {

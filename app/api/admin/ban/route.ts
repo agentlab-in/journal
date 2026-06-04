@@ -1,19 +1,15 @@
-import crypto from 'node:crypto'
 import { getSession } from '@/lib/auth'
 import { requireAdminApi } from '@/lib/admin'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { AdminBanBody } from '@/lib/admin/schema'
 import { guardMutatingRequest } from '@/lib/route-guard'
 import { logRouteError } from '@/lib/logging/error-log'
+import { hashBanFingerprintKey, syntheticProviderKey } from '@/lib/auth/ban-fingerprint'
 
 export const runtime = 'nodejs'
 
 function json(status: number, body: Record<string, unknown>): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
-}
-
-function sha256Lower(value: string): string {
-  return crypto.createHash('sha256').update(value.toLowerCase()).digest('hex')
 }
 
 export async function POST(req: Request): Promise<Response> {
@@ -121,13 +117,28 @@ export async function POST(req: Request): Promise<Response> {
 
   // Persist a ban fingerprint so the same human can't sign up again with a
   // different email or a second GitHub account. We hash the email so raw PII
-  // never lands in this table.
+  // never lands in this table. This is a security-critical write — any
+  // failure here (lookup error, missing identity source, upsert error) MUST
+  // surface to the moderator as ban_partial so they can retry, otherwise
+  // the user is banned but the re-ban-evasion backstop is missing.
   const naLookup = await admin
     .schema('next_auth')
     .from('users')
     .select('email')
     .eq('id', user_id)
     .maybeSingle<{ email: string | null }>()
+
+  if (naLookup.error) {
+    logRouteError(naLookup.error, {
+      route: '/api/admin/ban',
+      userId: adminUserId,
+      extra: { op: 'fingerprint_email_lookup', target_user_id: user_id },
+    })
+    return json(500, {
+      error: 'ban_partial',
+      detail: 'user marked banned but fingerprint email lookup failed; retry to record fingerprint',
+    })
+  }
 
   const accountLookup = await admin
     .schema('next_auth')
@@ -137,38 +148,64 @@ export async function POST(req: Request): Promise<Response> {
     .eq('provider', 'github')
     .maybeSingle<{ providerAccountId: string | null }>()
 
+  if (accountLookup.error) {
+    logRouteError(accountLookup.error, {
+      route: '/api/admin/ban',
+      userId: adminUserId,
+      extra: { op: 'fingerprint_account_lookup', target_user_id: user_id },
+    })
+    return json(500, {
+      error: 'ban_partial',
+      detail: 'user marked banned but fingerprint account lookup failed; retry to record fingerprint',
+    })
+  }
+
   const email = naLookup.data?.email?.trim() || null
   const providerAccountId = accountLookup.data?.providerAccountId?.trim() || null
 
-  if (email || providerAccountId) {
-    // Use email hash as the primary key; if email is missing, fall back to a
-    // synthetic key derived from the providerAccountId so we still record the
-    // fingerprint. A duplicate hash (e.g. an already-banned email rebanned
-    // after un-ban) is upserted to refresh banned_at and providerAccountId.
-    const email_hash = sha256Lower(email ?? `gh:${providerAccountId}`)
-    const { error: fpErr } = await admin
-      .from('ban_fingerprints')
-      .upsert(
-        {
-          email_hash,
-          provider_account_id: providerAccountId,
-          user_id,
-          banned_at: new Date().toISOString(),
-        },
-        { onConflict: 'email_hash' },
-      )
-    if (fpErr) {
-      logRouteError(fpErr, {
-        route: '/api/admin/ban',
-        userId: adminUserId,
-        extra: { op: 'ban_fingerprint_upsert', target_user_id: user_id },
-      })
-    }
-  } else {
+  if (!email && !providerAccountId) {
+    // Without either identifier we can't write a fingerprint, which means
+    // the M1 backstop is gone. Surface to the moderator so they can
+    // backfill next_auth.users / accounts and retry — the user is already
+    // banned and their sessions are gone, so it's safe to fail here.
     logRouteError(new Error('no email or providerAccountId for ban fingerprint'), {
       route: '/api/admin/ban',
       userId: adminUserId,
-      extra: { op: 'ban_fingerprint_skip', target_user_id: user_id },
+      extra: { op: 'fingerprint_no_identity', target_user_id: user_id },
+    })
+    return json(500, {
+      error: 'ban_partial',
+      detail: 'user marked banned but no email/providerAccountId available to record fingerprint',
+    })
+  }
+
+  // Use email hash as the primary key; if email is missing, fall back to a
+  // synthetic key derived from the providerAccountId so we still record the
+  // fingerprint. A duplicate hash (e.g. an already-banned email rebanned
+  // after un-ban) is upserted to refresh banned_at and providerAccountId.
+  const email_hash = hashBanFingerprintKey(
+    email ?? syntheticProviderKey(providerAccountId!),
+  )
+  const { error: fpErr } = await admin
+    .from('ban_fingerprints')
+    .upsert(
+      {
+        email_hash,
+        provider_account_id: providerAccountId,
+        user_id,
+        banned_at: new Date().toISOString(),
+      },
+      { onConflict: 'email_hash' },
+    )
+  if (fpErr) {
+    logRouteError(fpErr, {
+      route: '/api/admin/ban',
+      userId: adminUserId,
+      extra: { op: 'ban_fingerprint_upsert', target_user_id: user_id },
+    })
+    return json(500, {
+      error: 'ban_partial',
+      detail: 'user marked banned but fingerprint upsert failed; retry to record fingerprint',
     })
   }
 
