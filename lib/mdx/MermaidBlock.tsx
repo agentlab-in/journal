@@ -66,6 +66,13 @@ export function MermaidBlock({ code }: MermaidBlockProps) {
   const oversized = code.length > MERMAID_HARD_LIMIT
   const heavy = !oversized && code.length > MERMAID_CLICK_TO_RENDER
   const [unlocked, setUnlocked] = useState<boolean>(!heavy)
+  // Reset the gate when `code` shifts across the heavy/light boundary.
+  // Without this, an editor-rerender that swaps a 3000-char body for a
+  // 500-char body would leave a small diagram stuck behind the button,
+  // and vice versa. The effect is a no-op while the category is stable.
+  useEffect(() => {
+    setUnlocked(!heavy)
+  }, [heavy])
   const theme = useSyncExternalStore(
     subscribeToTheme,
     getMermaidTheme,

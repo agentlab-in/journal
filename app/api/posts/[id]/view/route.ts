@@ -60,9 +60,16 @@ export async function POST(
   const admin = createAdminSupabaseClient()
 
   // Atomically increment via a SECURITY DEFINER RPC (see migration 0004).
-  // We intentionally swallow errors: the beacon must never surface DB issues
-  // or reveal whether a post exists.
-  await admin.rpc('increment_post_view_count', { p_id: id })
+  // We intentionally swallow errors *and* exceptions: the beacon must
+  // never surface DB issues or reveal whether a post exists. Supabase
+  // returns soft errors via `{ data, error }`, but the underlying fetch
+  // can still reject (network blip, DNS, abort) — the try/catch keeps
+  // that path 204 too.
+  try {
+    await admin.rpc('increment_post_view_count', { p_id: id })
+  } catch {
+    // Intentionally swallowed.
+  }
 
   return noContent()
 }

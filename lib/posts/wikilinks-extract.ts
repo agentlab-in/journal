@@ -16,19 +16,26 @@ export function extractWikilinkAnchors(body_md: string): string[] {
 
   const seen = new Map<string, string>()
   let match: RegExpExecArray | null
+  let truncated = false
   WIKILINK_RE.lastIndex = 0
   while ((match = WIKILINK_RE.exec(stripped)) !== null) {
     const anchor = match[1].trim()
     if (!anchor) continue
     const key = anchor.toLowerCase()
     if (!seen.has(key)) seen.set(key, anchor)
-    if (seen.size >= MAX_WIKILINK_ANCHORS) break
+    if (seen.size >= MAX_WIKILINK_ANCHORS) {
+      // Peek for any further wikilink token. If we find one we genuinely
+      // truncated (there was more in the body we are dropping). If we
+      // don't, the body just happened to land exactly on the cap and the
+      // "truncated" warning would be misleading.
+      truncated = WIKILINK_RE.exec(stripped) !== null
+      break
+    }
   }
-  const anchors = [...seen.values()]
-  if (anchors.length >= MAX_WIKILINK_ANCHORS) {
+  if (truncated) {
     console.warn(
       `[wikilinks] truncated to ${MAX_WIKILINK_ANCHORS} anchors (cap hit)`,
     )
   }
-  return anchors
+  return [...seen.values()]
 }

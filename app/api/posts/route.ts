@@ -28,12 +28,18 @@ const REQUIRED_SECTION_KEYS: Record<string, string[]> = {
   dive: ['tldr', 'the_question'],
 }
 
-// Hard ceiling on synchronous MDX/HAST work per publish. Bounds worst-case
-// CPU spent inside `renderToHtml` + `extractStructuredSections` so a
-// pathological body (deep nesting, tag explosion) cannot keep a Node
-// process pinned at 100% indefinitely. 10s is well above the p99 of an
-// honest publish (single-digit ms) and below typical platform/edge
-// function timeouts.
+// Wall-clock ceiling on the publish-time render pipeline.
+//
+// IMPORTANT: this is a best-effort *async* timeout, NOT a CPU bound. A
+// `Promise.race` timer cannot interrupt a synchronous tight loop — the
+// timer callback can't fire while the event loop is blocked. In practice
+// the heavy work (`renderToHtml`) lives inside the unified pipeline
+// which yields between plugin passes, so an async stall (e.g. a remark
+// plugin that awaits something pathological) does get cut off here.
+// A truly CPU-bound runaway inside one plugin would only get caught by
+// the platform/edge function timeout above. Acceptable tradeoff for v1:
+// the realistic attack surface is async stalls; hard CPU sandboxing
+// would need a worker thread.
 const RENDER_TIMEOUT_MS = 10_000
 
 function withRenderTimeout<T>(p: Promise<T>, ms: number): Promise<T> {

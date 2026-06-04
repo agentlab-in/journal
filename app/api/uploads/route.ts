@@ -63,6 +63,11 @@ export async function POST(req: NextRequest): Promise<Response> {
   // when the advertised body size couldn't possibly fit under MAX_BYTES
   // (plus a 4KB multipart-framing slop). Content-Length can lie — the
   // post-parse `file.size` check still runs.
+  //
+  // Returns the same `file_too_large` code as the post-parse path: the
+  // upload UI (CoverImagePicker, ProfileSettingsForm) keys its error
+  // message off that string, so reusing it surfaces a sensible toast
+  // instead of "unknown error" when the pre-check fires.
   const contentLengthHeader = req.headers.get('content-length')
   if (contentLengthHeader !== null) {
     const declaredLength = Number(contentLengthHeader)
@@ -70,7 +75,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       Number.isFinite(declaredLength) &&
       declaredLength > MAX_BYTES + 4096
     ) {
-      return json(413, { error: 'payload_too_large' })
+      return json(413, { error: 'file_too_large' })
     }
   }
 
