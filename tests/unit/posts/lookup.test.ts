@@ -40,7 +40,7 @@ function makeFakeClient(
   authorResult: { data: MaybeRow; error: unknown } = { data: null, error: null },
 ) {
   const fromFn = vi.fn((table: string) => {
-    if (table === 'users') {
+    if (table === 'users' || table === 'users_public') {
       // Heuristic: first users() call is the leading-segment lookup,
       // any subsequent users() call is the author hydration on the org
       // branch. Track call count on the fn so the second users() call

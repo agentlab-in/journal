@@ -72,7 +72,7 @@ describe('lookupPost (org branch)', () => {
     let usersIdx = 0
     return {
       from: vi.fn((table: string) => {
-        if (table === 'users') {
+        if (table === 'users' || table === 'users_public') {
           const c = userChains[usersIdx] ?? userChains[userChains.length - 1]
           usersIdx += 1
           return c
@@ -301,7 +301,7 @@ describe('GET /[username]/feed.xml (org branch)', () => {
   }) {
     return {
       from: vi.fn((table: string) => {
-        if (table === 'users') {
+        if (table === 'users' || table === 'users_public') {
           return makeChain({ single: { data: opts.userRow ?? null, error: null } })
         }
         if (table === 'orgs') {
