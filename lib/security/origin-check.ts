@@ -8,12 +8,23 @@
  * Trailing slashes are tolerated (some callers pass `Origin` headers with
  * them). Scheme and host are case-sensitive — browsers normalise both, so
  * we do not need to.
+ *
+ * L8 — `http://localhost:3010` is only allowed outside production builds
+ * so a hostile network can't try to fabricate an Origin header that
+ * matches the local dev port against the prod deployment.
  */
-const ALLOWED_ORIGINS: ReadonlySet<string> = new Set([
+const ALWAYS_ALLOWED_ORIGINS: ReadonlyArray<string> = [
   'https://agentlab.in',
   'https://dev.agentlab.in',
-  'http://localhost:3010',
-])
+]
+
+const DEV_ONLY_ORIGINS: ReadonlyArray<string> = ['http://localhost:3010']
+
+const ALLOWED_ORIGINS: ReadonlySet<string> = new Set(
+  process.env.NODE_ENV === 'production'
+    ? ALWAYS_ALLOWED_ORIGINS
+    : [...ALWAYS_ALLOWED_ORIGINS, ...DEV_ONLY_ORIGINS],
+)
 
 export function isAllowedOrigin(origin: string | null): boolean {
   if (origin === null) return false

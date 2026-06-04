@@ -29,6 +29,14 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:3010',
     trace: 'on-first-retry',
+    // Phase 14 / H7: the proxy CSRF backstop rejects mutating /api/*
+    // requests with no Origin header. Playwright's APIRequestContext
+    // does not auto-send Origin (browsers do), so we set the same-origin
+    // value here to mirror real-browser behaviour. Same-origin Origin is
+    // a no-op for non-/api routes and for GETs.
+    extraHTTPHeaders: {
+      Origin: 'http://localhost:3010',
+    },
   },
   projects: [
     {
@@ -71,6 +79,11 @@ export default defineConfig({
       // Leave unset in CI — admin tests skip when this is absent.
       ADMIN_GITHUB_LOGINS:
         process.env.ADMIN_GITHUB_LOGINS_FOR_E2E ?? '',
+      // Phase 14 / L4: exercise the production-mode robots.txt branch
+      // in CI so the e2e assertion can match the real prod content.
+      // Without this, app/robots.ts returns the non-prod blanket
+      // "Disallow: /" because VERCEL_ENV is unset on GitHub Actions.
+      VERCEL_ENV: process.env.VERCEL_ENV ?? 'production',
     },
   },
 })
