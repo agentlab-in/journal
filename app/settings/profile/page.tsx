@@ -23,7 +23,6 @@ interface UserRow {
 }
 
 interface OrgMembershipRow {
-  role: 'admin' | 'member'
   orgs: {
     id: string
     slug: string
@@ -60,7 +59,7 @@ export default async function ProfileSettingsPage() {
   // shape as the /write page so we exclude soft-deleted/banned orgs.
   const { data: memberRows } = await admin
     .from('org_members')
-    .select('role, orgs!inner(id, slug, display_name, deleted_at, banned_at)')
+    .select('orgs!inner(id, slug, display_name, deleted_at, banned_at)')
     .eq('user_id', session.user.id)
 
   const orgs: OrgListEntry[] = []
@@ -71,7 +70,6 @@ export default async function ProfileSettingsPage() {
       id: r.orgs.id,
       slug: r.orgs.slug,
       display_name: r.orgs.display_name,
-      role: r.role,
     })
   }
   orgs.sort((a, b) => a.display_name.localeCompare(b.display_name))
@@ -85,7 +83,7 @@ export default async function ProfileSettingsPage() {
         bio={row.bio}
         avatarUrl={row.avatar_url}
       />
-      <OrgsListSection callerUserId={session.user.id} orgs={orgs} />
+      <OrgsListSection orgs={orgs} />
       <DeleteAccountSection />
     </main>
   )

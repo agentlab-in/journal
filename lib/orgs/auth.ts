@@ -1,17 +1,14 @@
 // ---------------------------------------------------------------------------
-// Phase 11 — Org-membership API gates.
+// Phase 11.5 — Org lookup + membership helpers.
 //
-// Mirrors lib/admin.ts: provides a Response-returning helper that route
-// handlers can short-circuit with, so handler bodies stay flat.
+// GitHub-backed orgs: rows + memberships are materialized by the sync layer
+// (lib/orgs/github-sync.ts), so this module only carries read-side helpers
+// used by routing, the profile-settings page, and the editor's publish-as
+// gate. There is no admin-vs-member tier on agentlab itself, so the old
+// requireOrgAdmin / isOrgAdmin helpers were removed alongside the write
+// routes they gated.
 // ---------------------------------------------------------------------------
 import type { SupabaseClient } from '@supabase/supabase-js'
-
-function json(status: number, body: Record<string, unknown>): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  })
-}
 
 export interface OrgRow {
   id: string
@@ -52,56 +49,9 @@ export async function getOrgBySlug(
 }
 
 /**
- * Returns `null` when `userId` is an admin of `orgId`, or a 403 Response
- * (404 if no row exists) otherwise. Modeled after `requireAdminApi`.
- */
-export async function requireOrgAdmin(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: SupabaseClient<any, any, any>,
-  orgId: string,
-  userId: string,
-): Promise<Response | null> {
-  const { data, error } = await supabase
-    .from('org_members')
-    .select('role')
-    .eq('org_id', orgId)
-    .eq('user_id', userId)
-    .maybeSingle()
-
-  if (error || !data) {
-    return json(403, { error: 'forbidden' })
-  }
-  const row = data as { role: string }
-  if (row.role !== 'admin') {
-    return json(403, { error: 'forbidden' })
-  }
-  return null
-}
-
-/**
- * Boolean variant of `requireOrgAdmin` for server-component gates that
- * can't consume a Response. Mirrors the same admin-role check but returns
- * a plain boolean so callers can branch into `notFound()`/`redirect()`.
- */
-export async function isOrgAdmin(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: SupabaseClient<any, any, any>,
-  orgId: string,
-  userId: string,
-): Promise<boolean> {
-  const { data, error } = await supabase
-    .from('org_members')
-    .select('role')
-    .eq('org_id', orgId)
-    .eq('user_id', userId)
-    .maybeSingle()
-  if (error || !data) return false
-  return (data as { role: string }).role === 'admin'
-}
-
-/**
- * Returns true iff `userId` is a member (any role) of `orgId`. Used by the
- * member-remove endpoint to support self-removal without admin rights.
+ * Returns true iff `userId` is a member of `orgId`. Used by the editor's
+ * publish-as gate so authors can only attribute posts to orgs they belong
+ * to. The sync layer is the sole writer of `org_members`.
  */
 export async function isOrgMember(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

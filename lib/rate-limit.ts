@@ -23,10 +23,6 @@ export type RateLimitBucket =
   | 'delete_account'
   | 'mdx_preview'
   | 'view_count'
-  | 'create_org'
-  | 'edit_org'
-  | 'delete_org'
-  | 'edit_org_members'
 
 export interface RateLimitResult {
   success: boolean
@@ -66,18 +62,6 @@ const BUCKETS: Record<RateLimitBucket, BucketSpec> = {
   // the route is unauth. 60/min lets normal browsing through; a script
   // forging Origin and pumping increments gets shut down.
   view_count: { limit: 60, windowMs: 60 * 1000, windowDuration: '1 m' },
-  create_org: {
-    limit: 3,
-    windowMs: 7 * 24 * 60 * 60 * 1000,
-    windowDuration: '7 d',
-  },
-  edit_org: { limit: 30, windowMs: 60 * 60 * 1000, windowDuration: '1 h' },
-  delete_org: { limit: 30, windowMs: 60 * 60 * 1000, windowDuration: '1 h' },
-  edit_org_members: {
-    limit: 30,
-    windowMs: 60 * 60 * 1000,
-    windowDuration: '1 h',
-  },
 }
 
 // ---------------------------------------------------------------------------
