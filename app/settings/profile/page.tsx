@@ -75,7 +75,7 @@ export default async function ProfileSettingsPage() {
   orgs.sort((a, b) => a.display_name.localeCompare(b.display_name))
 
   return (
-    <main id="main-content" className="settings-page">
+    <main id="main-content" className="settings-page settings-page--wide">
       <h1 className="settings-heading">Profile settings</h1>
       <ProfileSettingsForm
         username={row.username}
