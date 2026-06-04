@@ -908,40 +908,44 @@ Phases are numbered. Dependencies are explicit. Each phase is a coherent merge �
 
 ## Phase 11 — Org-Account Publishing (B2)
 
-**Goal:** A user who admins a GitHub org can verify and link the org, then publish posts as that org. This is how `agentlab-in` gets provisioned.
+**Goal:** A user who belongs to a GitHub org sees that org as a publish-as option on `/write`, and articles authored under it route to `/<org-slug>/...`. Org identity is sourced live from GitHub — no agentlab-side roster management.
 
 **Depends on:** Phases 1, 4, 6.
 
 **Files:**
-- Create: `app/orgs/claim/page.tsx`
-- Create: `app/api/orgs/claim/route.ts`
-- Modify: `components/editor/PublishAsSelect.tsx` (fully wired)
-- Modify: `app/api/posts/route.ts`, `app/api/posts/[id]/route.ts` (accept `publish_as` field)
-- Modify: `app/[username]/page.tsx` (render org profile)
-- Create: `lib/github.ts` additions (org admin check)
-- Create: `tests/e2e/org-publish.spec.ts`
+- Create: `supabase/migrations/0013_orgs.sql` (orgs + org_members + posts.org_id; pinned_posts XOR refactor; reports/mod_actions target_type extension)
+- Create: `supabase/migrations/0021_github_orgs.sql` (orgs.github_org_id UNIQUE)
+- Create: `lib/orgs/github-sync.ts` (sync GitHub orgs → `public.orgs` + `public.org_members` on sign-in)
+- Modify: `lib/auth.ts` (add `read:org` scope; `events.signIn` calls `syncUserGithubOrgs`)
+- Create: `components/editor/PublishAsSelect.tsx`
+- Modify: `app/api/posts/route.ts`, `app/api/posts/[id]/route.ts` (accept + immutability-check `org_id`)
+- Modify: `app/[username]/page.tsx`, `app/[username]/[type]/[slug]/page.tsx` (user-first, then org)
+- Modify: `app/[username]/feed.xml/route.ts`, `app/sitemap.ts` (org branches)
+- Modify: `components/post/PostCard.tsx`, `lib/posts/lookup.ts`, wikilinks resolver
+- Modify: `components/settings/OrgsListSection.tsx` (read-only listing on `/settings/profile`)
 
 **Tasks:**
 
-1. **GitHub API helpers (`lib/github.ts`).** Add `getUserOrgMemberships(accessToken)` (GET `/user/memberships/orgs`); add `isOrgAdmin(accessToken, orgLogin)` checking role=`admin`. Required OAuth scope: `read:org` (add to NextAuth config; users who signed in before this phase will be re-prompted for scope upgrade on first claim attempt).
-2. **`/orgs/claim` page.** Lists the user's admin orgs (from GitHub API). Each row: org login + avatar + "Claim on agentlab.in" button. If already claimed by someone, show "Already claimed by @<other-admin>" — claims are first-come, but other admins of the same org can later be added (post-v1 nicety; v1 = first admin to claim wins exclusive editorial rights via this UI).
-3. **`POST /api/orgs/claim`.** Body `{ org_login }`. Server re-verifies admin via the user's stored access token (`accounts.access_token` from NextAuth). On verified:
-   - Look up or create a `users` row for the org with `account_type='org'`, `github_login=org_login`, `github_id=org.id`, `display_name=org.name`, `bio=org.description`, `avatar_url=org.avatar_url`.
-   - Insert `account_aliases (alias_user_id=org_user_id, admin_user_id=current_user_id)`.
-4. **`PublishAsSelect.tsx`.** Lists `[me, ...my_aliases]`. Editor stores selected alias in `publish_as_user_id` (default = me).
-5. **`POST /api/posts` accepts `publish_as`.** Verify the current user has an alias to that user (or it's themselves). Set `posts.author_id = publish_as`.
-6. **`PATCH /api/posts/[id]`.** Author check uses `posts.author_id` AND verifies current user is either that user or has an alias to them.
-7. **Org profile page.** Same `app/[username]/page.tsx`, but if `account_type='org'`, render a slightly different header that includes "An organization on agentlab.in" line and links to `https://github.com/<org_login>`.
-8. **Provision `agentlab-in` via the claim flow.** Harshit signs in, navigates to `/orgs/claim`, claims `agentlab-in`. (This is a launch-day step, not a code task — but the plan accounts for it.)
-9. **Tests.**
-    - E2E: signed-in user claims an org they admin; row in `account_aliases`; org appears in PublishAsSelect.
-    - E2E: publishing with `publish_as = org_user_id` lands the post at `/<org_login>/<type>/<slug>` and the post's author shows the org name.
-    - E2E: attempting to claim an org you don't admin → 403.
+1. **Schema (0013).** `orgs`, `org_members` (role kept for forward-compat; functionally only `'member'` under the GitHub model), `posts.org_id`, `pinned_posts` XOR refactor, RLS cascades so soft-deleted/banned orgs hide their posts.
+2. **`github_org_id` column (0021).** UNIQUE bigint so login renames update the existing row instead of duplicating.
+3. **GitHub org sync.** `syncUserGithubOrgs` calls `GET /user/orgs` with the user's OAuth token; materializes orgs not yet in DB; updates `display_name` / `avatar_url` / `bio` / `slug` on rename; upserts membership; prunes memberships removed from GitHub. Soft-deleted / banned orgs are skipped (admin moderation wins). 5s timeout, fail-soft on GitHub errors.
+4. **Wire into auth flow.** `events.signIn` calls the sync after `ensurePublicUser` resolves; failures logged but never block sign-in. OAuth scope adds `read:org`; users who deny it keep signing in but see no orgs.
+5. **`PublishAsSelect`.** Lists the caller's GitHub-backed orgs. `POST /api/posts` writes `org_id` after re-verifying membership.
+6. **Org routing.** `/<slug>` resolves user-first, falls back to org. Org profile is read-only — `display_name` / `bio` / `avatar` come from GitHub. No agentlab-side edit form.
+7. **Read-side surfaces.** `PostCard` byline, RSS, sitemap, JSON-LD `Organization`, wikilinks resolver all read org by slug.
+8. **`/settings/profile#orgs`.** Read-only list of the caller's orgs with a View link. No Manage / Leave — those are GitHub actions.
+
+**Out of scope:**
+- A rename-redirect table for changed org logins (v1: old slug 404s; TODO inline).
+- Caching the GitHub org list between sign-ins (one fetch per sign-in is fine).
+- A "refresh my orgs" button (next sign-in does it).
+- Multi-user admin roster on agentlab — membership IS GitHub membership.
 
 **Acceptance:**
-- Harshit can claim `agentlab-in` and post-as it.
-- Posts authored by `agentlab-in` show at `/agentlab-in/post/<slug>`.
-- The org profile page renders correctly.
+- A user belonging to a GitHub org sees it in `PublishAsSelect` after sign-in.
+- Posting under that org lands at `/<org-slug>/<type>/<post-slug>` and the org byline renders on `PostCard`.
+- Leaving the GitHub org → publish-as rights drop on next sign-in.
+- Admin can ban an org via `/admin/orgs`; its posts disappear from public read paths.
 
 ---
 

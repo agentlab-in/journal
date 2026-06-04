@@ -139,8 +139,7 @@ interface OrgBodyProps {
 
 /**
  * Org variant of ProfileBody. Posts are queried by org_id, pins by org_id.
- * No "isOwner" affordances — org-member edit surfaces live in
- * /settings/orgs/[slug] (T5), not on the public profile.
+ * No "isOwner" affordances — org profile is read-only, sourced from GitHub.
  */
 async function OrgBody({ orgId, slug }: OrgBodyProps) {
   const db = createAnonServerSupabaseClient()

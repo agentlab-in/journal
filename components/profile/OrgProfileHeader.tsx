@@ -24,8 +24,8 @@ export interface OrgProfileHeaderProps {
  * user `ProfileHeader`:
  *   - No follow/report viewer actions (Phase 11: orgs are not followable
  *     and the Report-org affordance lives elsewhere when it ships).
- *   - No "Edit Profile" owner link — org settings live at
- *     /settings/orgs/[slug] (T5), not at /settings/profile.
+ *   - No "Edit Profile" owner link — org profile is read-only and sourced
+ *     from GitHub (display_name, bio, avatar all sync on sign-in).
  *   - Cover image renders when present; mirrors user cover handling.
  */
 export function OrgProfileHeader({
