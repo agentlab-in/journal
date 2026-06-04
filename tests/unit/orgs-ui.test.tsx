@@ -1,20 +1,20 @@
 /**
- * Phase 11 / T5 — Editor + settings + nav UI tests.
+ * Phase 11.5 — Editor + settings + nav UI tests.
  *
  * Covers:
  *  1. PublishAsSelect: hides when no orgs (new mode).
  *  2. PublishAsSelect: renders dropdown with personal + each org (new mode).
  *  3. PublishAsSelect: edit mode renders disabled with current selection.
- *  4. OrgCreateForm: POSTs /api/orgs and redirects on success.
- *  5. OrgMembersPanel: 409 last_admin surfaces inline.
- *  6. PostCard: org byline renders "{org} via @{author}".
- *  7. OrgsListSection: empty state nudges to create; renders rows.
+ *  4. PostCard: org byline renders "{org} via @{author}".
+ *  5. OrgsListSection: read-only — empty-state copy + rows + View link only.
  */
 import React from 'react'
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
 
-// Single shared router mock for the whole file. Tests reset it in beforeEach.
+// Single shared router mock for the whole file. PublishAsSelect doesn't use
+// it, but other components imported by the editor tree may; keep the mock
+// in place so importing this file is side-effect-safe across runs.
 const mockPush = vi.fn()
 const mockRefresh = vi.fn()
 vi.mock('next/navigation', () => ({
@@ -25,11 +25,6 @@ import {
   PublishAsSelect,
   type PublishAsOrgOption,
 } from '@/components/editor/PublishAsSelect'
-import { OrgCreateForm } from '@/components/settings/OrgCreateForm'
-import {
-  OrgMembersPanel,
-  type OrgMember,
-} from '@/components/settings/orgs/OrgMembersPanel'
 import { OrgsListSection } from '@/components/settings/OrgsListSection'
 import { PostCard, type PostCardData } from '@/components/post/PostCard'
 
@@ -96,159 +91,6 @@ describe('<PublishAsSelect>', () => {
 })
 
 // ---------------------------------------------------------------------------
-// OrgCreateForm
-// ---------------------------------------------------------------------------
-
-describe('<OrgCreateForm>', () => {
-  beforeEach(() => {
-    mockPush.mockReset()
-    vi.spyOn(console, 'error').mockImplementation(() => {})
-  })
-
-  afterEach(() => {
-    vi.restoreAllMocks()
-    vi.unstubAllGlobals()
-  })
-
-  it('submits POST /api/orgs and redirects to /settings/orgs/[slug]', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue({
-        ok: true,
-        json: async () => ({ id: 'org-1', slug: 'acme', display_name: 'Acme' }),
-      })
-    vi.stubGlobal('fetch', fetchMock)
-
-    render(<OrgCreateForm />)
-    fireEvent.change(screen.getByLabelText(/slug/i), {
-      target: { value: 'acme' },
-    })
-    fireEvent.change(screen.getByLabelText(/display name/i), {
-      target: { value: 'Acme' },
-    })
-    const form = document.querySelector('form')!
-    fireEvent.submit(form)
-
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
-        '/api/orgs',
-        expect.objectContaining({ method: 'POST' }),
-      )
-    })
-    await waitFor(() =>
-      expect(mockPush).toHaveBeenCalledWith('/settings/orgs/acme'),
-    )
-  })
-
-  it('surfaces slug_taken errors inline', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 409,
-      json: async () => ({ error: 'slug_taken', reason: 'reserved' }),
-    })
-    vi.stubGlobal('fetch', fetchMock)
-
-    render(<OrgCreateForm />)
-    fireEvent.change(screen.getByLabelText(/slug/i), {
-      target: { value: 'admin' },
-    })
-    fireEvent.change(screen.getByLabelText(/display name/i), {
-      target: { value: 'Admin Co' },
-    })
-    fireEvent.submit(document.querySelector('form')!)
-
-    await waitFor(() =>
-      expect(screen.getByRole('alert').textContent).toMatch(/already in use/i),
-    )
-    expect(mockPush).not.toHaveBeenCalled()
-  })
-})
-
-// ---------------------------------------------------------------------------
-// OrgMembersPanel
-// ---------------------------------------------------------------------------
-
-describe('<OrgMembersPanel>', () => {
-  beforeEach(() => {
-    mockPush.mockReset()
-    mockRefresh.mockReset()
-    vi.spyOn(console, 'error').mockImplementation(() => {})
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
-  })
-
-  afterEach(() => {
-    vi.restoreAllMocks()
-    vi.unstubAllGlobals()
-  })
-
-  const sampleMembers: OrgMember[] = [
-    {
-      user_id: 'me',
-      username: 'alice',
-      display_name: 'Alice',
-      avatar_url: null,
-      role: 'admin',
-    },
-    {
-      user_id: 'bob',
-      username: 'bob',
-      display_name: 'Bob',
-      avatar_url: null,
-      role: 'member',
-    },
-  ]
-
-  it('renders an inline error when a role change returns last_admin (409)', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 409,
-      json: async () => ({ error: 'last_admin' }),
-    })
-    vi.stubGlobal('fetch', fetchMock)
-
-    render(
-      <OrgMembersPanel
-        slug="acme"
-        callerUserId="me"
-        initialMembers={sampleMembers}
-      />,
-    )
-
-    const select = screen.getByLabelText(/role for @alice/i) as HTMLSelectElement
-    fireEvent.change(select, { target: { value: 'member' } })
-
-    await waitFor(() =>
-      expect(screen.getByRole('alert').textContent).toMatch(/last admin/i),
-    )
-  })
-
-  it('renders an inline error when self-leave hits last_admin', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 409,
-      json: async () => ({ error: 'last_admin' }),
-    })
-    vi.stubGlobal('fetch', fetchMock)
-
-    render(
-      <OrgMembersPanel
-        slug="acme"
-        callerUserId="me"
-        initialMembers={sampleMembers}
-      />,
-    )
-
-    const aliceRow = screen.getByTestId('org-member-alice')
-    const leaveBtn = aliceRow.querySelector('button')!
-    fireEvent.click(leaveBtn)
-
-    await waitFor(() =>
-      expect(screen.getByRole('alert').textContent).toMatch(/last admin/i),
-    )
-  })
-})
-
-// ---------------------------------------------------------------------------
 // PostCard byline
 // ---------------------------------------------------------------------------
 
@@ -300,41 +142,54 @@ describe('<PostCard> byline', () => {
 })
 
 // ---------------------------------------------------------------------------
-// OrgsListSection
+// OrgsListSection (read-only)
 // ---------------------------------------------------------------------------
 
 describe('<OrgsListSection>', () => {
-  it('renders an empty-state CTA when the caller has no orgs', () => {
-    render(<OrgsListSection callerUserId="me" orgs={[]} />)
-    const link = screen.getByRole('link', { name: /create your first org/i })
-    expect(link.getAttribute('href')).toBe('/settings/orgs/new')
+  it('renders the read-only empty-state copy when the caller has no orgs', () => {
+    render(<OrgsListSection orgs={[]} />)
+    expect(
+      screen.getByText(
+        /you’re not in any orgs yet\. join a github org and sign back in/i,
+      ),
+    ).toBeDefined()
+    // No /settings/orgs/new CTA — that surface no longer exists.
+    expect(
+      screen.queryByRole('link', { name: /create your first org/i }),
+    ).toBeNull()
+    expect(
+      screen.queryByRole('link', { name: /create another org/i }),
+    ).toBeNull()
   })
 
-  it('renders each org with role + Manage link for admin rows', () => {
+  it('renders each org as a row with display_name, slug, and a View link to /<slug>', () => {
     render(
       <OrgsListSection
-        callerUserId="me"
         orgs={[
-          {
-            id: 'org-1',
-            slug: 'acme',
-            display_name: 'Acme',
-            role: 'admin',
-          },
-          {
-            id: 'org-2',
-            slug: 'globex',
-            display_name: 'Globex',
-            role: 'member',
-          },
+          { id: 'org-1', slug: 'acme', display_name: 'Acme' },
+          { id: 'org-2', slug: 'globex', display_name: 'Globex' },
         ]}
       />,
     )
+
     expect(screen.getByText('Acme')).toBeDefined()
     expect(screen.getByText('Globex')).toBeDefined()
-    const manage = screen.getByRole('link', { name: /manage/i })
-    expect(manage.getAttribute('href')).toBe('/settings/orgs/acme')
-    // Globex (member) has no Manage link — only Acme should.
-    expect(screen.getAllByRole('link', { name: /manage/i })).toHaveLength(1)
+    expect(screen.getByText('@acme')).toBeDefined()
+    expect(screen.getByText('@globex')).toBeDefined()
+
+    const viewLinks = screen.getAllByRole('link', { name: /view/i })
+    expect(viewLinks).toHaveLength(2)
+    expect(viewLinks[0].getAttribute('href')).toBe('/acme')
+    expect(viewLinks[1].getAttribute('href')).toBe('/globex')
+  })
+
+  it('does not render Leave buttons or Manage links', () => {
+    render(
+      <OrgsListSection
+        orgs={[{ id: 'org-1', slug: 'acme', display_name: 'Acme' }]}
+      />,
+    )
+    expect(screen.queryByRole('button', { name: /leave/i })).toBeNull()
+    expect(screen.queryByRole('link', { name: /manage/i })).toBeNull()
   })
 })
