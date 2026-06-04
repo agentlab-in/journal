@@ -52,8 +52,11 @@ export async function fetchAuthors(
   authorIds: string[],
 ): Promise<Map<string, AuthorInfo>> {
   if (authorIds.length === 0) return new Map()
+  // Read via `users_public` (migration 0014_rls_hardening) — anon and
+  // authenticated callers have no GRANT on `public.users` anymore, and
+  // this hydrator is called from anon home/latest/tag/search renders.
   const { data, error } = await db
-    .from('users')
+    .from('users_public')
     .select('id, username, display_name, avatar_url')
     .in('id', authorIds)
   if (error || !Array.isArray(data)) return new Map()

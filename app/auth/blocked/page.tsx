@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
+import { getSession } from '@/lib/auth'
 
 // Title resolves to `Blocked — agentlab.in` via the root layout template.
 // Deliberately a single word so the suffix carries the brand reference;
@@ -40,7 +41,11 @@ function sanitiseLogin(raw: string | undefined): string | null {
   return GH_LOGIN_RE.test(raw) ? raw.toLowerCase() : null
 }
 
-function parseReason(reason: string | undefined, bannedReason?: string | null): React.ReactNode {
+function parseReason(
+  reason: string | undefined,
+  bannedReason?: string | null,
+  isOwnAccount?: boolean,
+): React.ReactNode {
   if (!reason) {
     return <p className="text-fg-subtle">Your account does not meet the eligibility criteria.</p>
   }
@@ -108,6 +113,16 @@ function parseReason(reason: string | undefined, bannedReason?: string | null): 
   }
 
   if (reason === 'banned') {
+    if (!isOwnAccount) {
+      // Generic copy for anyone other than the suspended user themself —
+      // we don't confirm whether the handle even exists or is suspended.
+      return (
+        <p className="text-fg-subtle">
+          This account is not accessible. If this is your account, sign in
+          for details.
+        </p>
+      )
+    }
     return (
       <div className="space-y-3 text-sm leading-relaxed">
         <p className="text-fg-subtle">
@@ -142,25 +157,37 @@ export default async function BlockedPage({ searchParams }: PageProps) {
   const { reason, login } = await searchParams
   const safeLogin = sanitiseLogin(login)
 
-  // For banned accounts, attempt a server-side lookup for the banned_reason.
-  // Only enrich with banned_reason when the row exists AND is banned.
-  // We never reveal whether a login is "not found" vs "not banned" — show
-  // generic banned copy in both cases; only enrich on a confirmed ban row.
+  // banned_reason is bound to the caller's own identity: the page renders
+  // it only when the signed-in user's username matches the URL's `login`
+  // param. Without this gate, anyone could probe `/auth/blocked?reason=banned&login=<handle>`
+  // and read another account's moderation reason (security audit C2).
+  //
+  // The generic copy below ("not accessible / sign in for details") goes
+  // out to every other caller — anon visitors, signed-in users probing a
+  // handle other than their own, and the (rare) case where the row is
+  // missing or the lookup fails. We never reveal whether a login is
+  // "not found" vs "not banned" vs "banned to someone else".
   let bannedReason: string | null = null
+  let isOwnAccount = false
   if (reason === 'banned' && safeLogin) {
-    try {
-      const supabase = createAdminSupabaseClient()
-      const { data: banRow } = await supabase
-        .from('users')
-        .select('banned_at, banned_reason')
-        .eq('username', safeLogin)
-        .maybeSingle<{ banned_at: string | null; banned_reason: string | null }>()
+    const session = await getSession()
+    isOwnAccount = session?.user?.username === safeLogin
 
-      if (banRow?.banned_at) {
-        bannedReason = banRow.banned_reason ?? null
+    if (isOwnAccount) {
+      try {
+        const supabase = createAdminSupabaseClient()
+        const { data: banRow } = await supabase
+          .from('users')
+          .select('banned_at, banned_reason')
+          .eq('username', safeLogin)
+          .maybeSingle<{ banned_at: string | null; banned_reason: string | null }>()
+
+        if (banRow?.banned_at) {
+          bannedReason = banRow.banned_reason ?? null
+        }
+      } catch {
+        // Lookup failed — show generic banned copy without a specific reason.
       }
-    } catch {
-      // Lookup failed — show generic banned copy without a specific reason.
     }
   }
 
@@ -177,7 +204,9 @@ export default async function BlockedPage({ searchParams }: PageProps) {
           </p>
         )}
 
-        <div className="text-sm leading-relaxed">{parseReason(reason, bannedReason)}</div>
+        <div className="text-sm leading-relaxed">
+          {parseReason(reason, bannedReason, isOwnAccount)}
+        </div>
 
         <Link
           href="/"

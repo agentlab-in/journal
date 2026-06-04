@@ -30,6 +30,13 @@
  * `follows` are owner-only-read under RLS (migration 0002) — the SSR anon
  * client would return zero rows for any third-party viewer.
  *
+ * Security audit (M14) flagged the service-role usage on the posts query at
+ * the bottom of this function. We keep service-role for the whole function
+ * because (a) likes/bookmarks/follows require it, and (b) running two
+ * separate clients would double the connection-pool footprint for no
+ * additional safety — the only data leaving this function is a small set
+ * of tag slugs, which carries no PII.
+ *
  * `now` is injectable so unit tests are deterministic.
  *
  * --- Performance (post-review-feedback #3) ---

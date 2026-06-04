@@ -131,7 +131,7 @@ describe('lookupProfileByUsername', () => {
       follower_count: 12,
       following_count: 3,
     })
-    expect(db.from).toHaveBeenCalledWith('users')
+    expect(db.from).toHaveBeenCalledWith('users_public')
     expect(chain.select).toHaveBeenCalledWith(
       expect.stringContaining('github_login'),
     )
