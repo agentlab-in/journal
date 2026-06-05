@@ -85,7 +85,7 @@ You must not publish content that:
 - Impersonates another person or entity
 - Contains misleading or fabricated technical claims (e.g. fake benchmarks, invented performance numbers, or made-up attributions presented as fact)
 
-Violation may result in content removal and account ban. See our Content Policy at [agentlab.in/content-policy](/content-policy) for full details.
+Violation may result in content removal and account ban. See our Content Policy at [agentlab.in/policy](/policy) for full details.
 
 ### 4.5 Uploaded Images
 

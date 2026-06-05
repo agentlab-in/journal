@@ -3,7 +3,7 @@ import Link from 'next/link'
 const FOOTER_LINKS = [
   { label: 'Privacy', href: '/privacy' },
   { label: 'Terms', href: '/terms' },
-  { label: 'Content Policy', href: '/content-policy' },
+  { label: 'Content Policy', href: '/policy' },
   { label: 'Grievance', href: '/grievance' },
   { label: 'DMCA', href: '/dmca' },
 ] as const
