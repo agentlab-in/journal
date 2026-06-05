@@ -75,6 +75,30 @@ describe('deriveSignupFlags — young_account', () => {
   })
 })
 
+describe('deriveSignupFlags — clock_skew', () => {
+  it('flags clock_skew when createdAt is in the future relative to now', () => {
+    const out = deriveSignupFlags(profile({ createdAt: '2030-01-01T00:00:00Z' }), NOW)
+    expect(out.clock_skew).toBe(true)
+    // young_account must NOT also fire — skew suppresses the age signal.
+    expect(out.young_account).toBeUndefined()
+  })
+
+  it('does NOT flag clock_skew when createdAt is null', () => {
+    const out = deriveSignupFlags(profile({ createdAt: null }), NOW)
+    expect(out.clock_skew).toBeUndefined()
+  })
+
+  it('does NOT flag clock_skew when createdAt is malformed', () => {
+    const out = deriveSignupFlags(profile({ createdAt: 'not-a-date' }), NOW)
+    expect(out.clock_skew).toBeUndefined()
+  })
+
+  it('does NOT flag clock_skew when createdAt exactly equals now', () => {
+    const out = deriveSignupFlags(profile({ createdAt: NOW.toISOString() }), NOW)
+    expect(out.clock_skew).toBeUndefined()
+  })
+})
+
 describe('deriveSignupFlags — low_repos / low_followers / low_following', () => {
   const cases: Array<[keyof SoftFlagOutput, Partial<SoftFlagInput>, boolean]> = [
     ['low_repos', { publicRepos: 0 }, true],
@@ -126,6 +150,32 @@ describe('deriveSignupFlags — bio quality signals', () => {
     expect(empty.short_bio).toBeUndefined()
     expect(short.empty_bio).toBeUndefined()
     expect(short.short_bio).toBe(true)
+  })
+
+  it('strips zero-width characters so a ZWSP-padded bio counts as empty', () => {
+    // Pure ZWSPs/ZWNJs/ZWJs/BOM → empty_bio after normalisation.
+    const out = deriveSignupFlags(
+      profile({ bio: '​​‌‍﻿' }),
+      NOW,
+    )
+    expect(out.empty_bio).toBe(true)
+    expect(out.short_bio).toBeUndefined()
+  })
+
+  it('strips zero-width characters mixed with whitespace so the bio counts as empty', () => {
+    const out = deriveSignupFlags(profile({ bio: ' ​ ‌ ' }), NOW)
+    expect(out.empty_bio).toBe(true)
+  })
+
+  it('treats a ZWSP-padded short bio by the visible-char length, not raw length', () => {
+    // "hi" (2 visible chars) padded with 10 ZWSPs is still short_bio,
+    // never sneaks above SHORT_BIO_CHARS (8).
+    const out = deriveSignupFlags(
+      profile({ bio: 'hi' + '​'.repeat(10) }),
+      NOW,
+    )
+    expect(out.short_bio).toBe(true)
+    expect(out.empty_bio).toBeUndefined()
   })
 })
 

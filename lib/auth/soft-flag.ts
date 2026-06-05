@@ -43,12 +43,18 @@ export interface SoftFlagOutput {
   low_followers?: true
   /** Fewer than LOW_FOLLOWING accounts followed. */
   low_following?: true
-  /** Bio missing or whitespace-only. */
+  /** Bio missing or whitespace-only (also strips zero-width chars). */
   empty_bio?: true
   /** Bio non-empty but shorter than SHORT_BIO_CHARS (after trim). */
   short_bio?: true
   /** Public email unset on the GitHub profile. */
   no_public_email?: true
+  /**
+   * `createdAt` is in the future relative to the evaluation clock.
+   * Either real clock skew (rare for github.com) or a tampered profile
+   * payload — either way worth surfacing to moderators.
+   */
+  clock_skew?: true
 }
 
 const YOUNG_ACCOUNT_DAYS = 90
@@ -58,8 +64,16 @@ const LOW_FOLLOWING = 2
 const SHORT_BIO_CHARS = 8
 const MS_PER_DAY = 1000 * 60 * 60 * 24
 
-function trimmedBio(bio: string | null): string {
-  return bio === null ? '' : bio.trim()
+// String.prototype.trim leaves zero-width characters in place, so a bio
+// padded with ZWSP would register as non-empty "content". Strip the
+// common zero-width set (ZWSP U+200B, ZWNJ U+200C, ZWJ U+200D, BOM
+// U+FEFF) before measuring so a bot can't dodge `empty_bio` by padding
+// with invisible whitespace.
+const ZERO_WIDTH_RE = /[\u200B-\u200D\uFEFF]/g
+
+function normalizeBio(bio: string | null): string {
+  if (bio === null) return ''
+  return bio.replace(ZERO_WIDTH_RE, '').trim()
 }
 
 function isEmailUnset(email: string | null): boolean {
@@ -67,13 +81,20 @@ function isEmailUnset(email: string | null): boolean {
   return email.trim() === ''
 }
 
-function accountAgeDays(createdAt: string | null, now: Date): number | null {
-  if (!createdAt) return null
+interface AgeResult {
+  /** Days since createdAt, floored. Null when createdAt is missing/malformed. */
+  days: number | null
+  /** True when createdAt is in the future relative to `now`. */
+  skewed: boolean
+}
+
+function accountAge(createdAt: string | null, now: Date): AgeResult {
+  if (!createdAt) return { days: null, skewed: false }
   const created = Date.parse(createdAt)
-  if (Number.isNaN(created)) return null
+  if (Number.isNaN(created)) return { days: null, skewed: false }
   const ageMs = now.getTime() - created
-  if (ageMs < 0) return null
-  return Math.floor(ageMs / MS_PER_DAY)
+  if (ageMs < 0) return { days: null, skewed: true }
+  return { days: Math.floor(ageMs / MS_PER_DAY), skewed: false }
 }
 
 export function deriveSignupFlags(
@@ -81,7 +102,7 @@ export function deriveSignupFlags(
   now: Date = new Date(),
 ): SoftFlagOutput {
   const flags: SoftFlagOutput = {}
-  const bio = trimmedBio(input.bio)
+  const bio = normalizeBio(input.bio)
   const emailUnset = isEmailUnset(input.email)
 
   // Legacy combined signal kept verbatim so historical rows remain comparable.
@@ -97,10 +118,11 @@ export function deriveSignupFlags(
   if (input.following < LOW_FOLLOWING) flags.low_following = true
   if (input.publicRepos < LOW_REPOS) flags.low_repos = true
 
-  const ageDays = accountAgeDays(input.createdAt, now)
-  if (ageDays !== null && ageDays < YOUNG_ACCOUNT_DAYS) {
+  const age = accountAge(input.createdAt, now)
+  if (age.days !== null && age.days < YOUNG_ACCOUNT_DAYS) {
     flags.young_account = true
   }
+  if (age.skewed) flags.clock_skew = true
 
   return flags
 }

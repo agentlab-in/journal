@@ -750,21 +750,38 @@ async function readE2EHeader(): Promise<string | null> {
   }
 }
 
-function e2eShimEnabled(): boolean {
-  if (process.env.ALLOW_E2E_AUTH !== '1') return false
-  if (process.env.NODE_ENV === 'production') return false
-  if (process.env.VERCEL_ENV === 'production') return false
-  if (!process.env.E2E_TEST_AUTH_USER_ID) return false
-  return true
+/**
+ * Snapshot the E2E shim user-id atomically — returns the id when every
+ * gate passes, null otherwise. Reading `process.env.E2E_TEST_AUTH_USER_ID`
+ * here (synchronously, before the `await readE2EHeader()` in the caller)
+ * means a concurrent request handler that mutates the env between the
+ * gate check and the user-id read cannot turn the synthetic session into
+ * one with `id: undefined`.
+ */
+function readE2EShimUserId(): string | null {
+  if (process.env.ALLOW_E2E_AUTH !== '1') return null
+  if (process.env.NODE_ENV === 'production') return null
+  if (process.env.VERCEL_ENV === 'production') return null
+  const userId = process.env.E2E_TEST_AUTH_USER_ID
+  if (!userId) return null
+  return userId
 }
 
 export async function getSession(): Promise<Session | null> {
-  if (e2eShimEnabled()) {
+  const e2eUserId = readE2EShimUserId()
+  if (e2eUserId !== null) {
     const flag = await readE2EHeader()
     if (flag === '1') {
+      // NOTE: the synthetic session returns BEFORE the per-request ban
+      // check below. That is intentional and acceptable ONLY because the
+      // five gates inside readE2EShimUserId (+ the header) collectively
+      // bar production. Do NOT extend this branch to look up additional
+      // user state — a future contributor who wires it to real user-id
+      // values can otherwise impersonate banned users in any environment
+      // that has the shim enabled.
       return {
         user: {
-          id: process.env.E2E_TEST_AUTH_USER_ID as string,
+          id: e2eUserId,
           name: 'e2e-user',
           email: 'e2e-user@example.test',
         },

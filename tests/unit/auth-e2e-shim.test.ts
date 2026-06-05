@@ -159,4 +159,22 @@ describe('getSession() E2E shim — hardened gates (L12)', () => {
     const out = await getSession()
     expect(out).toBeNull()
   })
+
+  it('snapshots E2E_TEST_AUTH_USER_ID synchronously, so a concurrent env mutation during the header-read await cannot poison the synthetic session id', async () => {
+    setAllGatesGreen()
+    const expectedId = env.E2E_TEST_AUTH_USER_ID
+    // Simulate a concurrent handler clearing the env var mid-await:
+    // returning '1' from the header read is awaited; if our impl reads
+    // the env *after* the await it would see undefined here.
+    headersGetMock.mockImplementation(() => {
+      delete env.E2E_TEST_AUTH_USER_ID
+      return '1'
+    })
+
+    const out = await getSession()
+    // The shim must have used the value captured BEFORE the await.
+    expect(out?.user?.id).toBe(expectedId)
+    // Sanity: post-call, the env var really was cleared.
+    expect(env.E2E_TEST_AUTH_USER_ID).toBeUndefined()
+  })
 })
