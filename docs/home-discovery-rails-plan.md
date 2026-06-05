@@ -57,21 +57,21 @@ The operator (Harshit) must confirm each of these before the corresponding phase
 
 ### Top 3 (highest leverage — call out in PR body)
 
-**OPC-1. `/` for authed users — stay on For-You or redirect to `/trending`?**
-- (a) **Default — stay on For-You.** Issue #54 says "center feed (existing For You)" and the spec preserves this. Personalization is the whole reason a viewer is signed in. `/trending` is one click away in the left nav.
+**OPC-1. `/` for authed users — stay on For-You or redirect to `/trending`?** ✅ **DECIDED (2026-06-06, operator on PR #61): (a) stay on For-You.**
+- (a) **stay on For-You.** Issue #54 says "center feed (existing For You)" and the spec preserves this. Personalization is the whole reason a viewer is signed in. `/trending` is one click away in the left nav.
 - (b) Redirect authed users to `/trending`. Discourages the For-You feed; closer to Twitter's "Following / For You" tab model.
 - (c) Add a tab toggle at the top of `/` — `For You | Trending` — and remember the choice in a cookie.
-**Recommendation:** (a). The For-You feed is the locked v1 mechanic. Surface `/trending` as a nav item, not a default.
+**Implication for Phase B implementer:** no redirect logic in `app/page.tsx`. Authed viewers continue to see the existing For-You `FeedList`. Operator note: "for you page is fine and it is actually better".
 
-**OPC-2. `/` for anonymous viewers — show Latest or Trending in the center column?**
-- (a) **Default — keep Latest.** Matches the current behavior in `app/page.tsx:118-127`. Trending is one click away.
+**OPC-2. `/` for anonymous viewers — show Latest or Trending in the center column?** ✅ **DECIDED (2026-06-06, operator on PR #61): (a) keep Latest.**
+- (a) **keep Latest.** Matches the current behavior in `app/page.tsx:118-127`. Trending is one click away.
 - (b) Switch anon `/` to Trending. Better "what's hot" first impression for cold visitors.
-**Recommendation:** (a). The 7-day Trending window is empty for the first week post-launch (low corpus); Latest fills the screen with whatever exists.
+**Implication for Phase B implementer:** the anon path in `FeedList` (`viewerId === null` → `getLatestFeed`) is unchanged. Operator note: "the latest is better for now".
 
-**OPC-3. Settings link in `LeftNav`?**
+**OPC-3. Settings link in `LeftNav`?** ✅ **DECIDED (2026-06-06, operator on PR #61): (b) drop it.**
 - (a) Issue #54 says `Settings (authed)` in the nav list.
-- (b) **Default — drop it.** The spec drops Settings in favor of `Profile (/{username})`. Settings already lives in the avatar dropdown (`components/layout/ProfileMenu.tsx`), so the LeftNav would be a duplicate.
-**Recommendation:** (b). Track as a follow-up if user feedback says it's hard to find.
+- (b) **drop it.** The spec drops Settings in favor of `Profile (/{username})`. Settings already lives in the avatar dropdown (`components/layout/ProfileMenu.tsx`), so the LeftNav would be a duplicate.
+**Implication for Phase A implementer:** `LeftNav` items when authed are `Home → Trending → All tags → Bookmarks → Profile`. No Settings entry. Track as a follow-up if user feedback says Settings is hard to find. Operator note: "recommendation is ok".
 
 ### Smaller calls (each has a clear default — confirm or override)
 
