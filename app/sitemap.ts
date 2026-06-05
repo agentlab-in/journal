@@ -1,6 +1,8 @@
 import type { MetadataRoute } from 'next'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { absoluteUrl } from '@/lib/site-url'
+import { LEGAL_DOCS } from '@/lib/legal/docs'
+import { renderLegalDoc } from '@/lib/legal/render'
 
 // Content changes on every publish/edit; don't statically prerender.
 // Also avoids requiring Supabase env at build time in CI.
@@ -69,13 +71,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const now = new Date()
 
-  // TODO: add legal pages once they ship (#28)
   const staticEntries: MetadataRoute.Sitemap = [
     { url: absoluteUrl('/'), lastModified: now },
     { url: absoluteUrl('/latest'), lastModified: now },
     { url: absoluteUrl('/tags'), lastModified: now },
     { url: absoluteUrl('/search'), lastModified: now },
   ]
+
+  // Legal pages. lastmod comes from each doc's `**Effective Date:**`
+  // line so the sitemap reflects the actual revision date, not the
+  // sitemap-build time.
+  const legalEntries: MetadataRoute.Sitemap = await Promise.all(
+    LEGAL_DOCS.map(async (doc) => {
+      const { effectiveDate } = await renderLegalDoc(doc.slug)
+      return {
+        url: absoluteUrl(`/${doc.slug}`),
+        lastModified: effectiveDate,
+      }
+    }),
+  )
 
   const postEntries: MetadataRoute.Sitemap = posts.map((p) => ({
     // Org-authored posts canonicalize under the org slug. Personal
@@ -115,6 +129,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   return [
     ...staticEntries,
+    ...legalEntries,
     ...postEntries,
     ...profileEntries,
     ...orgEntries,
