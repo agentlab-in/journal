@@ -95,7 +95,15 @@ export async function guardMutatingRequest(
     }
   }
 
-  if (opts.requireConsent && opts.userId) {
+  if (opts.requireConsent) {
+    // Fail-CLOSED on misconfiguration: a handler that opts into the gate
+    // but forgets to pass userId must not silently bypass the check.
+    if (!opts.userId) {
+      return {
+        failed: true,
+        response: json(412, { error: 'consent_required' }),
+      }
+    }
     try {
       const supabase = createAdminSupabaseClient()
       const stored = await loadLatestConsent(supabase, opts.userId)

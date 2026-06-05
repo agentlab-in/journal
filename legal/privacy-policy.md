@@ -106,7 +106,7 @@ We do not send newsletters or marketing emails after launch unless you explicitl
 - confirmation that you are 18+,
 - your IP address and user-agent at submission time, for evidentiary purposes.
 
-This record is retained for the lifetime of your account plus three years after deletion, in case of legal dispute.
+This record is retained for the lifetime of your account. When you delete your account (or refuse consent at signup), the consent rows are removed as part of the cascade delete on your user row — we do not keep a residual audit copy. This matches the DPDP Act 2023 §12 right-to-erasure posture; we accept the trade-off that a post-deletion legal dispute would not be backed by a stored consent receipt.
 
 ---
 

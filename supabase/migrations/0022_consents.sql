@@ -20,7 +20,12 @@ CREATE TABLE IF NOT EXISTS public.consents (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   consented_at timestamptz NOT NULL DEFAULT now(),
-  age_confirmed boolean NOT NULL,
+  -- The 18+ box is a hard requirement: the server action only inserts
+  -- when all four boxes are true, and consent-guard reads only the version
+  -- triple, so an `age_confirmed = false` row would silently pass the gate.
+  -- The CHECK constraint blocks that path at the DB even if a future
+  -- writer (admin script, migration) forgets the contract.
+  age_confirmed boolean NOT NULL CONSTRAINT consents_age_confirmed_check CHECK (age_confirmed IS TRUE),
   terms_version text NOT NULL,
   content_policy_version text NOT NULL,
   privacy_policy_version text NOT NULL,
@@ -45,3 +50,35 @@ CREATE POLICY consents_self_read ON public.consents
 
 -- No INSERT / UPDATE / DELETE policy: only the service role (server actions)
 -- writes to this table. Defence-in-depth against client-side forging.
+
+-- Append-only enforcement: RLS alone doesn't cover service_role, so a
+-- direct UPDATE/DELETE from a future server action would silently mutate
+-- the audit trail. The trigger raises on every UPDATE and DELETE so the
+-- log is immutable even from privileged paths. The ON DELETE CASCADE on
+-- user_id is intentionally exempted (deleting a user must still wipe
+-- their rows under DPDP §12 erasure rights); the trigger checks for the
+-- CASCADE context via the session_replication_role mechanism is brittle,
+-- so instead we allow row-level CASCADE deletes implicitly by attaching
+-- the trigger to UPDATE only, and emulate the "no manual DELETE" rule
+-- through process discipline + the RLS absence of a DELETE policy. RLS
+-- DOES apply to a direct DELETE from the service role only if the DELETE
+-- is issued via PostgREST with the authenticated role; the service-role
+-- key bypasses RLS, but we don't have any code path that issues a manual
+-- DELETE against public.consents — the only deletes flow through the
+-- user-row CASCADE.
+CREATE OR REPLACE FUNCTION public.prevent_consents_mutation()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  RAISE EXCEPTION 'public.consents is append-only (no UPDATE)';
+END;
+$$;
+
+DROP TRIGGER IF EXISTS consents_no_update ON public.consents;
+CREATE TRIGGER consents_no_update
+  BEFORE UPDATE ON public.consents
+  FOR EACH ROW
+  EXECUTE FUNCTION public.prevent_consents_mutation();

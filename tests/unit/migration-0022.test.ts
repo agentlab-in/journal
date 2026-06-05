@@ -63,4 +63,20 @@ describe('0022_consents.sql shape', () => {
       /CREATE POLICY[\s\S]+ON public\.consents[\s\S]+FOR SELECT[\s\S]+TO authenticated[\s\S]+USING \(user_id = auth\.uid\(\)\)/,
     )
   })
+
+  it('constrains age_confirmed to TRUE', () => {
+    expect(migration).toMatch(/CHECK \(age_confirmed IS TRUE\)/)
+  })
+
+  it('defines append-only trigger function with locked search_path', () => {
+    expect(migration).toMatch(/CREATE OR REPLACE FUNCTION public\.prevent_consents_mutation\(\)/)
+    expect(migration).toMatch(/prevent_consents_mutation[\s\S]+SECURITY DEFINER/)
+    expect(migration).toMatch(/prevent_consents_mutation[\s\S]+SET search_path = public, pg_temp/)
+  })
+
+  it('blocks UPDATE via BEFORE UPDATE trigger', () => {
+    expect(migration).toMatch(
+      /CREATE TRIGGER consents_no_update[\s\S]+BEFORE UPDATE ON public\.consents/,
+    )
+  })
 })

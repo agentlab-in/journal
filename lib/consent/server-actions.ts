@@ -84,7 +84,11 @@ export async function declineConsent(): Promise<void> {
     .delete()
     .eq('id', userId)
   if (userErr) {
+    // Don't redirect to /consent-declined on failure — that page promises
+    // the account was removed. Surface the failure so the caller knows
+    // the user row still exists and they can retry.
     console.error('[consent] decline: user delete failed:', userErr.message)
+    throw new Error(`Failed to finalize consent decline: ${userErr.message}`)
   }
 
   redirect('/auth/consent-declined')

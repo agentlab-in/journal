@@ -2985,7 +2985,7 @@ a {
   padding: 0;
   margin: -1px;
   overflow: hidden;
-  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
   white-space: nowrap;
   border: 0;
 }
@@ -3020,7 +3020,7 @@ a {
   font-family: var(--font-mono, monospace);
   font-size: 0.9375rem;
   padding: 0.5rem 1rem;
-  border: 1px solid currentColor;
+  border: 1px solid currentcolor;
   background: transparent;
   color: inherit;
   cursor: pointer;
@@ -3032,5 +3032,5 @@ a {
 }
 
 .consent-submit:hover:not(:disabled) {
-  background: color-mix(in srgb, currentColor 8%, transparent);
+  background: color-mix(in srgb, currentcolor 8%, transparent);
 }

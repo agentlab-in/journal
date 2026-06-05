@@ -28,13 +28,14 @@ const admin = HAS_REAL_DB
 
 async function clearConsent() {
   if (!admin) return
-  await admin.from('consents').delete().eq('user_id', USER_ID!)
+  const { error } = await admin.from('consents').delete().eq('user_id', USER_ID!)
+  if (error) throw new Error(`clearConsent failed: ${error.message}`)
 }
 
 async function seedCurrentConsent() {
   if (!admin) return
   const { LEGAL_VERSIONS } = await import('../../lib/legal/versions')
-  await admin.from('consents').upsert(
+  const { error } = await admin.from('consents').upsert(
     {
       user_id: USER_ID!,
       age_confirmed: true,
@@ -44,6 +45,7 @@ async function seedCurrentConsent() {
     },
     { onConflict: 'user_id,terms_version,content_policy_version,privacy_policy_version' },
   )
+  if (error) throw new Error(`seedCurrentConsent failed: ${error.message}`)
 }
 
 async function seedStaleTermsConsent() {
@@ -51,14 +53,16 @@ async function seedStaleTermsConsent() {
   const { LEGAL_VERSIONS } = await import('../../lib/legal/versions')
   // Wipe first so we can insert a stale row without colliding with the
   // current-version row (the unique index would block it otherwise).
-  await admin.from('consents').delete().eq('user_id', USER_ID!)
-  await admin.from('consents').insert({
+  const del = await admin.from('consents').delete().eq('user_id', USER_ID!)
+  if (del.error) throw new Error(`seedStaleTermsConsent delete failed: ${del.error.message}`)
+  const ins = await admin.from('consents').insert({
     user_id: USER_ID!,
     age_confirmed: true,
     terms_version: 'v0',
     content_policy_version: LEGAL_VERSIONS.content_policy,
     privacy_policy_version: LEGAL_VERSIONS.privacy_policy,
   })
+  if (ins.error) throw new Error(`seedStaleTermsConsent insert failed: ${ins.error.message}`)
 }
 
 test.describe.configure({ mode: 'serial' })

@@ -26,12 +26,12 @@ Five surfaces compose the gate:
 2. **`lib/legal/versions.ts`** — semver-style version constants per doc.
 3. **`/auth/consent` page + server action** — UI gate with 4 required checkboxes and server-side validation.
 4. **`/auth/consent-declined` page** — terminal "you cannot use the platform" landing for refusals.
-5. **Consent enforcement** — `getSession()` extended with consent-status check; middleware `consent-guard` library used by both Next middleware (page routes) and `guardMutatingRequest` (API mutations).
+5. **Consent enforcement** — page-level `requireConsentOrRedirect()` helper called by each authed server component after `getSession()`, plus a `requireConsent` opt-in on `guardMutatingRequest` for mutating API routes. Both compose the same pure `consent-guard` primitives. No top-level `middleware.ts` is added (DB lookup at the edge is brittle in Next 16 with database sessions).
 6. **Settings visibility** — `/settings/profile` shows the user's current consent snapshot.
 
 ### Data flow (first-time signup)
 
-```
+```text
 GitHub OAuth callback
   → next_auth.users insert (adapter)
   → events.signIn fires (audit cols, org sync, signup flags)
@@ -49,7 +49,7 @@ GitHub OAuth callback
 
 ### Data flow (refuse / back out)
 
-```
+```text
 user clicks Decline (or closes tab without ticking)
   → POST /auth/consent/decline server action
   → delete from next_auth.sessions where userId = current   (revoke cookie first)
@@ -62,7 +62,7 @@ Cleanup ordering rationale: deleting sessions first invalidates the cookie befor
 
 ### Data flow (version-bump re-prompt)
 
-```
+```text
 operator bumps lib/legal/versions.ts (e.g. terms 'v1' → 'v2'), edits the markdown,
   updates the doc's effective-date / version header, ships
 existing user makes any authed request
@@ -180,19 +180,11 @@ Pure decision functions, easy to unit test in isolation.
 
 ### Enforcement points
 
-1. **`getSession()` extension** — after the existing ban recheck, also load consent state. If stale, attach a `consentRedirect` field to the session so callers can branch (the current `Session` type is wide enough; we add a non-`Session`-typed wrapper or augment via module declaration).
+1. **Page-level helper `requireConsentOrRedirect(userId)`** — each server component that should require consent calls it right after `getSession()`. It loads the latest consent row via `consent-guard`, and either returns `void` (pass-through) or calls Next's `redirect('/auth/consent')` (which throws to terminate the render). Anonymous-allowed pages (home feed) call it conditionally only when a session is present.
 
-   Actually — to avoid every authed page having to check a session field, we introduce a sibling helper `getSessionRequiringConsent()` which returns `null` when consent is missing and signals "redirect to /auth/consent". Authed pages call this instead of `getSession()`.
+2. **API guard opt-in via `guardMutatingRequest`** — `requireConsent?: boolean` option, **default `false`** (every handler opts in explicitly). When set, the guard performs the consent check using the same `consent-guard` primitives, and returns 412 (Precondition Failed) `{ error: 'consent_required', stale: [...] }` for stale users. Fail-CLOSED on lookup error and on `requireConsent=true` with a missing `userId`. `/api/auth/*`, `/api/health`, and `/api/users/me` (self-delete) MUST NOT opt in — those paths must be reachable without a current consent.
 
-   Re-evaluating: the existing `getSession()` is called in lots of places. To avoid auditing every callsite, the cleanest pattern is a thin `requireConsent()` helper that authed pages call **after** `getSession()`. We update only the surfaces that should gate (write/post/comment/settings/etc — anything mutating or first-class-user). Public read pages don't need the check.
-
-   **Final design:** introduce `requireConsentOrRedirect(session)` that page components call right after `getSession()`. It performs the consent read and either returns `void` (pass) or calls Next's `redirect('/auth/consent?…')` (will throw, terminating the render).
-
-2. **`guardMutatingRequest` extension** — add `requireConsent?: boolean` option (default `true` for any call that passes a `userId`). When set, the guard performs the same consent check. Returns a 412 (Precondition Failed) JSON `{ error: 'consent_required' }` for stale users; their client should follow up with a navigation to `/auth/consent`.
-
-3. **Next.js top-level `middleware.ts`** (new file) — a lightweight pre-page edge check that runs only on a small allowlist of authed page routes (e.g. `/write`, `/settings/*`, `/post/*/edit`, `/orgs/*/settings`). Reads cookie presence + a `consent_ok` JWT-like signal — actually, no: middleware in Next 16 with a DB session would need a Supabase call from edge, which is brittle. We'll skip top-level middleware and rely on the page-level `requireConsentOrRedirect` + the API-level guard. The brief's "Add a Next middleware OR extend the existing route-guard" wording authorises the latter.
-
-   **Final design on enforcement:** page-level helper + extended `guardMutatingRequest`. No new top-level middleware. Documented in the spec so the reviewer doesn't surface-area-complain.
+3. **No top-level `middleware.ts`** — Next 16 edge middleware with a database session would require a Supabase call from edge for every request, which is brittle and costly. The page-helper + API-guard model gives equivalent coverage with explicit, testable callsites. The brief's "Add a Next middleware OR extend the existing route-guard" wording authorises this choice.
 
 ### Settings visibility
 
@@ -208,7 +200,7 @@ Bump each of `legal/terms-of-service.md`, `legal/content-policy.md`, `legal/priv
 
 ## File Structure
 
-```
+```text
 supabase/migrations/0022_consents.sql            NEW
 lib/legal/versions.ts                            NEW
 lib/legal/README.md                              NEW (bump workflow)
