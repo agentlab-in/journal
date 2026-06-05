@@ -12,20 +12,20 @@ const HAS_E2E_AUTH = !!process.env.E2E_TEST_AUTH_USER_ID
 const SKIP_REASON = 'requires E2E auth env (E2E_TEST_AUTH_USER_ID)'
 
 test.describe('SEO routes', () => {
-  test('GET /robots.txt returns a parseable robots file referencing the sitemap', async ({
-    request,
-  }) => {
+  test('GET /robots.txt returns a parseable robots file', async ({ request }) => {
     const res = await request.get('/robots.txt')
     expect(res.status()).toBe(200)
     const body = await res.text()
     expect(body).toContain('User-Agent: *')
-    // Phase 14 / H8: production robots only Disallows /api/. The admin/
-    // write/settings/auth paths are protected at the handler and are
-    // intentionally omitted so robots.txt isn't a sitemap of sensitive
-    // surfaces.
-    expect(body).toContain('Disallow: /api/')
+    expect(body).toContain('Disallow:')
+    // M/L audit L12: playwright no longer pins VERCEL_ENV=production
+    // (it would defeat the hardened E2E auth shim), so this smoke test
+    // accepts whichever branch the runtime selects. The full prod-mode
+    // assertion set lives in tests/unit/robots.test.ts.
+    // Phase 14 / H8: production robots intentionally omits /admin so
+    // robots.txt isn't a sitemap of sensitive surfaces — verified
+    // unconditionally because the non-prod branch doesn't list it either.
     expect(body).not.toContain('Disallow: /admin')
-    expect(body).toContain('Sitemap: https://agentlab.in/sitemap.xml')
   })
 
   test('GET /sitemap.xml returns an XML urlset', async ({ request }) => {

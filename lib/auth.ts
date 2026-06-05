@@ -711,14 +711,20 @@ export const authOptions: NextAuthOptions = {
 // have a real session row in next_auth.sessions — which CI won't have.
 //
 // `getSession` wraps `getServerSession(authOptions)` with an opt-in bypass
-// gated by THREE conditions, all of which must be true:
+// gated by FIVE positive conditions plus one hard reject. All positives
+// must be true AND the reject must NOT hold:
 //
-//   1. `process.env.NODE_ENV !== 'production'`
-//      (defence-in-depth: even an accidental env-leak in prod can't enable
-//      the shim)
+//   1. `process.env.ALLOW_E2E_AUTH === '1'`  (M/L audit L12)
+//      Explicit opt-in flag; ambient env vars alone can no longer enable
+//      the shim. Only set by `playwright.config.ts`.
 //   2. `process.env.E2E_TEST_AUTH_USER_ID` is a non-empty string
 //      (only ever set in `playwright.config.ts`'s `webServer.env`)
-//   3. The current request bears the header `x-e2e-auth: 1`
+//   3. `process.env.NODE_ENV !== 'production'`
+//      (kept for defence-in-depth on Vercel preview/prod builds)
+//   4. `process.env.VERCEL_ENV !== 'production'`  (M/L audit L12)
+//      Belt-and-braces refusal on production Vercel deployments — even
+//      a hypothetical mis-set ALLOW_E2E_AUTH cannot forge sessions there.
+//   5. The current request bears the header `x-e2e-auth: 1`
 //      (allows individual tests to opt OUT — e.g. the unauth-redirect
 //      test omits the header so it sees a real null session and still
 //      gets redirected)
@@ -744,14 +750,21 @@ async function readE2EHeader(): Promise<string | null> {
   }
 }
 
+function e2eShimEnabled(): boolean {
+  if (process.env.ALLOW_E2E_AUTH !== '1') return false
+  if (process.env.NODE_ENV === 'production') return false
+  if (process.env.VERCEL_ENV === 'production') return false
+  if (!process.env.E2E_TEST_AUTH_USER_ID) return false
+  return true
+}
+
 export async function getSession(): Promise<Session | null> {
-  const e2eUserId = process.env.E2E_TEST_AUTH_USER_ID
-  if (e2eUserId && process.env.NODE_ENV !== 'production') {
+  if (e2eShimEnabled()) {
     const flag = await readE2EHeader()
     if (flag === '1') {
       return {
         user: {
-          id: e2eUserId,
+          id: process.env.E2E_TEST_AUTH_USER_ID as string,
           name: 'e2e-user',
           email: 'e2e-user@example.test',
         },
