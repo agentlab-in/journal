@@ -59,19 +59,43 @@ function makeAdminClient(row: {
   avatar_url: string | null
 } | null) {
   return {
-    from: vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          single: vi.fn(() =>
-            Promise.resolve(
-              row
-                ? { data: row, error: null }
-                : { data: null, error: { message: 'not found' } },
+    from: vi.fn((table: string) => {
+      if (table === 'consents') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: vi.fn(() => ({
+                limit: vi.fn(() => ({
+                  maybeSingle: vi.fn(() =>
+                    Promise.resolve({ data: null, error: null }),
+                  ),
+                })),
+              })),
+            })),
+          })),
+        }
+      }
+      if (table === 'org_members') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => Promise.resolve({ data: [], error: null })),
+          })),
+        }
+      }
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            single: vi.fn(() =>
+              Promise.resolve(
+                row
+                  ? { data: row, error: null }
+                  : { data: null, error: { message: 'not found' } },
+              ),
             ),
-          ),
+          })),
         })),
-      })),
-    })),
+      }
+    }),
   }
 }
 
