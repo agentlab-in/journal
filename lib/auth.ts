@@ -678,6 +678,9 @@ export const authOptions: NextAuthOptions = {
           bio: gh.bio,
           email: gh.email,
           followers: gh.followers,
+          following: gh.following,
+          publicRepos: gh.public_repos,
+          createdAt: gh.created_at,
         })
         const username = gh.login.toLowerCase()
         const { error: flagsErr } = await supabase
