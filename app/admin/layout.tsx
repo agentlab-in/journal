@@ -1,5 +1,6 @@
 import { getSession } from '@/lib/auth'
 import { requireAdmin } from '@/lib/admin'
+import { requireConsentOrRedirect } from '@/lib/consent/require-consent'
 import AdminTabs from '@/components/admin/AdminTabs'
 import type { Metadata } from 'next'
 
@@ -21,7 +22,8 @@ export const dynamic = 'force-dynamic'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession()
-  await requireAdmin(session) // throws notFound() on non-admin
+  const userId = await requireAdmin(session) // throws notFound() on non-admin
+  await requireConsentOrRedirect(userId)
   return (
     <main id="main-content" className="mx-auto w-full max-w-5xl px-4 py-8">
       <h1 className="font-mono text-2xl font-black lowercase tracking-tight text-fg mb-4">

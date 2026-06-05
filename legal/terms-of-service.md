@@ -1,6 +1,7 @@
 # Terms of Service
 
 **Effective Date:** June 4, 2026  
+**Version:** v1  
 **Platform:** agentlab.in  
 **Operator:** Harshit Singh Bhandari (individual, India)  
 **Contact:** harshit@agentlab.in
@@ -26,6 +27,8 @@ agentlab.in is a free, community publishing platform for technical writing about
 ### 3.1 GitHub Authentication
 
 All accounts are created via GitHub OAuth. By signing in, you authorise us to receive your GitHub username, display name, avatar URL, GitHub user ID, account creation date, public repository count, public bio, followers count, and (where you have made it public) email. See the [Privacy Policy](/privacy) §2.1 for what we do with each field.
+
+**Consent record.** When you create an account, we record your explicit consent to these Terms, the Content Policy, and the Privacy Policy — together with confirmation that you are 18 years of age or older — in our database. The record captures a timestamp, your IP address, your user agent, and the version of each document you agreed to. See the [Privacy Policy](/privacy) §2 for retention details.
 
 ### 3.2 Anti-Spam Gate
 

@@ -9,6 +9,8 @@
  */
 import { checkRateLimit, type RateLimitBucket } from '@/lib/rate-limit'
 import { isAllowedOrigin } from '@/lib/security/origin-check'
+import { createAdminSupabaseClient } from '@/lib/supabase/admin'
+import { loadLatestConsent, decideConsentRedirect } from '@/lib/consent/consent-guard'
 
 export interface GuardOptions {
   /** Bucket to charge. If undefined, skip rate-limit check. */
@@ -17,6 +19,15 @@ export interface GuardOptions {
   userId?: string | null
   /** Skip the origin check for this call. Default false (origin required). */
   skipOrigin?: boolean
+  /**
+   * When true AND `userId` is provided, also require the user's consent
+   * versions match LEGAL_VERSIONS. Returns 412 on mismatch. Fail-CLOSED
+   * on lookup errors (a mutating writer with an unknown consent state
+   * must NOT pass). Default false — each handler opts in explicitly.
+   * `/api/auth/*` and `/api/health` MUST NOT opt in (the OAuth callback
+   * must not redirect-loop through /auth/consent).
+   */
+  requireConsent?: boolean
 }
 
 export interface GuardFailure {
@@ -80,6 +91,37 @@ export async function guardMutatingRequest(
           { error: 'rate_limited', retry_after: result.retryAfter },
           { 'Retry-After': String(result.retryAfter) },
         ),
+      }
+    }
+  }
+
+  if (opts.requireConsent) {
+    // Fail-CLOSED on misconfiguration: a handler that opts into the gate
+    // but forgets to pass userId must not silently bypass the check.
+    if (!opts.userId) {
+      return {
+        failed: true,
+        response: json(412, { error: 'consent_required' }),
+      }
+    }
+    try {
+      const supabase = createAdminSupabaseClient()
+      const stored = await loadLatestConsent(supabase, opts.userId)
+      const decision = decideConsentRedirect(stored)
+      if (decision.needs !== null) {
+        return {
+          failed: true,
+          response: json(412, { error: 'consent_required', stale: decision.staleDocs }),
+        }
+      }
+    } catch (err) {
+      console.warn(
+        `[route-guard] consent check threw: ${err instanceof Error ? err.message : 'unknown'}`,
+      )
+      // Fail-CLOSED — a writer with unknown consent state must not bypass the gate.
+      return {
+        failed: true,
+        response: json(412, { error: 'consent_required' }),
       }
     }
   }

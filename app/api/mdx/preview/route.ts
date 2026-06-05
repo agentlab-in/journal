@@ -13,10 +13,13 @@
  *   runs on the server) and the editor stays responsive.
  *
  * Error contract:
- *   401 unauthorized   — no session
- *   400 invalid_json   — body wasn't valid JSON
- *   400 invalid_body   — `body_md` missing or not a string
- *   413 body_too_large — `body_md` longer than MAX_LENGTH
+ *   401 unauthorized        — no session
+ *   400 invalid_json        — body wasn't valid JSON
+ *   400 invalid_body        — `body_md` missing or not a string
+ *   403 forbidden_origin    — origin check failed (CSRF backstop)
+ *   412 consent_required    — user has no current consent row (#57)
+ *   413 body_too_large      — `body_md` longer than MAX_LENGTH
+ *   429 rate_limited        — mdx_preview bucket exhausted
  *   200 { compiledSource, ... }       — successful compile
  *   422 { error: { message } }        — MDX failed to parse/compile
  *
@@ -60,6 +63,7 @@ export async function POST(req: Request): Promise<Response> {
   const guard = await guardMutatingRequest(req, {
     userId: session.user.id,
     bucket: 'mdx_preview',
+    requireConsent: true,
   })
   if (guard.failed) return guard.response
 

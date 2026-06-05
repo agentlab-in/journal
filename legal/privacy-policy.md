@@ -1,6 +1,7 @@
 # Privacy Policy
 
 **Effective Date:** June 4, 2026  
+**Version:** v1  
 **Platform:** agentlab.in  
 **Operator:** Harshit Singh Bhandari (individual, India)  
 **Contact:** harshit@agentlab.in
@@ -95,6 +96,17 @@ Before the platform launched publicly, we collected email addresses via a waitli
 - You can request deletion at any time by emailing harshit@agentlab.in.
 
 We do not send newsletters or marketing emails after launch unless you explicitly opt in to a future programme (none currently exists).
+
+### 2.10 Consent Record
+
+**Consent record.** When you sign in for the first time (and again whenever we materially update a policy), we record:
+
+- timestamp of your agreement,
+- the version of each document you agreed to (Terms, Content Policy, Privacy Policy),
+- confirmation that you are 18+,
+- your IP address and user-agent at submission time, for evidentiary purposes.
+
+This record is retained for the lifetime of your account. When you delete your account (or refuse consent at signup), the consent rows are removed as part of the cascade delete on your user row — we do not keep a residual audit copy. This matches the DPDP Act 2023 §12 right-to-erasure posture; we accept the trade-off that a post-deletion legal dispute would not be backed by a stored consent receipt.
 
 ---
 

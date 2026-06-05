@@ -39,7 +39,7 @@ export async function POST(
   if (!session?.user?.id) return json(401, { error: 'unauthorized' })
   const followerId = session.user.id
 
-  const guard = await guardMutatingRequest(req, { bucket: 'engagement', userId: followerId })
+  const guard = await guardMutatingRequest(req, { bucket: 'engagement', userId: followerId, requireConsent: true })
   if (guard.failed) return guard.response
 
   const { userId } = await context.params
@@ -91,7 +91,7 @@ export async function DELETE(
   if (!session?.user?.id) return json(401, { error: 'unauthorized' })
   const followerId = session.user.id
 
-  const guard = await guardMutatingRequest(req, { bucket: 'engagement', userId: followerId })
+  const guard = await guardMutatingRequest(req, { bucket: 'engagement', userId: followerId, requireConsent: true })
   if (guard.failed) return guard.response
 
   const { userId } = await context.params

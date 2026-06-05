@@ -52,7 +52,7 @@ export async function PATCH(
   const userId = session.user.id
 
   // Step 1b: origin + rate-limit guard (Phase 14)
-  const guard = await guardMutatingRequest(req, { bucket: 'edit_post', userId })
+  const guard = await guardMutatingRequest(req, { bucket: 'edit_post', userId, requireConsent: true })
   if (guard.failed) return guard.response
 
   const { id: postId } = await context.params
@@ -313,7 +313,7 @@ export async function DELETE(
   const userId = session.user.id
 
   // Step 1b: origin + rate-limit guard (Phase 14)
-  const guard = await guardMutatingRequest(req, { bucket: 'delete_post', userId })
+  const guard = await guardMutatingRequest(req, { bucket: 'delete_post', userId, requireConsent: true })
   if (guard.failed) return guard.response
 
   const { id: postId } = await context.params

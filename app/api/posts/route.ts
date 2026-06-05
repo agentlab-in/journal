@@ -66,7 +66,7 @@ export async function POST(req: NextRequest | Request): Promise<Response> {
   const userId = session.user.id
 
   // Step 1b: origin + rate-limit guard (Phase 14)
-  const guard = await guardMutatingRequest(req, { bucket: 'publish', userId })
+  const guard = await guardMutatingRequest(req, { bucket: 'publish', userId, requireConsent: true })
   if (guard.failed) return guard.response
 
   // Step 2: JSON parse
