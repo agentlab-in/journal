@@ -3,6 +3,7 @@ import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getSession } from '@/lib/auth'
+import { requireConsentOrRedirect } from '@/lib/consent/require-consent'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { createAnonServerSupabaseClient } from '@/lib/supabase/server'
 import {
@@ -183,6 +184,9 @@ export default async function HomePage() {
   // Cheap JWT decode — kept out of the Suspense boundary so the H1 +
   // tagline copy that depends on auth state can paint with the shell.
   const session = await getSession()
+  if (session?.user?.id) {
+    await requireConsentOrRedirect(session.user.id)
+  }
   const viewerId = session?.user?.id ?? null
   const showingForYou = viewerId !== null
 

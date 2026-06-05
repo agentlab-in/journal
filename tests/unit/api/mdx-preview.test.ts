@@ -22,6 +22,17 @@ vi.mock('@/lib/auth', () => ({
   getSession: vi.fn(async () => sessionMock.current),
 }))
 
+// Issue #57 — the route now opts into requireConsent on guardMutatingRequest.
+// The guard calls createAdminSupabaseClient() inside its try-block; without
+// Supabase env vars in unit tests, that throws and the guard fail-closes
+// with 412. The setup.ts global mock of loadLatestConsent doesn't help here
+// because the throw happens before loadLatestConsent is reached. Stub the
+// client to a sentinel object — loadLatestConsent is already mocked in
+// setup.ts to return a valid record, so the client itself is unused.
+vi.mock('@/lib/supabase/admin', () => ({
+  createAdminSupabaseClient: vi.fn(() => ({})),
+}))
+
 import { POST, MAX_LENGTH } from '@/app/api/mdx/preview/route'
 
 function jsonRequest(body: unknown, init?: { stringifyOverride?: string }): Request {

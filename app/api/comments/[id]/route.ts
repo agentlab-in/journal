@@ -40,7 +40,7 @@ export async function PATCH(
 
   // Step 1b: origin guard (Phase 14) — no app-level RL on comment edit;
   // the 24h window + author gate below already keep abuse bounded.
-  const guard = await guardMutatingRequest(req, { userId })
+  const guard = await guardMutatingRequest(req, { userId, requireConsent: true })
   if (guard.failed) return guard.response
 
   const { id } = await context.params
@@ -128,7 +128,7 @@ export async function DELETE(
   const userId = session.user.id
 
   // Step 1b: origin guard (Phase 14) — no app-level RL on comment delete.
-  const guard = await guardMutatingRequest(req, { userId })
+  const guard = await guardMutatingRequest(req, { userId, requireConsent: true })
   if (guard.failed) return guard.response
 
   const { id } = await context.params

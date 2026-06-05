@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 import { getSession } from '@/lib/auth'
+import { requireConsentOrRedirect } from '@/lib/consent/require-consent'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { ProfileSettingsForm } from '@/components/profile/ProfileSettingsForm'
 import { DeleteAccountSection } from '@/components/profile/DeleteAccountSection'
@@ -37,6 +38,7 @@ export default async function ProfileSettingsPage() {
   if (!session?.user?.id) {
     redirect('/auth/signin')
   }
+  await requireConsentOrRedirect(session.user.id)
 
   const admin = createAdminSupabaseClient()
   const { data } = await admin

@@ -60,6 +60,7 @@ export async function POST(req: Request): Promise<Response> {
   const guard = await guardMutatingRequest(req, {
     userId: session.user.id,
     bucket: 'mdx_preview',
+    requireConsent: true,
   })
   if (guard.failed) return guard.response
 

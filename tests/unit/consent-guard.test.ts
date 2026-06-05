@@ -1,4 +1,11 @@
 import { describe, it, expect, vi } from 'vitest'
+
+// Issue #57 — tests/setup.ts installs a global mock for
+// @/lib/consent/consent-guard so every API-route test sees a fresh-consent
+// row by default. This file actually exercises the real implementation,
+// so we unmock it before importing.
+vi.unmock('@/lib/consent/consent-guard')
+
 import { decideConsentRedirect, loadLatestConsent } from '@/lib/consent/consent-guard'
 import { LEGAL_VERSIONS } from '@/lib/legal/versions'
 

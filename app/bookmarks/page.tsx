@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 import { getSession } from '@/lib/auth'
+import { requireConsentOrRedirect } from '@/lib/consent/require-consent'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { listUserBookmarks } from '@/lib/bookmarks/list'
 import { ProfilePostCard } from '@/components/profile/ProfilePostCard'
@@ -17,6 +18,7 @@ export default async function BookmarksPage() {
   if (!session?.user?.id) {
     redirect('/auth/signin?callbackUrl=/bookmarks')
   }
+  await requireConsentOrRedirect(session.user.id)
 
   const admin = createAdminSupabaseClient()
   const bookmarks = await listUserBookmarks(admin, session.user.id)
