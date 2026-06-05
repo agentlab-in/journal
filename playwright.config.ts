@@ -3,15 +3,21 @@ import { defineConfig, devices } from '@playwright/test'
 /**
  * Playwright config — Phase 3 Task 11.
  *
- * The `webServer` block boots `pnpm dev` and forwards two opt-in test hooks:
+ * The `webServer` block boots `pnpm dev` and forwards three opt-in test hooks:
  *
- *   E2E_TEST_AUTH_USER_ID  — when set, `getSession()` in `lib/auth.ts`
- *                            returns a stub session for requests that ALSO
- *                            carry the `x-e2e-auth: 1` header (so the
+ *   ALLOW_E2E_AUTH         — explicit on-switch for the E2E auth shim
+ *                            (M/L audit L12). Without `ALLOW_E2E_AUTH=1`
+ *                            `getSession()` ignores `E2E_TEST_AUTH_USER_ID`
+ *                            entirely, so an ambient env var alone can no
+ *                            longer forge a session.
+ *   E2E_TEST_AUTH_USER_ID  — when set (and `ALLOW_E2E_AUTH=1`),
+ *                            `getSession()` in `lib/auth.ts` returns a
+ *                            stub session for requests that ALSO carry
+ *                            the `x-e2e-auth: 1` header (so the
  *                            unauth-redirect test still sees no session).
- *                            The shim is additionally NODE_ENV-gated so a
- *                            prod build cannot enable it even if this env
- *                            var leaks.
+ *                            The shim is additionally NODE_ENV- and
+ *                            VERCEL_ENV-gated so a prod build cannot
+ *                            enable it even if these env vars leak.
  *   E2E_AUTOSAVE_MS        — when set, `/write` forwards it to the
  *                            `DraftManager` `autoSaveMs` prop so the
  *                            debounce is short enough for a test loop.
@@ -51,6 +57,11 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
     env: {
+      // M/L audit L12: explicit on-switch for the E2E auth shim. The
+      // shim is a no-op unless `ALLOW_E2E_AUTH=1`, so an ambient
+      // E2E_TEST_AUTH_USER_ID leak on a non-Vercel preview can no
+      // longer be weaponised into a session-forgery primitive.
+      ALLOW_E2E_AUTH: '1',
       // Opt-in E2E auth shim. The redirect test relies on the *absence*
       // of the `x-e2e-auth: 1` header so it still sees a null session
       // and gets redirected. See tests/e2e/editor.spec.ts header.
@@ -80,11 +91,12 @@ export default defineConfig({
       // Leave unset in CI — admin tests skip when this is absent.
       ADMIN_GITHUB_LOGINS:
         process.env.ADMIN_GITHUB_LOGINS_FOR_E2E ?? '',
-      // Phase 14 / L4: exercise the production-mode robots.txt branch
-      // in CI so the e2e assertion can match the real prod content.
-      // Without this, app/robots.ts returns the non-prod blanket
-      // "Disallow: /" because VERCEL_ENV is unset on GitHub Actions.
-      VERCEL_ENV: process.env.VERCEL_ENV ?? 'production',
+      // M/L audit L12: VERCEL_ENV is intentionally NOT pinned to
+      // 'production' here — the hardened E2E auth shim refuses on
+      // VERCEL_ENV=production regardless of any other flag, so doing so
+      // would defeat every authenticated E2E test. The production-mode
+      // robots.txt branch is covered exhaustively by tests/unit/robots.test.ts;
+      // tests/e2e/seo.spec.ts now smoke-tests the non-prod branch instead.
     },
   },
 })

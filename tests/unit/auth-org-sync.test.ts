@@ -167,6 +167,7 @@ describe('authOptions.events.signIn — github org sync wiring', () => {
       avatar_url: 'https://example.com/a.png',
       email: 'alice@example.com',
       followers: 10,
+      following: 5,
     })
 
     infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {})

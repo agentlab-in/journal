@@ -678,6 +678,9 @@ export const authOptions: NextAuthOptions = {
           bio: gh.bio,
           email: gh.email,
           followers: gh.followers,
+          following: gh.following,
+          publicRepos: gh.public_repos,
+          createdAt: gh.created_at,
         })
         const username = gh.login.toLowerCase()
         const { error: flagsErr } = await supabase
@@ -708,14 +711,20 @@ export const authOptions: NextAuthOptions = {
 // have a real session row in next_auth.sessions — which CI won't have.
 //
 // `getSession` wraps `getServerSession(authOptions)` with an opt-in bypass
-// gated by THREE conditions, all of which must be true:
+// gated by FIVE positive conditions plus one hard reject. All positives
+// must be true AND the reject must NOT hold:
 //
-//   1. `process.env.NODE_ENV !== 'production'`
-//      (defence-in-depth: even an accidental env-leak in prod can't enable
-//      the shim)
+//   1. `process.env.ALLOW_E2E_AUTH === '1'`  (M/L audit L12)
+//      Explicit opt-in flag; ambient env vars alone can no longer enable
+//      the shim. Only set by `playwright.config.ts`.
 //   2. `process.env.E2E_TEST_AUTH_USER_ID` is a non-empty string
 //      (only ever set in `playwright.config.ts`'s `webServer.env`)
-//   3. The current request bears the header `x-e2e-auth: 1`
+//   3. `process.env.NODE_ENV !== 'production'`
+//      (kept for defence-in-depth on Vercel preview/prod builds)
+//   4. `process.env.VERCEL_ENV !== 'production'`  (M/L audit L12)
+//      Belt-and-braces refusal on production Vercel deployments — even
+//      a hypothetical mis-set ALLOW_E2E_AUTH cannot forge sessions there.
+//   5. The current request bears the header `x-e2e-auth: 1`
 //      (allows individual tests to opt OUT — e.g. the unauth-redirect
 //      test omits the header so it sees a real null session and still
 //      gets redirected)
@@ -741,11 +750,35 @@ async function readE2EHeader(): Promise<string | null> {
   }
 }
 
+/**
+ * Snapshot the E2E shim user-id atomically — returns the id when every
+ * gate passes, null otherwise. Reading `process.env.E2E_TEST_AUTH_USER_ID`
+ * here (synchronously, before the `await readE2EHeader()` in the caller)
+ * means a concurrent request handler that mutates the env between the
+ * gate check and the user-id read cannot turn the synthetic session into
+ * one with `id: undefined`.
+ */
+function readE2EShimUserId(): string | null {
+  if (process.env.ALLOW_E2E_AUTH !== '1') return null
+  if (process.env.NODE_ENV === 'production') return null
+  if (process.env.VERCEL_ENV === 'production') return null
+  const userId = process.env.E2E_TEST_AUTH_USER_ID
+  if (!userId) return null
+  return userId
+}
+
 export async function getSession(): Promise<Session | null> {
-  const e2eUserId = process.env.E2E_TEST_AUTH_USER_ID
-  if (e2eUserId && process.env.NODE_ENV !== 'production') {
+  const e2eUserId = readE2EShimUserId()
+  if (e2eUserId !== null) {
     const flag = await readE2EHeader()
     if (flag === '1') {
+      // NOTE: the synthetic session returns BEFORE the per-request ban
+      // check below. That is intentional and acceptable ONLY because the
+      // five gates inside readE2EShimUserId (+ the header) collectively
+      // bar production. Do NOT extend this branch to look up additional
+      // user state — a future contributor who wires it to real user-id
+      // values can otherwise impersonate banned users in any environment
+      // that has the shim enabled.
       return {
         user: {
           id: e2eUserId,

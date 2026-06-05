@@ -12,6 +12,7 @@ export interface GitHubUser {
   avatar_url: string
   email: string | null
   followers: number
+  following: number
 }
 
 /**
