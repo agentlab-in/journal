@@ -205,38 +205,42 @@ export default async function ProfilePage({
     })
 
     return (
-      <main id="main-content" className="profile-page">
+      <main id="main-content" className="profile-page profile-page--two-col">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: jsonLd }}
         />
-        <ProfileHeader
-          username={profile.username}
-          displayName={profile.display_name}
-          avatarUrl={profile.avatar_url}
-          bioHtml={bioHtml}
-          createdAt={profile.created_at}
-          githubLogin={profile.github_login}
-          isOwner={isOwner}
-          targetUserId={profile.id}
-          followerCount={profile.follower_count}
-          followingCount={profile.following_count}
-          initialFollowing={initialFollowing}
-          currentPath={`/${profile.username}`}
-          isSignedIn={isSignedIn}
-        />
-
-        {/* Pinned + authored posts are the slow path on this page —
-            PinnedPosts queries `pinned_posts` joined to `posts`, and
-            PostList paginates `posts` for this author. Stream both in
-            under a Suspense fallback so the header paints first. */}
-        <Suspense fallback={<PostCardSkeleton count={4} />}>
-          <ProfileBody
-            profileId={profile.id}
+        <div className="profile-layout">
+          <ProfileHeader
             username={profile.username}
+            displayName={profile.display_name}
+            avatarUrl={profile.avatar_url}
+            bioHtml={bioHtml}
+            createdAt={profile.created_at}
+            githubLogin={profile.github_login}
             isOwner={isOwner}
+            targetUserId={profile.id}
+            followerCount={profile.follower_count}
+            followingCount={profile.following_count}
+            initialFollowing={initialFollowing}
+            currentPath={`/${profile.username}`}
+            isSignedIn={isSignedIn}
           />
-        </Suspense>
+
+          {/* Pinned + authored posts are the slow path on this page —
+              PinnedPosts queries `pinned_posts` joined to `posts`, and
+              PostList paginates `posts` for this author. Stream both in
+              under a Suspense fallback so the sidebar paints first. */}
+          <div className="profile-main">
+            <Suspense fallback={<PostCardSkeleton count={4} />}>
+              <ProfileBody
+                profileId={profile.id}
+                username={profile.username}
+                isOwner={isOwner}
+              />
+            </Suspense>
+          </div>
+        </div>
       </main>
     )
   }
