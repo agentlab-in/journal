@@ -1,6 +1,7 @@
 # Content Policy
 
 **Effective Date:** June 4, 2026  
+**Version:** v1  
 **Platform:** agentlab.in  
 **Operator:** Harshit Singh Bhandari (individual, India)  
 **Contact:** harshit@agentlab.in
@@ -12,6 +13,8 @@
 agentlab.in exists to build a high-quality, permanent knowledge base for AI agent infrastructure. This Content Policy defines what is and is not allowed on the platform. It applies to all user-generated content: posts, playbooks, deep dives, comments, profile bios, and avatars.
 
 These rules exist to protect the quality of the knowledge base, the safety of the community, and the legal standing of the platform. They are enforced by the platform operator under the moderation process described in our [Terms of Service](/terms).
+
+You explicitly accepted this Policy when you created your account. Violations — at our reasonable discretion — can lead to content removal, account suspension, or permanent ban.
 
 ---
 

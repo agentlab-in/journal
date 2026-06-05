@@ -1,6 +1,7 @@
 # Privacy Policy
 
 **Effective Date:** June 4, 2026  
+**Version:** v1  
 **Platform:** agentlab.in  
 **Operator:** Harshit Singh Bhandari (individual, India)  
 **Contact:** harshit@agentlab.in
@@ -95,6 +96,17 @@ Before the platform launched publicly, we collected email addresses via a waitli
 - You can request deletion at any time by emailing harshit@agentlab.in.
 
 We do not send newsletters or marketing emails after launch unless you explicitly opt in to a future programme (none currently exists).
+
+### 2.10 Consent Record
+
+**Consent record.** When you sign in for the first time (and again whenever we materially update a policy), we record:
+
+- timestamp of your agreement,
+- the version of each document you agreed to (Terms, Content Policy, Privacy Policy),
+- confirmation that you are 18+,
+- your IP address and user-agent at submission time, for evidentiary purposes.
+
+This record is retained for the lifetime of your account plus three years after deletion, in case of legal dispute.
 
 ---
 
