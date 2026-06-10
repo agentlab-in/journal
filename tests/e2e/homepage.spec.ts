@@ -30,3 +30,64 @@ test.describe('Homepage', () => {
     expect(['light', 'dark']).toContain(newTheme)
   })
 })
+
+// ---------------------------------------------------------------------------
+// Phase A — Responsive layout: three-column HomeShell
+//
+// These tests are DB-independent: they inspect CSS visibility of DOM nodes
+// only. They do not require Supabase env, auth, or seed data.
+// ---------------------------------------------------------------------------
+
+test.describe('HomeShell responsive columns', () => {
+  test('xl (1440×900): left sidebar and right sidebar are both visible', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/')
+
+    // Left aside: hidden below xl, visible at xl
+    const leftAside = page.locator('.home-shell__left')
+    await expect(leftAside).toBeVisible()
+
+    // Right aside: hidden below lg, visible at lg+
+    const rightAside = page.locator('.home-shell__right')
+    await expect(rightAside).toBeVisible()
+  })
+
+  test('lg (1100×800): left sidebar is hidden; top-nav LeftNav links are visible', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1100, height: 800 })
+    await page.goto('/')
+
+    // Left aside should be hidden (xl:hidden means hidden below xl=1280px)
+    const leftAside = page.locator('.home-shell__left')
+    await expect(leftAside).toBeHidden()
+
+    // Right aside should be visible at lg (hidden lg:block, lg=1024px)
+    const rightAside = page.locator('.home-shell__right')
+    await expect(rightAside).toBeVisible()
+
+    // LeftNav inside .nav-leftnav should be in the DOM and visible at 1100px
+    // (xl:hidden means visible below 1280px)
+    const navLeftNav = page.locator('.nav-leftnav')
+    await expect(navLeftNav).toBeVisible()
+
+    // Home nav link should be in the top-nav LeftNav
+    const homeLink = navLeftNav.getByRole('link', { name: 'Home' })
+    await expect(homeLink).toBeVisible()
+  })
+
+  test('mobile (800×900): both sidebars are hidden', async ({ page }) => {
+    await page.setViewportSize({ width: 800, height: 900 })
+    await page.goto('/')
+
+    // Left aside: hidden below xl
+    const leftAside = page.locator('.home-shell__left')
+    await expect(leftAside).toBeHidden()
+
+    // Right aside: hidden below lg (1024px)
+    const rightAside = page.locator('.home-shell__right')
+    await expect(rightAside).toBeHidden()
+  })
+})

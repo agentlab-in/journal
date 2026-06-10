@@ -75,9 +75,17 @@ function findByComponentType(
   }
   if (!React.isValidElement(tree)) return null
   if (tree.type === target) return tree
+  // Walk ALL ReactNode-valued props (not just `children`) so we can find
+  // elements nested inside named slot props like HomeShell's `center` prop.
   const props = tree.props as Record<string, unknown>
-  const children = props.children as React.ReactNode
-  return findByComponentType(children, target)
+  for (const val of Object.values(props)) {
+    if (val == null || typeof val !== 'object') continue
+    if (React.isValidElement(val) || Array.isArray(val)) {
+      const found = findByComponentType(val as React.ReactNode, target)
+      if (found) return found
+    }
+  }
+  return null
 }
 
 /**

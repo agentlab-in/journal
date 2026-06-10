@@ -3034,3 +3034,87 @@ a {
 .consent-submit:hover:not(:disabled) {
   background: color-mix(in srgb, currentcolor 8%, transparent);
 }
+
+/* ============================================================
+   Home shell (/) — Three-column discovery layout grid
+   Wraps the home feed with a left sidebar (desktop xl+) and
+   a right sidebar (desktop lg+). The center column (.home-feed)
+   keeps its own max-width:42rem cap — the shell provides the
+   outer container that centres the whole 3-col arrangement.
+   ============================================================ */
+
+.home-shell {
+  max-width: 80rem;
+  margin: 0 auto;
+  padding: 0 1rem;
+  width: 100%;
+}
+
+/* ============================================================
+   LeftNav — section navigation list
+   Base styles shared by both sidebar and top-nav renderings.
+   Top-nav rendering overrides flex-direction via .nav-leftnav.
+   ============================================================ */
+
+.left-nav__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.left-nav__link {
+  display: block;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.875rem;
+  color: var(--fg-subtle);
+  text-decoration: none;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  transition: color 0.1s ease, background-color 0.1s ease;
+}
+
+.left-nav__link:hover {
+  color: var(--fg);
+  background: var(--bg-hover);
+}
+
+.left-nav__link[aria-current='page'] {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+/* ============================================================
+   .nav-leftnav — LeftNav inside the top nav bar
+   Overrides the vertical list to horizontal row so nav links
+   sit inline with NavSearch and auth controls. Only visible
+   below xl (the sidebar takes over at xl+).
+   ============================================================ */
+
+.nav-leftnav .left-nav__list {
+  flex-direction: row;
+  gap: 0;
+}
+
+.nav-leftnav .left-nav__link {
+  padding: 0.25rem 0.5rem;
+  white-space: nowrap;
+}
+
+/* ============================================================
+   .rail-heading — uppercase micro-label for sidebar rail titles
+   Matches the visual vocabulary of .tags-page__section-title.
+   Used by Phase B rails (TrendingTagsRail etc.).
+   ============================================================ */
+
+.rail-heading {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--fg-subtle);
+  margin: 0 0 0.75rem;
+}

@@ -24,6 +24,9 @@ import {
 import { PostCard, type PostCardData } from '@/components/post/PostCard'
 import { KeyboardFeedNav } from '@/components/keyboard/KeyboardFeedNav'
 import { PostCardSkeleton } from '@/components/skeleton/PostCardSkeleton'
+import { HomeShell } from '@/components/home/HomeShell'
+import { LeftSidebar } from '@/components/home/LeftSidebar'
+import { RightSidebar } from '@/components/home/RightSidebar'
 
 export const metadata: Metadata = {
   // Home is the one route that ISN'T `{label} — agentlab.in`. It's
@@ -191,23 +194,29 @@ export default async function HomePage() {
   const showingForYou = viewerId !== null
 
   return (
-    <main id="main-content" className="home-feed">
-      <header className="home-feed__header">
-        <h1 className="home-feed__title">{showingForYou ? 'For you' : 'Latest'}</h1>
-        <p className="home-feed__tagline">
-          {showingForYou
-            ? 'Posts ranked by recency and engagement, biased toward tags you follow.'
-            : 'The newest posts on agentlab.'}
-        </p>
-      </header>
+    <HomeShell
+      left={<LeftSidebar />}
+      center={
+        <main id="main-content" className="home-feed">
+          <header className="home-feed__header">
+            <h1 className="home-feed__title">{showingForYou ? 'For you' : 'Latest'}</h1>
+            <p className="home-feed__tagline">
+              {showingForYou
+                ? 'Posts ranked by recency and engagement, biased toward tags you follow.'
+                : 'The newest posts on agentlab.'}
+            </p>
+          </header>
 
-      <Suspense fallback={<PostCardSkeleton count={5} />}>
-        <FeedList viewerId={viewerId} />
-      </Suspense>
+          <Suspense fallback={<PostCardSkeleton count={5} />}>
+            <FeedList viewerId={viewerId} />
+          </Suspense>
 
-      <p className="home-feed__more">
-        <Link href="/latest">See all posts →</Link>
-      </p>
-    </main>
+          <p className="home-feed__more">
+            <Link href="/latest">See all posts →</Link>
+          </p>
+        </main>
+      }
+      right={<RightSidebar />}
+    />
   )
 }

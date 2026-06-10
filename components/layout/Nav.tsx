@@ -6,6 +6,7 @@ import Logo from '@/components/brand/Logo'
 import ThemeToggle from './ThemeToggle'
 import NavAuth from './NavAuth'
 import NavSearch from './NavSearch'
+import { LeftNav } from '@/components/home/LeftNav'
 
 export default function Nav() {
   // Phase 13: announce the active route to assistive tech via aria-current.
@@ -32,6 +33,12 @@ export default function Nav() {
       </Link>
 
       <NavSearch />
+
+      {/* LeftNav in top nav: only visible below xl (when the left sidebar is hidden).
+          The .nav-leftnav CSS rule in globals.css overrides the list to flex-direction:row. */}
+      <div className="nav-leftnav xl:hidden">
+        <LeftNav />
+      </div>
 
       <div className="flex items-center gap-4">
         <ThemeToggle />
