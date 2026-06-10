@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
+// Mock next/cache so revalidateTag calls don't throw "static generation store missing"
+// when running outside a Next.js render context.
+vi.mock('next/cache', () => ({
+  revalidateTag: vi.fn(),
+}))
+
 // ---------------------------------------------------------------------------
 // Phase 11 / T3 — POST + PATCH /api/posts gain `org_id`.
 //

@@ -1,6 +1,14 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 // ---------------------------------------------------------------------------
+// Mock: next/cache — revalidateTag
+// ---------------------------------------------------------------------------
+const revalidateTagMock = vi.fn()
+vi.mock('next/cache', () => ({
+  revalidateTag: revalidateTagMock,
+}))
+
+// ---------------------------------------------------------------------------
 // Mock: @/lib/auth
 // ---------------------------------------------------------------------------
 const sessionState: { value: { user: { id: string } } | null } = { value: null }
@@ -364,5 +372,45 @@ describe('DELETE /api/posts/[id] — does NOT touch comments/likes/bookmarks/tag
     expect(touchedTables).not.toContain('bookmarks.delete')
     expect(touchedTables).not.toContain('post_tags.delete')
     expect(touchedTables).not.toContain('post_references.delete')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Tests — revalidateTag cache invalidation (Phase B discovery-cache contract)
+// ---------------------------------------------------------------------------
+describe('DELETE /api/posts/[id] — revalidateTag cache invalidation', () => {
+  beforeEach(() => {
+    sessionState.value = { user: { id: 'user-123' } }
+    isAdminState.value = false
+    capturedOps.length = 0
+    revalidateTagMock.mockReset()
+    currentFakeClient = makeDeleteClient({ githubLogin: 'user-gh' })
+  })
+
+  it('calls revalidateTag("posts", { expire: 0 }) after successful author soft-delete', async () => {
+    const { DELETE } = await import('@/app/api/posts/[id]/route')
+    const res = await DELETE(makeRequest('post-abc') as never, makeContext('post-abc'))
+    expect(res.status).toBe(200)
+
+    expect(revalidateTagMock).toHaveBeenCalledWith('posts', { expire: 0 })
+  })
+
+  it('does NOT call revalidateTag when DELETE fails with 401', async () => {
+    sessionState.value = null
+    const { DELETE } = await import('@/app/api/posts/[id]/route')
+    const res = await DELETE(makeRequest('post-abc') as never, makeContext('post-abc'))
+    expect(res.status).toBe(401)
+
+    expect(revalidateTagMock).not.toHaveBeenCalled()
+  })
+
+  it('does NOT call revalidateTag when DELETE fails with 403', async () => {
+    sessionState.value = { user: { id: 'other-user' } }
+    isAdminState.value = false
+    const { DELETE } = await import('@/app/api/posts/[id]/route')
+    const res = await DELETE(makeRequest('post-abc') as never, makeContext('post-abc'))
+    expect(res.status).toBe(403)
+
+    expect(revalidateTagMock).not.toHaveBeenCalled()
   })
 })

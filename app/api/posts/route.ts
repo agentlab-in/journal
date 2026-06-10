@@ -1,4 +1,5 @@
 import type { NextRequest } from 'next/server'
+import { revalidateTag } from 'next/cache'
 import { getSession } from '@/lib/auth'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { PostCreateBody } from '@/lib/posts/schema'
@@ -279,6 +280,16 @@ export async function POST(req: NextRequest | Request): Promise<Response> {
   )
   if (postTagsErr) {
     return json(500, { error: 'post_tags_insert_failed', detail: postTagsErr.message })
+  }
+
+  // Invalidate the discovery cache so the very next request re-queries.
+  // Called AFTER post_tags insert succeeds (step 14) so a partial failure
+  // between the posts insert (step 13) and post_tags insert does not
+  // leave the cache invalidated with stale membership data.
+  // Contract: discovery-cache.ts registers tags: ['posts', 'tags'].
+  revalidateTag('posts', { expire: 0 })
+  if (newTagSlugs.length > 0) {
+    revalidateTag('tags', { expire: 0 })
   }
 
   // Step 15: insert post_versions (version_no=1)

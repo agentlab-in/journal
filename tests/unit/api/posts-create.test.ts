@@ -1,6 +1,14 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 // ---------------------------------------------------------------------------
+// Mock: next/cache — revalidateTag
+// ---------------------------------------------------------------------------
+const revalidateTagMock = vi.fn()
+vi.mock('next/cache', () => ({
+  revalidateTag: revalidateTagMock,
+}))
+
+// ---------------------------------------------------------------------------
 // Mock: @/lib/auth
 // ---------------------------------------------------------------------------
 const sessionState: { value: { user: { id: string } } | null } = { value: null }
@@ -526,5 +534,57 @@ describe('POST /api/posts — happy path 201', () => {
     expect(rows).toHaveLength(2)
     expect(rows.map((r) => r.tag_slug).sort()).toEqual(['llm', 'rag'])
     expect(rows[0].post_id).toBe('post-id-happy')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Tests — revalidateTag cache invalidation (Phase B discovery-cache contract)
+// ---------------------------------------------------------------------------
+describe('POST /api/posts — revalidateTag cache invalidation', () => {
+  beforeEach(() => {
+    sessionState.value = { user: { id: 'user-123' } }
+    capturedInserts.length = 0
+    revalidateTagMock.mockReset()
+    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://abc.supabase.co'
+    currentFakeClient = makeHappyClient({ username: 'alice', newPostId: 'post-id-cache' })
+  })
+
+  it('calls revalidateTag("posts", { expire: 0 }) after successful publish', async () => {
+    const { POST } = await import('@/app/api/posts/route')
+    const req = makeRequest(VALID_POST_PAYLOAD)
+    const res = await POST(req as never)
+    expect(res.status).toBe(201)
+
+    expect(revalidateTagMock).toHaveBeenCalledWith('posts', { expire: 0 })
+  })
+
+  it('calls revalidateTag("tags", { expire: 0 }) when a new tag slug is created', async () => {
+    // 'rag' already exists, 'brand-new-tag' does not → new tag inserted
+    currentFakeClient = makeHappyClient({ existingTags: ['rag'], newPostId: 'post-id-tags' })
+    const { POST } = await import('@/app/api/posts/route')
+    const req = makeRequest({ ...VALID_POST_PAYLOAD, tags: ['rag', 'brand-new-tag'] })
+    const res = await POST(req as never)
+    expect(res.status).toBe(201)
+
+    expect(revalidateTagMock).toHaveBeenCalledWith('tags', { expire: 0 })
+  })
+
+  it('does NOT call revalidateTag when publish fails with a 400 validation error', async () => {
+    const { POST } = await import('@/app/api/posts/route')
+    // Deliberately invalid body — summary too long → 400 before any DB write.
+    const req = makeRequest({ ...VALID_POST_PAYLOAD, summary: 'x'.repeat(201) })
+    const res = await POST(req as never)
+    expect(res.status).toBe(400)
+
+    expect(revalidateTagMock).not.toHaveBeenCalled()
+  })
+
+  it('does NOT call revalidateTag when 401 (no session)', async () => {
+    sessionState.value = null
+    const { POST } = await import('@/app/api/posts/route')
+    const res = await POST(makeRequest(VALID_POST_PAYLOAD) as never)
+    expect(res.status).toBe(401)
+
+    expect(revalidateTagMock).not.toHaveBeenCalled()
   })
 })

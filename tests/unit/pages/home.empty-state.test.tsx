@@ -39,6 +39,14 @@ vi.mock('@/lib/feed/hydrate', () => ({
   fetchTagsByPost: vi.fn(async () => new Map()),
 }))
 
+// Mock discovery-cache so TrendingStrip/RightSidebar don't call unstable_cache
+// in jsdom (unstable_cache requires a Next.js incrementalCache context).
+vi.mock('@/lib/feed/discovery-cache', () => ({
+  cachedTrendingTags: vi.fn(async () => []),
+  cachedTopPlaybooks: vi.fn(async () => []),
+  cachedTopDives: vi.fn(async () => []),
+}))
+
 // ---------------------------------------------------------------------------
 // Imports after mocks
 // ---------------------------------------------------------------------------
@@ -58,26 +66,6 @@ function collectText(node: React.ReactNode): string {
   if (!React.isValidElement(node)) return ''
   const props = node.props as Record<string, unknown>
   return collectText(props.children as React.ReactNode)
-}
-
-function findByComponentType(
-  tree: React.ReactNode,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  target: (...args: any[]) => any,
-): React.ReactElement | null {
-  if (tree == null || tree === false || tree === true) return null
-  if (Array.isArray(tree)) {
-    for (const node of tree) {
-      const found = findByComponentType(node, target)
-      if (found) return found
-    }
-    return null
-  }
-  if (!React.isValidElement(tree)) return null
-  if (tree.type === target) return tree
-  const props = tree.props as Record<string, unknown>
-  const children = props.children as React.ReactNode
-  return findByComponentType(children, target)
 }
 
 /**
@@ -100,12 +88,47 @@ function collectLinkHrefs(node: React.ReactNode, hrefs: string[] = []): string[]
 }
 
 // ---------------------------------------------------------------------------
-// Resolve the Suspense child to its rendered output.
+// Collect ALL elements of a given component type in the tree.
+// ---------------------------------------------------------------------------
+
+function findAllByComponentType(
+  tree: React.ReactNode,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  target: (...args: any[]) => any,
+  out: React.ReactElement[] = [],
+): React.ReactElement[] {
+  if (tree == null || tree === false || tree === true) return out
+  if (Array.isArray(tree)) {
+    for (const node of tree) findAllByComponentType(node, target, out)
+    return out
+  }
+  if (!React.isValidElement(tree)) return out
+  if (tree.type === target) out.push(tree)
+  const props = tree.props as Record<string, unknown>
+  for (const val of Object.values(props)) {
+    if (val == null || typeof val !== 'object') continue
+    if (React.isValidElement(val) || Array.isArray(val)) {
+      findAllByComponentType(val as React.ReactNode, target, out)
+    }
+  }
+  return out
+}
+
+// ---------------------------------------------------------------------------
+// Resolve the FeedList Suspense child to its rendered output.
 // ---------------------------------------------------------------------------
 
 async function renderHomeFeed(): Promise<React.ReactNode> {
   const tree = await HomePage()
-  const suspense = findByComponentType(tree, React.Suspense)
+  // Phase B added TrendingStrip and TopByType wrapped in Suspense before and
+  // after the FeedList Suspense. Find the Suspense whose child is FeedList
+  // (identified by its function name 'FeedList').
+  const allSuspenses = findAllByComponentType(tree, React.Suspense)
+  const feedListSuspense = allSuspenses.find((s) => {
+    const child = (s.props as { children?: React.ReactElement }).children
+    return child && typeof child.type === 'function' && child.type.name === 'FeedList'
+  })
+  const suspense = feedListSuspense ?? allSuspenses[0]
   expect(suspense).not.toBeNull()
   const body = (suspense!.props as { children: React.ReactElement }).children
   // body.type is the async FeedList server component

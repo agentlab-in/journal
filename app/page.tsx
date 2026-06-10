@@ -24,6 +24,12 @@ import {
 import { PostCard, type PostCardData } from '@/components/post/PostCard'
 import { KeyboardFeedNav } from '@/components/keyboard/KeyboardFeedNav'
 import { PostCardSkeleton } from '@/components/skeleton/PostCardSkeleton'
+import { RailSkeleton } from '@/components/skeleton/RailSkeleton'
+import { HomeShell } from '@/components/home/HomeShell'
+import { LeftSidebar } from '@/components/home/LeftSidebar'
+import { RightSidebar } from '@/components/home/RightSidebar'
+import { TrendingStrip } from '@/components/home/TrendingStrip'
+import { TopByType } from '@/components/home/TopByType'
 
 export const metadata: Metadata = {
   // Home is the one route that ISN'T `{label} — agentlab.in`. It's
@@ -191,23 +197,51 @@ export default async function HomePage() {
   const showingForYou = viewerId !== null
 
   return (
-    <main id="main-content" className="home-feed">
-      <header className="home-feed__header">
-        <h1 className="home-feed__title">{showingForYou ? 'For you' : 'Latest'}</h1>
-        <p className="home-feed__tagline">
-          {showingForYou
-            ? 'Posts ranked by recency and engagement, biased toward tags you follow.'
-            : 'The newest posts on agentlab.'}
-        </p>
-      </header>
+    <HomeShell
+      left={<LeftSidebar />}
+      center={
+        <main id="main-content" className="home-feed">
+          {/* Mobile-only (<lg) horizontal trending strip. TrendingStrip
+              self-hides at ≥lg via lg:hidden so no server-side branching
+              is needed — pure CSS responsive. */}
+          <Suspense fallback={null}>
+            <TrendingStrip />
+          </Suspense>
 
-      <Suspense fallback={<PostCardSkeleton count={5} />}>
-        <FeedList viewerId={viewerId} />
-      </Suspense>
+          <header className="home-feed__header">
+            <h1 className="home-feed__title">{showingForYou ? 'For you' : 'Latest'}</h1>
+            <p className="home-feed__tagline">
+              {showingForYou
+                ? 'Posts ranked by recency and engagement, biased toward tags you follow.'
+                : 'The newest posts on agentlab.'}
+            </p>
+          </header>
 
-      <p className="home-feed__more">
-        <Link href="/latest">See all posts →</Link>
-      </p>
-    </main>
+          <Suspense fallback={<PostCardSkeleton count={5} />}>
+            <FeedList viewerId={viewerId} />
+          </Suspense>
+
+          <p className="home-feed__more">
+            <Link href="/latest">See all posts →</Link>
+          </p>
+
+          {/* Mobile-only (<lg) top-by-type rails below the feed footer.
+              Both sidebars are hidden at <lg so these rails would otherwise
+              be invisible. lg:hidden keeps them out of the desktop layout
+              where the right sidebar already shows them. */}
+          <div className="lg:hidden">
+            <Suspense fallback={<RailSkeleton rows={3} />}>
+              {/* unique headingId avoids duplicate-id-aria: RightSidebar owns the default ids at ≥lg */}
+              <TopByType type="playbook" headingId="top-playbook-heading-mobile" />
+            </Suspense>
+            <Suspense fallback={<RailSkeleton rows={3} />}>
+              {/* unique headingId avoids duplicate-id-aria: RightSidebar owns the default ids at ≥lg */}
+              <TopByType type="dive" headingId="top-dive-heading-mobile" />
+            </Suspense>
+          </div>
+        </main>
+      }
+      right={<RightSidebar />}
+    />
   )
 }

@@ -3034,3 +3034,184 @@ a {
 .consent-submit:hover:not(:disabled) {
   background: color-mix(in srgb, currentcolor 8%, transparent);
 }
+
+/* ============================================================
+   Home shell (/) — Three-column discovery layout grid
+   Wraps the home feed with a left sidebar (desktop xl+) and
+   a right sidebar (desktop lg+). The center column (.home-feed)
+   keeps its own max-width:42rem cap — the shell provides the
+   outer container that centres the whole 3-col arrangement.
+   ============================================================ */
+
+.home-shell {
+  max-width: 80rem;
+  margin: 0 auto;
+  /* No horizontal padding below lg — .home-feed already adds 1rem per side,
+     so adding it here too would double the gutter on single-column viewports. */
+  padding: 0;
+  width: 100%;
+}
+
+@media (min-width: 1024px) {
+  .home-shell {
+    padding: 0 1.5rem;
+  }
+}
+
+/* ============================================================
+   LeftNav — section navigation list
+   Base styles shared by both sidebar and top-nav renderings.
+   Top-nav rendering overrides flex-direction via .nav-leftnav.
+   ============================================================ */
+
+.left-nav__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.left-nav__link {
+  display: block;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.875rem;
+  color: var(--fg-subtle);
+  text-decoration: none;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  transition: color 0.1s ease, background-color 0.1s ease;
+}
+
+.left-nav__link:hover {
+  color: var(--fg);
+  background: var(--bg-hover);
+}
+
+.left-nav__link[aria-current='page'] {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+/* ============================================================
+   .nav-leftnav — LeftNav inside the top nav bar
+   Overrides the vertical list to horizontal row so nav links
+   sit inline with NavSearch and auth controls. Only visible
+   below xl (the sidebar takes over at xl+).
+   ============================================================ */
+
+.nav-leftnav {
+  /* min-width:0 lets this wrapper shrink below its content size so it can't
+     push the logo or auth controls out of the nav bar on narrow viewports. */
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.nav-leftnav .left-nav__list {
+  flex-direction: row;
+  gap: 0;
+  flex-wrap: nowrap;
+}
+
+.nav-leftnav .left-nav__link {
+  padding: 0.25rem 0.5rem;
+  white-space: nowrap;
+}
+
+/* ============================================================
+   .rail-heading — uppercase micro-label for sidebar rail titles
+   Matches the visual vocabulary of .tags-page__section-title.
+   Used by Phase B rails (TrendingTagsRail etc.).
+   ============================================================ */
+
+.rail-heading {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--fg-subtle);
+  margin: 0 0 0.75rem;
+}
+
+/* ============================================================
+   Phase B discovery rails — TrendingTagsRail + TopByType
+   BEM classes kept for E2E targeting (OPC-5). Visual vocabulary
+   matches .left-nav__* and .home-feed__more a: font-mono small
+   text, muted → fg on hover, no underline, no list chrome.
+   ============================================================ */
+
+.trending-tags-rail__list,
+.top-by-type__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.trending-tags-rail__link {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.875rem;
+  color: var(--fg-subtle);
+  text-decoration: none;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  transition: color 0.1s ease, background-color 0.1s ease;
+}
+
+.trending-tags-rail__link:hover {
+  color: var(--fg);
+  background: var(--bg-hover);
+}
+
+.trending-tags-rail__name {
+  /* tag name inherits color from parent link */
+}
+
+.trending-tags-rail__count {
+  font-size: 0.75rem;
+  color: var(--fg-subtle);
+  flex-shrink: 0;
+}
+
+.trending-tags-rail__link:hover .trending-tags-rail__count {
+  color: var(--fg-subtle);
+}
+
+/* TopByType rail — each item is a block link with a title line
+   and a smaller author/likes meta line beneath it. */
+
+.top-by-type__link {
+  display: block;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.875rem;
+  color: var(--fg-subtle);
+  text-decoration: none;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  transition: color 0.1s ease, background-color 0.1s ease;
+}
+
+.top-by-type__link:hover {
+  background: var(--bg-hover);
+}
+
+.top-by-type__title {
+  display: block;
+  color: var(--fg);
+  line-height: 1.3;
+}
+
+.top-by-type__meta {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--fg-subtle);
+  margin-top: 0.125rem;
+}
