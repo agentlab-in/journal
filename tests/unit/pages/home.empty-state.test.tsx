@@ -68,34 +68,6 @@ function collectText(node: React.ReactNode): string {
   return collectText(props.children as React.ReactNode)
 }
 
-function findByComponentType(
-  tree: React.ReactNode,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  target: (...args: any[]) => any,
-): React.ReactElement | null {
-  if (tree == null || tree === false || tree === true) return null
-  if (Array.isArray(tree)) {
-    for (const node of tree) {
-      const found = findByComponentType(node, target)
-      if (found) return found
-    }
-    return null
-  }
-  if (!React.isValidElement(tree)) return null
-  if (tree.type === target) return tree
-  // Walk ALL ReactNode-valued props (not just `children`) so we can find
-  // elements nested inside named slot props like HomeShell's `center` prop.
-  const props = tree.props as Record<string, unknown>
-  for (const val of Object.values(props)) {
-    if (val == null || typeof val !== 'object') continue
-    if (React.isValidElement(val) || Array.isArray(val)) {
-      const found = findByComponentType(val as React.ReactNode, target)
-      if (found) return found
-    }
-  }
-  return null
-}
-
 /**
  * Walk an element tree collecting every `<Link href>` so we can assert
  * the empty-state action target without depending on next/link internals.
