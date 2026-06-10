@@ -36,7 +36,7 @@ export default function Nav() {
 
       {/* LeftNav in top nav: only visible below xl (when the left sidebar is hidden).
           The .nav-leftnav CSS rule in globals.css overrides the list to flex-direction:row. */}
-      <div className="nav-leftnav xl:hidden">
+      <div className="nav-leftnav min-w-0 xl:hidden">
         <LeftNav />
       </div>
 

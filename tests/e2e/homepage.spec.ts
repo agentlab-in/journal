@@ -78,7 +78,7 @@ test.describe('HomeShell responsive columns', () => {
     await expect(homeLink).toBeVisible()
   })
 
-  test('mobile (800×900): both sidebars are hidden', async ({ page }) => {
+  test('below lg (800×900): both sidebars are hidden', async ({ page }) => {
     await page.setViewportSize({ width: 800, height: 900 })
     await page.goto('/')
 
@@ -89,5 +89,27 @@ test.describe('HomeShell responsive columns', () => {
     // Right aside: hidden below lg (1024px)
     const rightAside = page.locator('.home-shell__right')
     await expect(rightAside).toBeHidden()
+  })
+
+  test('phone (390×844): both sidebars hidden; top-nav LeftNav links visible', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/')
+
+    // Both sidebars must be hidden at phone width
+    const leftAside = page.locator('.home-shell__left')
+    await expect(leftAside).toBeHidden()
+
+    const rightAside = page.locator('.home-shell__right')
+    await expect(rightAside).toBeHidden()
+
+    // The top-nav LeftNav is visible at all widths below xl (spec-locked).
+    // "Trending" link is a reliable sentinel — no auth required to render it.
+    const navLeftNav = page.locator('.nav-leftnav')
+    await expect(navLeftNav).toBeVisible()
+
+    const trendingLink = navLeftNav.getByRole('link', { name: 'Trending' })
+    await expect(trendingLink).toBeVisible()
   })
 })

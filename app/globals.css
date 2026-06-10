@@ -3046,8 +3046,16 @@ a {
 .home-shell {
   max-width: 80rem;
   margin: 0 auto;
-  padding: 0 1rem;
+  /* No horizontal padding below lg — .home-feed already adds 1rem per side,
+     so adding it here too would double the gutter on single-column viewports. */
+  padding: 0;
   width: 100%;
+}
+
+@media (min-width: 1024px) {
+  .home-shell {
+    padding: 0 1.5rem;
+  }
 }
 
 /* ============================================================
@@ -3093,9 +3101,17 @@ a {
    below xl (the sidebar takes over at xl+).
    ============================================================ */
 
+.nav-leftnav {
+  /* min-width:0 lets this wrapper shrink below its content size so it can't
+     push the logo or auth controls out of the nav bar on narrow viewports. */
+  min-width: 0;
+  overflow-x: auto;
+}
+
 .nav-leftnav .left-nav__list {
   flex-direction: row;
   gap: 0;
+  flex-wrap: nowrap;
 }
 
 .nav-leftnav .left-nav__link {
