@@ -3134,3 +3134,84 @@ a {
   color: var(--fg-subtle);
   margin: 0 0 0.75rem;
 }
+
+/* ============================================================
+   Phase B discovery rails — TrendingTagsRail + TopByType
+   BEM classes kept for E2E targeting (OPC-5). Visual vocabulary
+   matches .left-nav__* and .home-feed__more a: font-mono small
+   text, muted → fg on hover, no underline, no list chrome.
+   ============================================================ */
+
+.trending-tags-rail__list,
+.top-by-type__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.trending-tags-rail__link {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.875rem;
+  color: var(--fg-subtle);
+  text-decoration: none;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  transition: color 0.1s ease, background-color 0.1s ease;
+}
+
+.trending-tags-rail__link:hover {
+  color: var(--fg);
+  background: var(--bg-hover);
+}
+
+.trending-tags-rail__name {
+  /* tag name inherits color from parent link */
+}
+
+.trending-tags-rail__count {
+  font-size: 0.75rem;
+  color: var(--fg-subtle);
+  flex-shrink: 0;
+}
+
+.trending-tags-rail__link:hover .trending-tags-rail__count {
+  color: var(--fg-subtle);
+}
+
+/* TopByType rail — each item is a block link with a title line
+   and a smaller author/likes meta line beneath it. */
+
+.top-by-type__link {
+  display: block;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.875rem;
+  color: var(--fg-subtle);
+  text-decoration: none;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  transition: color 0.1s ease, background-color 0.1s ease;
+}
+
+.top-by-type__link:hover {
+  background: var(--bg-hover);
+}
+
+.top-by-type__title {
+  display: block;
+  color: var(--fg);
+  line-height: 1.3;
+}
+
+.top-by-type__meta {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--fg-subtle);
+  margin-top: 0.125rem;
+}

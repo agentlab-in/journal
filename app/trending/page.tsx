@@ -18,8 +18,6 @@
  * the other data-backed routes in this codebase.
  */
 
-export const dynamic = 'force-dynamic'
-
 import Link from 'next/link'
 import { Suspense } from 'react'
 import type { Metadata } from 'next'
@@ -31,6 +29,12 @@ import { TrendingFeed } from '@/components/home/TrendingFeed'
 import { TopByType } from '@/components/home/TopByType'
 import { PostCardSkeleton } from '@/components/skeleton/PostCardSkeleton'
 import { RailSkeleton } from '@/components/skeleton/RailSkeleton'
+
+// force-dynamic: TrendingFeed calls the Supabase admin client (live DB read
+// via the `feed_shortlist_by_heat` RPC) so static prerendering at build time
+// would fail without a real Supabase URL. Matches the posture of /tags and
+// the other data-backed routes in this codebase.
+export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
   title: 'Trending',

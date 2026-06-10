@@ -18,6 +18,10 @@ import { cachedTopPlaybooks, cachedTopDives } from '@/lib/feed/discovery-cache'
 import { postUrl } from '@/lib/posts/url'
 import type { PostType } from '@/lib/posts/url'
 
+function plural(n: number, singular: string, pluralForm: string): string {
+  return `${n} ${n === 1 ? singular : pluralForm}`
+}
+
 export interface TopByTypeProps {
   type: 'playbook' | 'dive'
   headingId?: string
@@ -49,7 +53,7 @@ export async function TopByType({ type, headingId }: TopByTypeProps) {
             >
               <span className="top-by-type__title">{p.title}</span>
               <span className="top-by-type__meta text-muted">
-                @{p.author_username} · ♥ {p.like_count}
+                @{p.author_username} · {plural(p.like_count, 'like', 'likes')}
               </span>
             </Link>
           </li>
