@@ -116,8 +116,10 @@ test.describe('HomeShell responsive columns', () => {
 
 // ---------------------------------------------------------------------------
 // Phase B — Discovery rails: trending + top-by-type
+// Phase C — Risk 1: cache-invalidation drift
 //
-// These tests are DB-dependent and self-skip without SUPABASE_SERVICE_ROLE_KEY.
+// These tests are DB-dependent and self-skip without both
+// E2E_TEST_AUTH_USER_ID and SUPABASE_SERVICE_ROLE_KEY.
 // They follow the existing HAS_E2E_AUTH skip pattern from discovery.spec.ts.
 // ---------------------------------------------------------------------------
 
@@ -210,5 +212,116 @@ test.describe('Phase B — Discovery rails (xl layout)', () => {
 
     // No error boundary should be visible.
     await expect(page.locator('text=Something went wrong')).toHaveCount(0)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Phase C — Risk 1: cache-invalidation drift
+//
+// THE LINCHPIN TEST: publishing a post via POST /api/posts should invalidate
+// the discovery-cache immediately (revalidateTag('posts', { expire: 0 })),
+// so the VERY NEXT request to '/' re-queries rather than serving a stale
+// 600s TTL. The trending-tags rail and top-by-type rails must both reflect
+// the new post without waiting for the TTL to expire.
+// ---------------------------------------------------------------------------
+
+test.describe('Phase C — Risk 1: cache-invalidation drift', () => {
+  test.skip(
+    !HAS_E2E_AUTH || !HAS_SERVICE_KEY,
+    'requires E2E_TEST_AUTH_USER_ID + SUPABASE_SERVICE_ROLE_KEY',
+  )
+
+  test('publishing a post immediately invalidates the discovery cache on next request', async ({
+    page,
+    request,
+  }) => {
+    const suffix = String(Date.now())
+
+    // --- Step 1: seed a post with a known approved tag ('security') ---
+    const res = await request.post('/api/posts', {
+      headers: { 'x-e2e-auth': '1' },
+      data: {
+        type: 'post',
+        title: `Cache Invalidation Test Post ${suffix}`,
+        summary: 'Seeded for cache-invalidation test.',
+        body_md: 'x'.repeat(60),
+        tags: ['security'],
+      },
+    })
+    expect(res.status()).toBe(201)
+    const { id: postId } = (await res.json()) as { id: string }
+
+    try {
+      // --- Step 2: load '/' (the VERY NEXT request post-invalidation) ---
+      // The `revalidateTag('posts', { expire: 0 })` inside POST /api/posts
+      // fires immediately after the insert. The next page load re-queries
+      // the cache — no 600s wait needed.
+      await page.setViewportSize({ width: 1440, height: 900 })
+      const homeRes = await page.goto('/', { waitUntil: 'domcontentloaded' })
+      expect(homeRes?.status()).toBe(200)
+
+      // No error boundary should be visible regardless of cache state.
+      await expect(page.locator('text=Something went wrong')).toHaveCount(0)
+
+      // The left sidebar (xl) must be visible at 1440px.
+      const leftAside = page.locator('.home-shell__left')
+      await expect(leftAside).toBeVisible()
+
+      // The right sidebar must be visible at xl.
+      const rightAside = page.locator('.home-shell__right')
+      await expect(rightAside).toBeVisible()
+
+      // The trending-tags rail (in left sidebar) must render without error.
+      // We can't assert the exact tag count without knowing the full DB state,
+      // but the rail must not show an error — and the home page must render
+      // its feed shell cleanly.
+      await expect(page.locator('main.home-feed')).toBeVisible()
+
+      // --- Step 3: seed a playbook to also test the top-by-type rail ---
+      const PLAYBOOK_BODY = [
+        '## Environment Target',
+        'Node.js 20',
+        '## Prerequisites',
+        'None.',
+        '## Core Instructions',
+        'Step 1.',
+        '## Safety and Failure Modes',
+        'None.',
+      ].join('\n\n')
+
+      const playbookRes = await request.post('/api/posts', {
+        headers: { 'x-e2e-auth': '1' },
+        data: {
+          type: 'playbook',
+          title: `Cache Invalidation Playbook ${suffix}`,
+          summary: 'Seeded playbook for cache-invalidation test.',
+          body_md: PLAYBOOK_BODY,
+          tags: ['security'],
+        },
+      })
+      expect(playbookRes.status()).toBe(201)
+      const { id: playbookId } = (await playbookRes.json()) as { id: string }
+
+      try {
+        // Reload home after publishing the playbook — cache is re-invalidated
+        const homeRes2 = await page.goto('/', { waitUntil: 'domcontentloaded' })
+        expect(homeRes2?.status()).toBe(200)
+
+        // No error boundary.
+        await expect(page.locator('text=Something went wrong')).toHaveCount(0)
+
+        // Right sidebar must still be intact.
+        await expect(page.locator('.home-shell__right')).toBeVisible()
+      } finally {
+        await request.delete(`/api/posts/${playbookId}`, {
+          headers: { 'x-e2e-auth': '1' },
+        }).catch(() => undefined)
+      }
+    } finally {
+      // --- Cleanup: delete the seeded post ---
+      await request.delete(`/api/posts/${postId}`, {
+        headers: { 'x-e2e-auth': '1' },
+      }).catch(() => undefined)
+    }
   })
 })

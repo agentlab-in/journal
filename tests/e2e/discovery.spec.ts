@@ -201,6 +201,43 @@ test.describe('Phase 9 discovery — anon surface', () => {
 // Tests — seeded (gated on HAS_E2E_AUTH)
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Tests — /trending nav link (DB-independent)
+// ---------------------------------------------------------------------------
+
+test.describe('Phase 9 discovery — /trending nav link', () => {
+  // -------------------------------------------------------------------------
+  // Trending nav link: the left-nav (or top-nav .nav-leftnav at <xl)
+  // "Trending" link navigates to /trending and picks up aria-current="page".
+  // -------------------------------------------------------------------------
+  test('Trending link navigates to /trending and gets aria-current="page"', async ({
+    page,
+  }) => {
+    // Start on home so the nav is rendered
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
+
+    // The Trending link is always present in .nav-leftnav (top nav) at <xl.
+    // We use a viewport of 1100px (lg, below xl=1280) so we can target the
+    // .nav-leftnav wrapper reliably. The left sidebar is hidden at that width.
+    await page.setViewportSize({ width: 1100, height: 800 })
+
+    const navLeftNav = page.locator('.nav-leftnav')
+    await expect(navLeftNav).toBeVisible()
+
+    const trendingLink = navLeftNav.getByRole('link', { name: 'Trending' })
+    await expect(trendingLink).toBeVisible()
+
+    // Navigate via the link
+    await trendingLink.click()
+    await page.waitForURL('/trending', { timeout: 10_000 })
+    expect(new URL(page.url()).pathname).toBe('/trending')
+
+    // After navigation the link should carry aria-current="page" (LeftNav
+    // uses exact pathname matching via usePathname())
+    await expect(trendingLink).toHaveAttribute('aria-current', 'page')
+  })
+})
+
 test.describe('Phase 9 discovery — authed + seeded', () => {
   // -------------------------------------------------------------------------
   // 8. Authed `/` renders For You without erroring.
