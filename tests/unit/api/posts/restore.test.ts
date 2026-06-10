@@ -1,6 +1,14 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 // ---------------------------------------------------------------------------
+// Mock: next/cache — revalidateTag
+// ---------------------------------------------------------------------------
+const revalidateTagMock = vi.fn()
+vi.mock('next/cache', () => ({
+  revalidateTag: revalidateTagMock,
+}))
+
+// ---------------------------------------------------------------------------
 // Mocks (same shape used by tests/unit/api/admin/unban.test.ts)
 // ---------------------------------------------------------------------------
 
@@ -196,5 +204,49 @@ describe('POST /api/posts/[id]/restore — happy path', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const modCall = (client.modActionsInsertFn.mock.calls as any[][])[0]![0]
     expect(modCall.reason).toBe('x'.repeat(1000))
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Tests — revalidateTag cache invalidation (Phase B discovery-cache contract)
+// ---------------------------------------------------------------------------
+describe('POST /api/posts/[id]/restore — revalidateTag cache invalidation', () => {
+  beforeEach(() => {
+    sessionState.value = { user: { id: ADMIN_ID } }
+    adminGateResult = null
+    revalidateTagMock.mockReset()
+  })
+
+  it('calls revalidateTag("posts", { expire: 0 }) after successful restore', async () => {
+    currentFakeClient = makeFakeClient()
+    const { POST } = await import('@/app/api/posts/[id]/restore/route')
+    const res = await POST(makeRequest(), params())
+    expect(res.status).toBe(200)
+
+    expect(revalidateTagMock).toHaveBeenCalledWith('posts', { expire: 0 })
+  })
+
+  it('does NOT call revalidateTag when restore fails with 401 (no session)', async () => {
+    sessionState.value = null
+    adminGateResult = new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 })
+    currentFakeClient = makeFakeClient()
+
+    const { POST } = await import('@/app/api/posts/[id]/restore/route')
+    const res = await POST(makeRequest(), params())
+    expect(res.status).toBe(401)
+
+    expect(revalidateTagMock).not.toHaveBeenCalled()
+  })
+
+  it('does NOT call revalidateTag when restore fails with 404 (non-admin)', async () => {
+    sessionState.value = { user: { id: AUTHOR_ID } }
+    adminGateResult = new Response(JSON.stringify({ error: 'not_found' }), { status: 404 })
+    currentFakeClient = makeFakeClient()
+
+    const { POST } = await import('@/app/api/posts/[id]/restore/route')
+    const res = await POST(makeRequest(), params())
+    expect(res.status).toBe(404)
+
+    expect(revalidateTagMock).not.toHaveBeenCalled()
   })
 })

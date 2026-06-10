@@ -28,6 +28,13 @@
  *    isolating it here callers never import `unstable_cache` directly and
  *    tests can mock `@/lib/feed/discovery-cache` at the module level without
  *    touching the runtime code.
+ *
+ * 5. Cold-cache fan-out: `unstable_cache` does NOT deduplicate concurrent
+ *    cold-cache invocations within a single render pass — the same rail is
+ *    awaited from multiple Suspense islands, so a cold cache can fan out a
+ *    few parallel identical queries.  This is acceptable: results are
+ *    consistent and the 600 s TTL means fan-out is bounded to the first
+ *    requests immediately after invalidation.
  */
 
 import { unstable_cache } from 'next/cache'

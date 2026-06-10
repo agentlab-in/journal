@@ -143,4 +143,24 @@ describe('<TopByType type="playbook">', () => {
     const link = screen.getByRole('link', { name: /Org Published Playbook/ })
     expect(link).toHaveAttribute('href', '/acme-org/playbook/org-published')
   })
+
+  it('uses the default headingId "top-playbook-heading" when no headingId prop', async () => {
+    vi.mocked(cachedTopPlaybooks).mockResolvedValue([PLAYBOOK_ROW])
+    const element = await TopByType({ type: 'playbook' })
+    render(element as React.ReactElement)
+    expect(screen.getByRole('heading', { name: 'Top playbooks this week' })).toHaveAttribute(
+      'id',
+      'top-playbook-heading',
+    )
+  })
+
+  it('uses the provided headingId override (duplicate-id-aria fix)', async () => {
+    vi.mocked(cachedTopPlaybooks).mockResolvedValue([PLAYBOOK_ROW])
+    const element = await TopByType({ type: 'playbook', headingId: 'top-playbook-heading-mobile' })
+    render(element as React.ReactElement)
+    expect(screen.getByRole('heading', { name: 'Top playbooks this week' })).toHaveAttribute(
+      'id',
+      'top-playbook-heading-mobile',
+    )
+  })
 })

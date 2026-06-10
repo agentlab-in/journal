@@ -115,6 +115,32 @@ describe('getTrendingTags', () => {
     expect(result).toHaveLength(2)
   })
 
+  it('filters posts.deleted_at IS NULL (soft-delete guard)', async () => {
+    const isArgs: Array<[string, unknown]> = []
+    const dbSpy = {
+      from: vi.fn(() => ({
+        select: vi.fn(() => {
+          const inner = {
+            gte: vi.fn().mockReturnThis(),
+            is: vi.fn((col: string, val: unknown) => {
+              isArgs.push([col, val])
+              return inner
+            }),
+            eq: vi.fn().mockReturnThis(),
+            then(resolve: (v: { data: unknown; error: unknown }) => void) {
+              resolve({ data: [], error: null })
+            },
+          }
+          return inner
+        }),
+      })),
+    }
+
+    await getTrendingTags(dbSpy as never, 7, 5)
+
+    expect(isArgs.some(([col, val]) => col === 'posts.deleted_at' && val === null)).toBe(true)
+  })
+
   it('passes the window cutoff as the .gte argument', async () => {
     const fakeNow = new Date('2026-06-01T12:00:00.000Z')
     const expectedSince = new Date(

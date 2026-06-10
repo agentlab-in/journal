@@ -20,9 +20,11 @@ import type { PostType } from '@/lib/posts/url'
 
 export interface TopByTypeProps {
   type: 'playbook' | 'dive'
+  headingId?: string
 }
 
-export async function TopByType({ type }: TopByTypeProps) {
+export async function TopByType({ type, headingId }: TopByTypeProps) {
+  const resolvedHeadingId = headingId ?? `top-${type}-heading`
   const posts = type === 'playbook'
     ? await cachedTopPlaybooks()
     : await cachedTopDives()
@@ -34,8 +36,8 @@ export async function TopByType({ type }: TopByTypeProps) {
     : 'Top deep dives this week'
 
   return (
-    <section aria-labelledby={`top-${type}-heading`}>
-      <h2 id={`top-${type}-heading`} className="rail-heading">
+    <section aria-labelledby={resolvedHeadingId}>
+      <h2 id={resolvedHeadingId} className="rail-heading">
         {heading}
       </h2>
       <ul role="list" className="top-by-type__list">

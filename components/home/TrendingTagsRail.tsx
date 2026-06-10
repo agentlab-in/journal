@@ -13,13 +13,15 @@
 import Link from 'next/link'
 import { cachedTrendingTags } from '@/lib/feed/discovery-cache'
 
-export async function TrendingTagsRail() {
+export async function TrendingTagsRail(
+  { headingId = 'trending-tags-heading' }: { headingId?: string } = {},
+) {
   const tags = await cachedTrendingTags()
   if (tags.length === 0) return null
 
   return (
-    <section aria-labelledby="trending-tags-heading">
-      <h2 id="trending-tags-heading" className="rail-heading">
+    <section aria-labelledby={headingId}>
+      <h2 id={headingId} className="rail-heading">
         Trending tags
       </h2>
       <ul role="list" className="trending-tags-rail__list">

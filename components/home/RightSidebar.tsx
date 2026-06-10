@@ -41,7 +41,8 @@ export async function RightSidebar() {
           xl:hidden avoids duplicating it next to LeftSidebar's copy. */}
       <div className="hidden lg:block xl:hidden">
         <Suspense fallback={<RailSkeleton rows={5} />}>
-          <TrendingTagsRail />
+          {/* unique headingId avoids duplicate-id-aria: LeftSidebar owns the default id at xl */}
+          <TrendingTagsRail headingId="trending-tags-heading-lg" />
         </Suspense>
       </div>
 

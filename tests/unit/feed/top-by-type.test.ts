@@ -205,4 +205,19 @@ describe('getTopByType', () => {
     const result = await getTopByType(db as never, 'playbook', 7, 3)
     expect(result[0].leading_segment).toBe('bob')
   })
+
+  it('filters published_at with the correct window cutoff (mirrors trending-tags pattern)', async () => {
+    const fakeNow = new Date('2026-06-01T12:00:00.000Z')
+    const expectedSince = new Date(fakeNow.getTime() - 7 * 86_400_000).toISOString()
+
+    const db = buildDb([])
+
+    vi.useFakeTimers()
+    vi.setSystemTime(fakeNow)
+    await getTopByType(db as never, 'playbook', 7, 3)
+    vi.useRealTimers()
+
+    const gteArgs = db.getGteArgs()
+    expect(gteArgs.some(([col, val]) => col === 'published_at' && val === expectedSince)).toBe(true)
+  })
 })

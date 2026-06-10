@@ -231,10 +231,12 @@ export default async function HomePage() {
               where the right sidebar already shows them. */}
           <div className="lg:hidden">
             <Suspense fallback={<RailSkeleton rows={3} />}>
-              <TopByType type="playbook" />
+              {/* unique headingId avoids duplicate-id-aria: RightSidebar owns the default ids at ≥lg */}
+              <TopByType type="playbook" headingId="top-playbook-heading-mobile" />
             </Suspense>
             <Suspense fallback={<RailSkeleton rows={3} />}>
-              <TopByType type="dive" />
+              {/* unique headingId avoids duplicate-id-aria: RightSidebar owns the default ids at ≥lg */}
+              <TopByType type="dive" headingId="top-dive-heading-mobile" />
             </Suspense>
           </div>
         </main>

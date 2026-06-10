@@ -1,4 +1,5 @@
 import type { NextRequest } from 'next/server'
+import { revalidateTag } from 'next/cache'
 import { getSession } from '@/lib/auth'
 import { requireAdminApi } from '@/lib/admin'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
@@ -88,6 +89,11 @@ export async function POST(
   if (updateErr) {
     return json(500, { error: 'restore_failed', detail: updateErr.message })
   }
+
+  // Invalidate the discovery cache so the very next request re-queries.
+  // Called after the restore UPDATE succeeds.
+  // Contract: discovery-cache.ts registers tags: ['posts', 'tags'].
+  revalidateTag('posts', { expire: 0 })
 
   const { error: modErr } = await admin.from('mod_actions').insert({
     mod_user_id: adminUserId,

@@ -70,4 +70,28 @@ describe('<TrendingTagsRail>', () => {
     expect(screen.getByText('#Evals')).toBeInTheDocument()
     expect(screen.getByText('3')).toBeInTheDocument()
   })
+
+  it('uses the default headingId "trending-tags-heading" when no prop is passed', async () => {
+    vi.mocked(cachedTrendingTags).mockResolvedValue([
+      { slug: 'memory', name: 'Memory', count: 1 },
+    ])
+    const element = await TrendingTagsRail()
+    render(element as React.ReactElement)
+    expect(screen.getByRole('heading', { name: 'Trending tags' })).toHaveAttribute(
+      'id',
+      'trending-tags-heading',
+    )
+  })
+
+  it('uses the provided headingId override (duplicate-id-aria fix)', async () => {
+    vi.mocked(cachedTrendingTags).mockResolvedValue([
+      { slug: 'evals', name: 'Evals', count: 2 },
+    ])
+    const element = await TrendingTagsRail({ headingId: 'trending-tags-heading-lg' })
+    render(element as React.ReactElement)
+    expect(screen.getByRole('heading', { name: 'Trending tags' })).toHaveAttribute(
+      'id',
+      'trending-tags-heading-lg',
+    )
+  })
 })
