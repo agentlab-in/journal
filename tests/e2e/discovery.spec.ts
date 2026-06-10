@@ -213,13 +213,14 @@ test.describe('Phase 9 discovery — /trending nav link', () => {
   test('Trending link navigates to /trending and gets aria-current="page"', async ({
     page,
   }) => {
-    // Start on home so the nav is rendered
-    await page.goto('/', { waitUntil: 'domcontentloaded' })
-
     // The Trending link is always present in .nav-leftnav (top nav) at <xl.
     // We use a viewport of 1100px (lg, below xl=1280) so we can target the
     // .nav-leftnav wrapper reliably. The left sidebar is hidden at that width.
+    // Set viewport BEFORE navigating so the initial render uses the right size.
     await page.setViewportSize({ width: 1100, height: 800 })
+
+    // Start on home so the nav is rendered
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
 
     const navLeftNav = page.locator('.nav-leftnav')
     await expect(navLeftNav).toBeVisible()

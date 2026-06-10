@@ -235,9 +235,14 @@ test.describe('/trending route — seeded DB (Risk-4 differentiation)', () => {
       const likeRes = await request.post(`/api/likes/${idA}`, {
         headers: HEADER_E2E_AUTH,
       })
-      // 200 = liked; 429 = rate-limited (treat as non-fatal for the ordering test
-      // since the like may have been applied before the rate-limit fired).
-      expect([200, 429]).toContain(likeRes.status())
+      // 200 = liked. 429 = rate-limited: guardMutatingRequest rejects with 429
+      // BEFORE the DB write, so on 429 post A has zero likes and the ordering
+      // assertion below would be meaningless. Skip the rest of the test instead.
+      if (likeRes.status() === 429) {
+        test.skip(true, 'like rate-limited — ordering precondition not establishable')
+        return
+      }
+      expect(likeRes.status()).toBe(200)
 
       // -----------------------------------------------------------------------
       // /trending: A must appear BEFORE B in the feed list.
