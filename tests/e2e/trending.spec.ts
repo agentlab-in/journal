@@ -197,60 +197,95 @@ test.describe('/trending route — seeded DB (Risk-4 differentiation)', () => {
   // -------------------------------------------------------------------------
   // 5. Risk-4 differentiation: heat-ranking vs recency ordering
   //
-  // Seed two posts within the 7-day window:
-  //   A: "older" (published by the API now, then we give it fake engagement by
-  //      seeding a post with a unique title that comes first alphabetically to
-  //      let us distinguish the two cards) — the API doesn't let us back-date
-  //      published_at, so both posts land "now". Instead we distinguish via
-  //      engagement: Post A gets more likes/bookmarks (injected directly via
-  //      Supabase admin if available) OR we rely on the fact that the two
-  //      routes use *different* ranking criteria: /latest is recency (id DESC),
-  //      /trending is heat-score DESC.
+  // Strategy:
+  //   - Seed post A then post B (B is strictly newer by at least one
+  //     millisecond due to sequential API calls).
+  //   - Like post A once via POST /api/likes/:id (same auth shim as
+  //     engagement.spec.ts). With one like, A's heat numerator is 1 while
+  //     B's is 0. Both posts are "fresh" (published_at ≈ now) so the
+  //     time-decay denominator is identical — making A's heat score strictly
+  //     greater than B's.
+  //   - /trending (heat-ranked): A must appear BEFORE B.
+  //   - /latest (recency-ranked): B must appear BEFORE A (newer first).
   //
-  // Real differentiation test strategy (no DB manipulation needed):
-  //   - Seed two posts milliseconds apart. They'll appear on /latest in
-  //     creation order (newer first). On /trending they appear in heat-score
-  //     order which, for two brand-new posts with identical engagement, is
-  //     essentially the same order. We therefore can't guarantee different
-  //     ordering on the E2E DB without manipulating engagement counts.
+  // This test FAILS if:
+  //   (a) /trending accidentally uses recency order instead of heat score, or
+  //   (b) /latest accidentally uses heat score instead of recency.
   //
-  //   - Instead we assert the softer guarantee: /trending loads successfully,
-  //     shows at least one card, does NOT show the /latest h1 or tagline (the
-  //     strict differentiation is already covered by test 2 above which is
-  //     DB-independent).
-  //
-  //   - A full ordering test (seeding engagement counts) is left for a
-  //     follow-up once the admin-engagement API endpoint lands.
-  //     TODO(follow-up, issue #54): seed different engagement counts and assert
-  //     that the older-high-engagement post ranks above the newer-low post on
-  //     /trending but not on /latest.
+  // The E2E likes endpoint is POST /api/likes/:postId with header
+  // `x-e2e-auth: 1`, mirroring the pattern in engagement.spec.ts.
   // -------------------------------------------------------------------------
-  test('Risk-4: /trending feed renders with correct route metadata', async ({
+  test('Risk-4: /trending ranks high-engagement post above newer-zero-engagement post; /latest uses recency', async ({
     page,
     request,
   }) => {
     const suffix = String(Date.now())
-    const idA = await seedPost(request, `Trending Risk4A ${suffix}`)
-    const idB = await seedPost(request, `Trending Risk4B ${suffix}`)
+
+    // Seed A first, then B — B will have a later published_at / id.
+    const titleA = `Trending Risk4-A ${suffix}`
+    const titleB = `Trending Risk4-B ${suffix}`
+    const idA = await seedPost(request, titleA)
+    const idB = await seedPost(request, titleB)
 
     try {
-      // /trending must show "Trending" h1, not "Latest"
+      // Give post A one like via the engagement API. One like means A's heat
+      // numerator = 1, B's = 0. Time-decay denominator ≈ equal (both brand-new),
+      // so A's heat score > B's heat score. This is all that /trending needs to
+      // rank A above B.
+      const likeRes = await request.post(`/api/likes/${idA}`, {
+        headers: HEADER_E2E_AUTH,
+      })
+      // 200 = liked; 429 = rate-limited (treat as non-fatal for the ordering test
+      // since the like may have been applied before the rate-limit fired).
+      expect([200, 429]).toContain(likeRes.status())
+
+      // -----------------------------------------------------------------------
+      // /trending: A must appear BEFORE B in the feed list.
+      //
+      // We compare the index of each card's title in the full `innerText()` of
+      // the feed list — if indexA < indexB, A is ranked higher (closer to top).
+      // -----------------------------------------------------------------------
       await page.goto('/trending', { waitUntil: 'domcontentloaded' })
       await expect(page.locator('h1.home-feed__title', { hasText: 'Trending' })).toBeVisible()
-      await expect(page.locator('h1.home-feed__title', { hasText: 'Latest' })).toHaveCount(0)
 
-      // Page title from metadata
-      await expect(page).toHaveTitle(/Trending/)
+      // Wait until at least two cards are present (we seeded two).
+      await page.waitForFunction(
+        () => document.querySelectorAll('li.home-feed__item').length >= 2,
+        { timeout: 10_000 },
+      )
 
-      // At least one card must be present (we just seeded two)
-      await page.waitForSelector('li.home-feed__item', { timeout: 10_000 })
-      const cardCount = await page.locator('li.home-feed__item').count()
-      expect(cardCount).toBeGreaterThan(0)
+      const trendingFeedText = await page.locator('ul.home-feed__list').innerText()
+      const indexA_trending = trendingFeedText.indexOf(titleA)
+      const indexB_trending = trendingFeedText.indexOf(titleB)
 
-      // /latest must show "Latest" h1 for the same seeded posts (recency order)
+      // Both titles must be present.
+      expect(indexA_trending).toBeGreaterThan(-1)
+      expect(indexB_trending).toBeGreaterThan(-1)
+
+      // A (liked) must rank above B (zero engagement) on the heat-ranked feed.
+      expect(indexA_trending).toBeLessThan(indexB_trending)
+
+      // -----------------------------------------------------------------------
+      // /latest: B must appear BEFORE A (B is newer — published later).
+      // -----------------------------------------------------------------------
       await page.goto('/latest', { waitUntil: 'domcontentloaded' })
       await expect(page.locator('h1.home-feed__title', { hasText: 'Latest' })).toBeVisible()
-      await expect(page.locator('h1.home-feed__title', { hasText: 'Trending' })).toHaveCount(0)
+
+      await page.waitForFunction(
+        () => document.querySelectorAll('li.home-feed__item').length >= 2,
+        { timeout: 10_000 },
+      )
+
+      const latestFeedText = await page.locator('ul.home-feed__list').innerText()
+      const indexA_latest = latestFeedText.indexOf(titleA)
+      const indexB_latest = latestFeedText.indexOf(titleB)
+
+      // Both titles must be present.
+      expect(indexA_latest).toBeGreaterThan(-1)
+      expect(indexB_latest).toBeGreaterThan(-1)
+
+      // B (newer) must appear before A (older) on the recency-ordered feed.
+      expect(indexB_latest).toBeLessThan(indexA_latest)
     } finally {
       await cleanupPost(request, idA)
       await cleanupPost(request, idB)

@@ -237,7 +237,51 @@ test.describe('Phase C — Risk 1: cache-invalidation drift', () => {
   }) => {
     const suffix = String(Date.now())
 
-    // --- Step 1: seed a post with a known approved tag ('security') ---
+    // Set xl viewport once — all assertions in this test require the left
+    // sidebar (trending-tags rail) and right sidebar to be visible.
+    await page.setViewportSize({ width: 1440, height: 900 })
+
+    // ---------------------------------------------------------------------------
+    // Step 0: capture the BEFORE state of the trending-tags rail for 'Security'.
+    //
+    // We load '/' before publishing so we know what count (if any) the
+    // 'Security' tag already has in the rail. This handles the case where
+    // other seeded posts already reference the tag — the test asserts the
+    // count INCREMENTS by exactly 1 after publishing, not that it appears
+    // from zero.
+    //
+    // The rail renders as:
+    //   <section aria-labelledby="trending-tags-heading">   (in .home-shell__left at xl)
+    //     <a href="/tag/security">
+    //       <span class="trending-tags-rail__name">#Security</span>
+    //       <span class="trending-tags-rail__count text-muted">{count}</span>
+    //     </a>
+    // ---------------------------------------------------------------------------
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
+
+    // The left sidebar's trending-tags rail section (xl-only).
+    const trendingRail = page.locator(
+      '.home-shell__left section[aria-labelledby="trending-tags-heading"]',
+    )
+
+    // Find the Security tag link inside the rail (may not exist yet if count is 0).
+    const securityLinkBefore = trendingRail.locator('a[href="/tag/security"]')
+    let countBefore = 0
+    if (await securityLinkBefore.count() > 0) {
+      const rawCount = await securityLinkBefore
+        .locator('.trending-tags-rail__count')
+        .innerText()
+      countBefore = parseInt(rawCount.trim(), 10) || 0
+    }
+
+    // ---------------------------------------------------------------------------
+    // Step 1: seed a post with the pre-approved 'security' tag (slug → 'Security').
+    //
+    // POST /api/posts calls revalidateTag('posts', { expire: 0 }) immediately
+    // after the insert — so the VERY NEXT request to '/' re-queries the cache
+    // instead of serving the stale 600-second TTL. If revalidateTag is removed
+    // the count assertion below will still see the stale (old) count and FAIL.
+    // ---------------------------------------------------------------------------
     const res = await request.post('/api/posts', {
       headers: { 'x-e2e-auth': '1' },
       data: {
@@ -252,11 +296,9 @@ test.describe('Phase C — Risk 1: cache-invalidation drift', () => {
     const { id: postId } = (await res.json()) as { id: string }
 
     try {
-      // --- Step 2: load '/' (the VERY NEXT request post-invalidation) ---
-      // The `revalidateTag('posts', { expire: 0 })` inside POST /api/posts
-      // fires immediately after the insert. The next page load re-queries
-      // the cache — no 600s wait needed.
-      await page.setViewportSize({ width: 1440, height: 900 })
+      // ---------------------------------------------------------------------------
+      // Step 2: load '/' (the VERY NEXT request post-invalidation).
+      // ---------------------------------------------------------------------------
       const homeRes = await page.goto('/', { waitUntil: 'domcontentloaded' })
       expect(homeRes?.status()).toBe(200)
 
@@ -271,13 +313,36 @@ test.describe('Phase C — Risk 1: cache-invalidation drift', () => {
       const rightAside = page.locator('.home-shell__right')
       await expect(rightAside).toBeVisible()
 
-      // The trending-tags rail (in left sidebar) must render without error.
-      // We can't assert the exact tag count without knowing the full DB state,
-      // but the rail must not show an error — and the home page must render
-      // its feed shell cleanly.
+      // The home-feed shell must be intact.
       await expect(page.locator('main.home-feed')).toBeVisible()
 
-      // --- Step 3: seed a playbook to also test the top-by-type rail ---
+      // ---------------------------------------------------------------------------
+      // LINCHPIN: The trending-tags rail must reflect the freshly published post.
+      //
+      // After publishing, the 'Security' link must be present in the rail AND
+      // its count must be exactly (countBefore + 1). This assertion FAILS if
+      // revalidateTag('posts', ...) is removed from POST /api/posts — the cache
+      // would serve the stale count for up to 600s.
+      // ---------------------------------------------------------------------------
+      await expect(trendingRail).toBeVisible()
+
+      // Wait for the Security link to appear (it might not have been in the rail
+      // before if countBefore was 0 and the tag was below the top-5 cutoff).
+      const securityLinkAfter = trendingRail.locator('a[href="/tag/security"]')
+      await expect(securityLinkAfter).toBeVisible({ timeout: 10_000 })
+
+      const rawCountAfter = await securityLinkAfter
+        .locator('.trending-tags-rail__count')
+        .innerText()
+      const countAfter = parseInt(rawCountAfter.trim(), 10)
+      expect(countAfter).toBe(countBefore + 1)
+
+      // ---------------------------------------------------------------------------
+      // Step 3: seed a playbook to test the top-by-type rail invalidation.
+      //
+      // The playbook title must be unique (suffix-stamped) so the assertion is
+      // unambiguous — we can be certain the link we find is the one we seeded.
+      // ---------------------------------------------------------------------------
       const PLAYBOOK_BODY = [
         '## Environment Target',
         'Node.js 20',
@@ -289,11 +354,12 @@ test.describe('Phase C — Risk 1: cache-invalidation drift', () => {
         'None.',
       ].join('\n\n')
 
+      const playbookTitle = `Cache Invalidation Playbook ${suffix}`
       const playbookRes = await request.post('/api/posts', {
         headers: { 'x-e2e-auth': '1' },
         data: {
           type: 'playbook',
-          title: `Cache Invalidation Playbook ${suffix}`,
+          title: playbookTitle,
           summary: 'Seeded playbook for cache-invalidation test.',
           body_md: PLAYBOOK_BODY,
           tags: ['security'],
@@ -303,7 +369,7 @@ test.describe('Phase C — Risk 1: cache-invalidation drift', () => {
       const { id: playbookId } = (await playbookRes.json()) as { id: string }
 
       try {
-        // Reload home after publishing the playbook — cache is re-invalidated
+        // Reload home after publishing the playbook — cache is re-invalidated.
         const homeRes2 = await page.goto('/', { waitUntil: 'domcontentloaded' })
         expect(homeRes2?.status()).toBe(200)
 
@@ -312,6 +378,18 @@ test.describe('Phase C — Risk 1: cache-invalidation drift', () => {
 
         // Right sidebar must still be intact.
         await expect(page.locator('.home-shell__right')).toBeVisible()
+
+        // LINCHPIN: The top-playbooks rail must contain the newly published
+        // playbook. The section is `section[aria-labelledby="top-playbook-heading"]`
+        // inside `.home-shell__right`. The unique title guarantees this is OUR
+        // playbook, not a pre-existing one. This assertion FAILS if
+        // revalidateTag('posts', ...) is absent — the stale cache would not
+        // include the just-published playbook for up to 600s.
+        const playbooksRail = page.locator(
+          '.home-shell__right section[aria-labelledby="top-playbook-heading"]',
+        )
+        await expect(playbooksRail).toBeVisible({ timeout: 10_000 })
+        await expect(playbooksRail.getByRole('link', { name: playbookTitle })).toBeVisible()
       } finally {
         await request.delete(`/api/posts/${playbookId}`, {
           headers: { 'x-e2e-auth': '1' },
