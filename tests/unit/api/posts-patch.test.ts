@@ -1,6 +1,14 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 // ---------------------------------------------------------------------------
+// Mock: next/cache — revalidateTag
+// ---------------------------------------------------------------------------
+const revalidateTagMock = vi.fn()
+vi.mock('next/cache', () => ({
+  revalidateTag: revalidateTagMock,
+}))
+
+// ---------------------------------------------------------------------------
 // Mock: @/lib/auth
 // ---------------------------------------------------------------------------
 const sessionState: { value: { user: { id: string } } | null } = { value: null }
@@ -519,5 +527,70 @@ describe('PATCH /api/posts/[id] — happy path: author edits own post', () => {
     expect(typeof payload.edited_at).toBe('string')
     // Verify it's a valid ISO timestamp
     expect(new Date(payload.edited_at as string).getTime()).toBeGreaterThan(0)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Tests — revalidateTag cache invalidation (Phase B discovery-cache contract)
+// ---------------------------------------------------------------------------
+describe('PATCH /api/posts/[id] — revalidateTag cache invalidation', () => {
+  beforeEach(() => {
+    sessionState.value = { user: { id: 'user-123' } }
+    isAdminState.value = false
+    capturedOps.length = 0
+    revalidateTagMock.mockReset()
+    currentFakeClient = makeHappyClient({ existingVersions: [{ version_no: 1 }] })
+  })
+
+  it('calls revalidateTag("posts", { expire: 0 }) after successful edit', async () => {
+    const { PATCH } = await import('@/app/api/posts/[id]/route')
+    const res = await PATCH(
+      makeRequest('post-abc', VALID_PATCH_PAYLOAD) as never,
+      makeContext('post-abc'),
+    )
+    expect(res.status).toBe(200)
+
+    expect(revalidateTagMock).toHaveBeenCalledWith('posts', { expire: 0 })
+  })
+
+  it('calls revalidateTag("tags", { expire: 0 }) when PATCH creates a new tag slug', async () => {
+    // 'rag' exists, 'brand-new-edit-tag' does not
+    currentFakeClient = makeHappyClient({
+      existingVersions: [{ version_no: 1 }],
+      existingTags: ['rag'],
+    })
+    const { PATCH } = await import('@/app/api/posts/[id]/route')
+    const res = await PATCH(
+      makeRequest('post-abc', { ...VALID_PATCH_PAYLOAD, tags: ['rag', 'brand-new-edit-tag'] }) as never,
+      makeContext('post-abc'),
+    )
+    expect(res.status).toBe(200)
+
+    expect(revalidateTagMock).toHaveBeenCalledWith('tags', { expire: 0 })
+  })
+
+  it('does NOT call revalidateTag when PATCH fails with 401', async () => {
+    sessionState.value = null
+    const { PATCH } = await import('@/app/api/posts/[id]/route')
+    const res = await PATCH(
+      makeRequest('post-abc', VALID_PATCH_PAYLOAD) as never,
+      makeContext('post-abc'),
+    )
+    expect(res.status).toBe(401)
+
+    expect(revalidateTagMock).not.toHaveBeenCalled()
+  })
+
+  it('does NOT call revalidateTag when PATCH fails with 403', async () => {
+    sessionState.value = { user: { id: 'other-user' } }
+    isAdminState.value = false
+    const { PATCH } = await import('@/app/api/posts/[id]/route')
+    const res = await PATCH(
+      makeRequest('post-abc', VALID_PATCH_PAYLOAD) as never,
+      makeContext('post-abc'),
+    )
+    expect(res.status).toBe(403)
+
+    expect(revalidateTagMock).not.toHaveBeenCalled()
   })
 })

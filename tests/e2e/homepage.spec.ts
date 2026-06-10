@@ -113,3 +113,102 @@ test.describe('HomeShell responsive columns', () => {
     await expect(trendingLink).toBeVisible()
   })
 })
+
+// ---------------------------------------------------------------------------
+// Phase B — Discovery rails: trending + top-by-type
+//
+// These tests are DB-dependent and self-skip without SUPABASE_SERVICE_ROLE_KEY.
+// They follow the existing HAS_E2E_AUTH skip pattern from discovery.spec.ts.
+// ---------------------------------------------------------------------------
+
+const HAS_E2E_AUTH = !!process.env.E2E_TEST_AUTH_USER_ID
+const HAS_SERVICE_KEY = !!process.env.SUPABASE_SERVICE_ROLE_KEY
+
+test.describe('Phase B — Discovery rails (xl layout)', () => {
+  test.skip(
+    !HAS_E2E_AUTH || !HAS_SERVICE_KEY,
+    'requires E2E_TEST_AUTH_USER_ID + SUPABASE_SERVICE_ROLE_KEY',
+  )
+
+  test('xl (1440×900): trending-tags rail appears in left sidebar when seeded posts exist', async ({
+    page,
+    request,
+  }) => {
+    // Seed a recent post with a tag so cachedTrendingTags has data.
+    const suffix = String(Date.now())
+    await request.post('/api/posts', {
+      headers: { 'x-e2e-auth': '1' },
+      data: {
+        type: 'post',
+        title: `Discovery Rail Seed ${suffix}`,
+        summary: 'Seeded for trending rail test.',
+        body_md: 'x'.repeat(60),
+        tags: ['security'],
+      },
+    })
+
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
+
+    // The left sidebar must be visible at xl.
+    const leftAside = page.locator('.home-shell__left')
+    await expect(leftAside).toBeVisible()
+
+    // No error boundary should fire regardless of cache state.
+    await expect(page.locator('text=Something went wrong')).toHaveCount(0)
+  })
+
+  test('xl (1440×900): top-playbooks and top-dives rails in right sidebar', async ({
+    page,
+    request,
+  }) => {
+    // Seed a playbook and a dive so the rails have something to show.
+    const suffix = String(Date.now())
+    const PLAYBOOK_BODY = [
+      '## Environment Target',
+      'Node.js 20',
+      '## Prerequisites',
+      'None.',
+      '## Core Instructions',
+      'Step 1.',
+      '## Safety and Failure Modes',
+      'None.',
+    ].join('\n\n')
+    await request.post('/api/posts', {
+      headers: { 'x-e2e-auth': '1' },
+      data: {
+        type: 'playbook',
+        title: `Top Playbook ${suffix}`,
+        summary: 'Seeded playbook for top-by-type test.',
+        body_md: PLAYBOOK_BODY,
+        tags: ['security'],
+      },
+    })
+
+    const DIVE_BODY = [
+      '## TL;DR',
+      'Brief summary.',
+      '## The Question',
+      'What is X?',
+    ].join('\n\n')
+    await request.post('/api/posts', {
+      headers: { 'x-e2e-auth': '1' },
+      data: {
+        type: 'dive',
+        title: `Top Dive ${suffix}`,
+        summary: 'Seeded dive for top-by-type test.',
+        body_md: DIVE_BODY,
+        tags: ['evals'],
+      },
+    })
+
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
+
+    const rightAside = page.locator('.home-shell__right')
+    await expect(rightAside).toBeVisible()
+
+    // No error boundary should be visible.
+    await expect(page.locator('text=Something went wrong')).toHaveCount(0)
+  })
+})

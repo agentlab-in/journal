@@ -1,4 +1,5 @@
 import type { NextRequest } from 'next/server'
+import { revalidateTag } from 'next/cache'
 import { getSession, resolveIsAdmin } from '@/lib/auth'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { PostPatchBody } from '@/lib/posts/schema'
@@ -291,7 +292,16 @@ export async function PATCH(
     return json(500, { error: 'update_failed', detail: updateErr.message })
   }
 
-  // Step 15: return 200 with { id, slug, url }
+  // Step 15: Invalidate the discovery cache so the very next request
+  // re-queries. Called after the final DB write succeeds.
+  // If the PATCH created new tags, invalidate 'tags' too.
+  // Contract: discovery-cache.ts registers tags: ['posts', 'tags'].
+  revalidateTag('posts', { expire: 0 })
+  if (newTagSlugs.length > 0) {
+    revalidateTag('tags', { expire: 0 })
+  }
+
+  // Step 16: return 200 with { id, slug, url }
   return json(200, {
     id: postId,
     slug: post.slug,
@@ -376,6 +386,11 @@ export async function DELETE(
   if (updateErr) {
     return json(500, { error: 'delete_failed', detail: updateErr.message })
   }
+
+  // Invalidate the discovery cache so the very next request re-queries.
+  // Called after the soft-delete UPDATE succeeds.
+  // Contract: discovery-cache.ts registers tags: ['posts', 'tags'].
+  revalidateTag('posts', { expire: 0 })
 
   // Step 6: if moderation delete, write a mod_actions audit row
   if (deletion_reason === 'moderation') {

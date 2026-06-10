@@ -24,9 +24,12 @@ import {
 import { PostCard, type PostCardData } from '@/components/post/PostCard'
 import { KeyboardFeedNav } from '@/components/keyboard/KeyboardFeedNav'
 import { PostCardSkeleton } from '@/components/skeleton/PostCardSkeleton'
+import { RailSkeleton } from '@/components/skeleton/RailSkeleton'
 import { HomeShell } from '@/components/home/HomeShell'
 import { LeftSidebar } from '@/components/home/LeftSidebar'
 import { RightSidebar } from '@/components/home/RightSidebar'
+import { TrendingStrip } from '@/components/home/TrendingStrip'
+import { TopByType } from '@/components/home/TopByType'
 
 export const metadata: Metadata = {
   // Home is the one route that ISN'T `{label} — agentlab.in`. It's
@@ -198,6 +201,13 @@ export default async function HomePage() {
       left={<LeftSidebar />}
       center={
         <main id="main-content" className="home-feed">
+          {/* Mobile-only (<lg) horizontal trending strip. TrendingStrip
+              self-hides at ≥lg via lg:hidden so no server-side branching
+              is needed — pure CSS responsive. */}
+          <Suspense fallback={null}>
+            <TrendingStrip />
+          </Suspense>
+
           <header className="home-feed__header">
             <h1 className="home-feed__title">{showingForYou ? 'For you' : 'Latest'}</h1>
             <p className="home-feed__tagline">
@@ -214,6 +224,19 @@ export default async function HomePage() {
           <p className="home-feed__more">
             <Link href="/latest">See all posts →</Link>
           </p>
+
+          {/* Mobile-only (<lg) top-by-type rails below the feed footer.
+              Both sidebars are hidden at <lg so these rails would otherwise
+              be invisible. lg:hidden keeps them out of the desktop layout
+              where the right sidebar already shows them. */}
+          <div className="lg:hidden">
+            <Suspense fallback={<RailSkeleton rows={3} />}>
+              <TopByType type="playbook" />
+            </Suspense>
+            <Suspense fallback={<RailSkeleton rows={3} />}>
+              <TopByType type="dive" />
+            </Suspense>
+          </div>
         </main>
       }
       right={<RightSidebar />}

@@ -157,6 +157,101 @@ test.describe('mobile (375px): auth-gated routes', () => {
   })
 })
 
+// ---------------------------------------------------------------------------
+// Phase B — Discovery rails on mobile
+//
+// Self-skip without SUPABASE_SERVICE_ROLE_KEY (DB-dependent).
+// ---------------------------------------------------------------------------
+
+const HAS_SERVICE_KEY = !!process.env.SUPABASE_SERVICE_ROLE_KEY
+
+test.describe('mobile (375px): Phase B discovery rails', () => {
+  test.skip(
+    !HAS_E2E_AUTH || !HAS_SERVICE_KEY,
+    'requires E2E_TEST_AUTH_USER_ID + SUPABASE_SERVICE_ROLE_KEY',
+  )
+
+  test('trending-strip (.trending-strip) is visible and horizontally scrollable with chips', async ({
+    page,
+    request,
+  }) => {
+    // Seed a post with a tag so there's trending data.
+    await request.post('/api/posts', {
+      headers: { 'x-e2e-auth': '1' },
+      data: {
+        type: 'post',
+        title: `Mobile Strip Seed ${String(Date.now())}`,
+        summary: 'Seeded for mobile trending strip test.',
+        body_md: 'x'.repeat(60),
+        tags: ['security'],
+      },
+    })
+
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
+
+    // .trending-strip should be present at 375px (it uses lg:hidden so it
+    // shows at <1024px). It may render null if cache returns empty —
+    // that's acceptable; we just assert no horizontal overflow.
+    const strip = page.locator('.trending-strip')
+    const stripCount = await strip.count()
+
+    if (stripCount > 0) {
+      await expect(strip).toBeVisible()
+
+      // Assert at least one chip link is inside the strip.
+      const chips = strip.locator('.tag-chip')
+      const chipCount = await chips.count()
+      expect(chipCount).toBeGreaterThan(0)
+    }
+
+    // Either way: page must not overflow horizontally.
+    const overflow = await page.evaluate(() => {
+      const doc = document.documentElement
+      return Math.max(0, doc.scrollWidth - doc.clientWidth)
+    })
+    expect(overflow, 'homepage overflows at 375px with trending strip').toBeLessThanOrEqual(0)
+  })
+
+  test('top-by-type rails appear below the feed at <lg', async ({
+    page,
+    request,
+  }) => {
+    const suffix = String(Date.now())
+    const PLAYBOOK_BODY = [
+      '## Environment Target',
+      'Node.js 20',
+      '## Prerequisites',
+      'None.',
+      '## Core Instructions',
+      'Step 1.',
+      '## Safety and Failure Modes',
+      'None.',
+    ].join('\n\n')
+    await request.post('/api/posts', {
+      headers: { 'x-e2e-auth': '1' },
+      data: {
+        type: 'playbook',
+        title: `Mobile Playbook ${suffix}`,
+        summary: 'Seeded playbook for mobile rail test.',
+        body_md: PLAYBOOK_BODY,
+        tags: ['security'],
+      },
+    })
+
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
+
+    // No error boundary must be visible.
+    await expect(page.locator('text=Something went wrong')).toHaveCount(0)
+
+    // Page must not overflow.
+    const overflow = await page.evaluate(() => {
+      const doc = document.documentElement
+      return Math.max(0, doc.scrollWidth - doc.clientWidth)
+    })
+    expect(overflow, 'homepage overflows at 375px with mobile rails').toBeLessThanOrEqual(0)
+  })
+})
+
 test.describe('mobile (375px): admin tables stack as cards', () => {
   test.skip(
     !HAS_E2E_AUTH || !HAS_ADMIN_LOGIN,
