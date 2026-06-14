@@ -17,6 +17,7 @@ import Link from 'next/link'
 import { cachedTopPlaybooks, cachedTopDives } from '@/lib/feed/discovery-cache'
 import { postUrl } from '@/lib/posts/url'
 import type { PostType } from '@/lib/posts/url'
+import { RailHeading } from './RailHeading'
 
 function plural(n: number, singular: string, pluralForm: string): string {
   return `${n} ${n === 1 ? singular : pluralForm}`
@@ -41,9 +42,9 @@ export async function TopByType({ type, headingId }: TopByTypeProps) {
 
   return (
     <section aria-labelledby={resolvedHeadingId}>
-      <h2 id={resolvedHeadingId} className="rail-heading">
+      <RailHeading id={resolvedHeadingId} icon={type === 'playbook' ? 'book-open' : 'compass'}>
         {heading}
-      </h2>
+      </RailHeading>
       <ul role="list" className="top-by-type__list">
         {posts.map((p) => (
           <li key={p.id} className="top-by-type__item">

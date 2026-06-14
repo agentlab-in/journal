@@ -47,9 +47,13 @@ export function OrgsListSection({ orgs }: OrgsListSectionProps) {
                 className="settings-orgs-row"
                 data-testid={`orgs-row-${o.slug}`}
               >
-                <span className="settings-orgs-name">
-                  {o.display_name}{' '}
+                {/* Visual hierarchy (issue #68): the @handle is the primary,
+                    prominent identifier; the display name rides secondary
+                    beneath it; "View" reads as an actual bordered button so
+                    the call-to-action no longer looks identical to the handle. */}
+                <span className="settings-orgs-identity">
                   <span className="settings-orgs-handle">@{o.slug}</span>
+                  <span className="settings-orgs-name">{o.display_name}</span>
                 </span>
                 <Link href={`/${o.slug}`} className="settings-orgs-view">
                   View

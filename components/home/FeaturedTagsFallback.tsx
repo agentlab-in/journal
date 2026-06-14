@@ -13,13 +13,14 @@
 
 import Link from 'next/link'
 import { FEATURED_TAG_SLUGS } from '@/lib/search/featured-tags'
+import { RailHeading } from './RailHeading'
 
 export function FeaturedTagsFallback() {
   return (
     <section aria-labelledby="starter-topics-heading">
-      <h2 id="starter-topics-heading" className="rail-heading">
+      <RailHeading id="starter-topics-heading" icon="tag">
         Starter topics
-      </h2>
+      </RailHeading>
       <div className="featured-tags-fallback__chips flex flex-wrap gap-2">
         {FEATURED_TAG_SLUGS.map((slug) => (
           <Link
