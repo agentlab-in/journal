@@ -274,6 +274,27 @@ a {
   line-height: 1.6;
 }
 
+/* Mobile-only (<lg) rail wrappers on the read page (issue #70). At <lg both
+   HomeShell asides are hidden, so the trending strip and TopByType rails
+   relocate into the center column above/below the article. They share the
+   post body's 720px cap + 1.25rem gutter so they line up with the prose. */
+.post-page__mobile-trending {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 0;
+}
+
+.post-page__mobile-rails {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 1.25rem 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
 .post-cover {
   display: block;
   width: 100%;

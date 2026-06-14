@@ -26,6 +26,16 @@ import { getFollowState } from '@/lib/profile/follow-state'
 import { ReportButton } from '@/components/report/ReportButton'
 import { CommentSkeleton } from '@/components/skeleton/CommentSkeleton'
 import { logRouteError } from '@/lib/logging/error-log'
+// Home discovery rails — the read page reuses the exact same three-column
+// shell as `/` (issue #70). Left nav + trending tags on the left, TopByType
+// + featured-tags fallback on the right. Same `unstable_cache`-backed data
+// (#54); no new caching layers.
+import { HomeShell } from '@/components/home/HomeShell'
+import { LeftSidebar } from '@/components/home/LeftSidebar'
+import { RightSidebar } from '@/components/home/RightSidebar'
+import { TrendingStrip } from '@/components/home/TrendingStrip'
+import { TopByType } from '@/components/home/TopByType'
+import { RailSkeleton } from '@/components/skeleton/RailSkeleton'
 
 // Posts above this size trigger a WARN log when rendered. The page still
 // serves — this is a signal to investigate the post (and eventually
@@ -177,8 +187,20 @@ export default async function PostPage({
   })
 
   return (
-    <main id="main-content">
-      <article className="post-page">
+    <HomeShell
+      left={<LeftSidebar />}
+      center={
+        <main id="main-content">
+          {/* Mobile-only (<lg) trending strip above the post, mirroring the
+              home center column. TrendingStrip self-hides at >=lg; the
+              wrapper supplies the same gutter as the post body so the strip
+              lines up with the article. */}
+          <div className="post-page__mobile-trending lg:hidden">
+            <Suspense fallback={null}>
+              <TrendingStrip />
+            </Suspense>
+          </div>
+          <article className="post-page">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: jsonLd }}
@@ -358,6 +380,21 @@ export default async function PostPage({
 
       <ViewBeacon postId={post.id} />
       </article>
-    </main>
+          {/* Mobile-only (<lg) discovery rails below the post. The right
+              sidebar is hidden at <lg, so surface the same TopByType rails
+              here. Distinct headingIds avoid duplicate-id-aria with the
+              RightSidebar copies that stay in the DOM (hidden) at >=lg. */}
+          <div className="post-page__mobile-rails lg:hidden">
+            <Suspense fallback={<RailSkeleton rows={3} />}>
+              <TopByType type="playbook" headingId="top-playbook-heading-mobile" />
+            </Suspense>
+            <Suspense fallback={<RailSkeleton rows={3} />}>
+              <TopByType type="dive" headingId="top-dive-heading-mobile" />
+            </Suspense>
+          </div>
+        </main>
+      }
+      right={<RightSidebar />}
+    />
   )
 }
