@@ -1364,9 +1364,11 @@ a {
    ============================================================ */
 
 .profile-page--two-col {
-  /* Match /settings/profile's max width so the two redesigned
-     surfaces line up under the global header. */
-  max-width: 1280px;
+  /* 1920px cap (up from 1280px) so the right posts column has real room on
+     wide monitors (issue #64). At 2xl the pinned grid goes 3-up and the
+     posts list goes 2-up (see the 1536px block below) — the extra width
+     becomes more cards, not longer single-column rows. */
+  max-width: 1920px;
   padding: 2rem 1.25rem 4rem;
 }
 
@@ -1520,6 +1522,25 @@ a {
 @media (min-width: 1024px) {
   .profile-page--two-col .profile-pinned__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1536px) {
+  /* 2xl wide-screen: the main column is now wide enough for a third pinned
+     card and a two-up posts grid. ProfilePostCard is fully self-contained
+     (its own border/padding/bg), so the posts list switches from a flex
+     column to a grid with no card restructuring. */
+  .profile-page--two-col {
+    padding-left: 3rem;
+    padding-right: 3rem;
+  }
+  .profile-page--two-col .profile-pinned__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .profile-page--two-col .profile-posts__list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
   }
 }
 
@@ -1789,7 +1810,11 @@ a {
    ============================================================ */
 
 .settings-page--wide {
-  max-width: 1012px;
+  /* 1280px (up from 1012px). Both columns get proportionally wider, but a
+     settings form is deliberately NOT widened to the 1920px used by the
+     feed/profile shells — full-bleed text inputs past ~1000px hurt form
+     readability. 1280px matches GitHub's settings width (issue #64). */
+  max-width: 1280px;
 }
 
 .settings-section-bar {
@@ -2491,7 +2516,13 @@ a {
    ============================================================ */
 
 .home-feed {
-  max-width: 42rem;
+  /* Single-column reading feed. 48rem keeps line length comfortable while
+     giving cards a touch more breathing room than the old 42rem cap on
+     /latest, /trending, /tag and the standalone home center. A genuine
+     two-up card grid would use ultra-wide space better, but the feed items
+     here are border-separated rows (not self-contained cards), so that's
+     deferred — see issue #64 PR notes. */
+  max-width: 48rem;
   margin: 0 auto;
   padding: 2rem 1rem 4rem;
   width: 100%;
@@ -2738,7 +2769,7 @@ a {
    ============================================================ */
 
 .search-page {
-  max-width: 42rem;
+  max-width: 48rem;
   margin: 0 auto;
   padding: 2rem 1rem 4rem;
   width: 100%;
@@ -3044,7 +3075,12 @@ a {
    ============================================================ */
 
 .home-shell {
-  max-width: 80rem;
+  /* 120rem (1920px), up from the old 80rem (1280px) cap. On 2560px+ monitors
+     the 1280px shell left embarrassing gutters (issue #64); 1920px fills the
+     screen without letting the flanked center feed stretch past a readable
+     line length. The 3-col responsive matrix below is unchanged — only this
+     outer container grows. */
+  max-width: 120rem;
   margin: 0 auto;
   /* No horizontal padding below lg — .home-feed already adds 1rem per side,
      so adding it here too would double the gutter on single-column viewports. */
@@ -3055,6 +3091,18 @@ a {
 @media (min-width: 1024px) {
   .home-shell {
     padding: 0 1.5rem;
+  }
+}
+
+@media (min-width: 1536px) {
+  /* 2xl wide-screen: more outer breathing room, and let the center feed
+     grow (it's framed by both rails, so a wider single column reads as the
+     main content panel rather than a lone over-wide column). */
+  .home-shell {
+    padding: 0 3rem;
+  }
+  .home-shell .home-feed {
+    max-width: 64rem;
   }
 }
 
