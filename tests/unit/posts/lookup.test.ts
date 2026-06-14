@@ -190,4 +190,34 @@ describe('lookupPost', () => {
     const result = await lookupPost(db as never, VALID_PARAMS)
     expect(result?.structured_sections).toEqual({ intro: 'Hello', conclusion: null })
   })
+
+  // -------------------------------------------------------------------------
+  // Error propagation — a genuine DB error must NOT collapse to a null
+  // "not found". getCachedPost caches the result in unstable_cache (600s),
+  // so a cached error-null would 404 a live post until the next
+  // revalidation. lookupPost throws so the failure stays out of the cache.
+  // -------------------------------------------------------------------------
+  it('throws when the user lookup returns a DB error (instead of caching a null)', async () => {
+    const db = makeFakeClient(
+      { data: null, error: new Error('connection reset') },
+      { data: POST_ROW, error: null },
+    )
+    await expect(lookupPost(db as never, VALID_PARAMS)).rejects.toThrow('connection reset')
+  })
+
+  it('throws when the post lookup returns a DB error', async () => {
+    const db = makeFakeClient(
+      { data: USER_ROW, error: null },
+      { data: null, error: new Error('statement timeout') },
+    )
+    await expect(lookupPost(db as never, VALID_PARAMS)).rejects.toThrow('statement timeout')
+  })
+
+  it('still returns null on a clean miss (data null, error null) — not a throw', async () => {
+    const db = makeFakeClient(
+      { data: USER_ROW, error: null },
+      { data: null, error: null },
+    )
+    await expect(lookupPost(db as never, VALID_PARAMS)).resolves.toBeNull()
+  })
 })
