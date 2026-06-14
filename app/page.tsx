@@ -133,34 +133,40 @@ async function FeedList({ viewerId }: { viewerId: string | null }) {
     }
   }
 
-  // Hydrate authors. Use the same db client we used for the feed read so
-  // the authed path bypasses RLS and the anon path stays on public reads.
+  // Hydrate authors, orgs, and tags. Use the same db client we used for the
+  // feed read so the authed path bypasses RLS and the anon path stays on
+  // public reads.
+  //
+  // Tag hydration takes a different shape depending on whether the rows came
+  // back with `tag_slugs` (authed/For-You → resolve slugs to names) or
+  // without (anon/Latest → fetch tags by post id). All three reads depend
+  // only on `rows`, so we decide the branch up front and fire authors, orgs,
+  // and tags in a single Promise.all — previously tags waited on the
+  // authors/orgs round-trip for no reason, costing one extra DB round-trip
+  // per render.
   const uniqueAuthorIds = Array.from(new Set(rows.map((r) => r.author_id)))
-  const [authorMap, orgMap] = await Promise.all([
-    fetchAuthors(db, uniqueAuthorIds),
-    fetchOrgsByPost(db, rows.map((r) => r.id)),
-  ])
+  const ids = rows.map((r) => r.id)
 
-  // Tag hydration — different shape depending on whether the rows came
-  // back with `tag_slugs` (authed/For-You) or without (anon/Latest).
-  let tagNameMap = new Map<string, string>()
-  let anonTagMap = new Map<string, TagInfo[]>()
-  if (rows.length > 0) {
-    if (rowHasTagSlugs(rows[0])) {
-      const allSlugs = new Set<string>()
-      for (const r of rows) {
-        if (rowHasTagSlugs(r)) {
-          for (const s of r.tag_slugs.slice(0, 2)) allSlugs.add(s)
-        }
+  const hasTagSlugs = rows.length > 0 && rowHasTagSlugs(rows[0])
+  const slugsToResolve = new Set<string>()
+  if (hasTagSlugs) {
+    for (const r of rows) {
+      if (rowHasTagSlugs(r)) {
+        for (const s of r.tag_slugs.slice(0, 2)) slugsToResolve.add(s)
       }
-      tagNameMap = await fetchTagNames(db, Array.from(allSlugs))
-    } else {
-      anonTagMap = await fetchTagsByPost(
-        db,
-        rows.map((r) => r.id),
-      )
     }
   }
+
+  const [authorMap, orgMap, tagNameMap, anonTagMap] = await Promise.all([
+    fetchAuthors(db, uniqueAuthorIds),
+    fetchOrgsByPost(db, ids),
+    hasTagSlugs
+      ? fetchTagNames(db, Array.from(slugsToResolve))
+      : Promise.resolve(new Map<string, string>()),
+    hasTagSlugs
+      ? Promise.resolve(new Map<string, TagInfo[]>())
+      : fetchTagsByPost(db, ids),
+  ])
 
   const cards = buildCards(rows, authorMap, tagNameMap, anonTagMap, orgMap)
 
