@@ -44,11 +44,17 @@ export async function StructuredSections({
     }),
   )
 
+  // Issue #70(a): each section is a native <details>, default-open so
+  // first-time readers still see everything immediately — collapsing is
+  // for re-reading / scanning. Native <details>/<summary> keeps this a
+  // zero-JS server component: the toggle works without hydration.
   return (
     <aside className="structured-sections">
       {rendered.map(({ key, label, html }) => (
-        <section key={key}>
-          <h2>{label}</h2>
+        <details key={key} className="structured-section" open>
+          <summary className="structured-section__summary">
+            <h2 className="structured-section__heading">{label}</h2>
+          </summary>
           {/* Per-section boundary — one broken MDX payload shouldn't
               take down its siblings. The label scopes the fallback
               copy ("Couldn't render this <label>"). */}
@@ -56,9 +62,12 @@ export async function StructuredSections({
             resetKey={html}
             fallback={<MdxFailedFallback context={label.toLowerCase()} />}
           >
-            <div dangerouslySetInnerHTML={{ __html: html }} />
+            <div
+              className="structured-section__body"
+              dangerouslySetInnerHTML={{ __html: html }}
+            />
           </ErrorBoundary>
-        </section>
+        </details>
       ))}
     </aside>
   )

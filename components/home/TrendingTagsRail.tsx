@@ -12,6 +12,7 @@
 
 import Link from 'next/link'
 import { cachedTrendingTags } from '@/lib/feed/discovery-cache'
+import { RailHeading } from './RailHeading'
 
 export async function TrendingTagsRail(
   { headingId = 'trending-tags-heading' }: { headingId?: string } = {},
@@ -21,9 +22,9 @@ export async function TrendingTagsRail(
 
   return (
     <section aria-labelledby={headingId}>
-      <h2 id={headingId} className="rail-heading">
+      <RailHeading id={headingId} icon="hash">
         Trending tags
-      </h2>
+      </RailHeading>
       <ul role="list" className="trending-tags-rail__list">
         {tags.map((t) => (
           <li key={t.slug} className="trending-tags-rail__item">

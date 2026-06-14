@@ -79,23 +79,22 @@ export default async function TagsDirectoryPage() {
     }
   }
 
-  // 3. Build the tree. Group children by parent_tag_slug. Tags whose
-  //    parent isn't an approved tag (or whose parent is null) bubble up
-  //    to the top level so they're still browseable. The UI only renders
-  //    two levels — anything deeper is flattened under its direct parent.
+  // 3. Flatten into a single horizontal chip cloud (issue #66). The old
+  //    two-level vertical tree read as a cramped stacked list; operators
+  //    want a scannable pill cloud instead. Sort by post count descending
+  //    (busiest topics first), tie-broken alphabetically, and surface the
+  //    count inline on each chip. The parent/child hierarchy is dropped
+  //    from the visual — `/tag/[slug]` is the place to drill in.
   const tagBySlug = new Map<string, TagRow>()
   for (const t of tags) tagBySlug.set(t.slug, t)
 
-  const childrenByParent = new Map<string | null, TagRow[]>()
-  for (const t of tags) {
-    const parentSlug =
-      t.parent_tag_slug && tagBySlug.has(t.parent_tag_slug) ? t.parent_tag_slug : null
-    const bucket = childrenByParent.get(parentSlug) ?? []
-    bucket.push(t)
-    childrenByParent.set(parentSlug, bucket)
-  }
+  const cloudTags = [...tags].sort((a, b) => {
+    const countDelta = (counts.get(b.slug) ?? 0) - (counts.get(a.slug) ?? 0)
+    if (countDelta !== 0) return countDelta
+    return a.name.localeCompare(b.name)
+  })
 
-  const topLevel = childrenByParent.get(null) ?? []
+  const featuredSlugSet = new Set<string>(FEATURED_TAG_SLUGS)
 
   // 4. Resolve featured slugs against the approved-tags set. Silently
   //    skip any slug that isn't approved (shouldn't happen in v1 — the
@@ -139,37 +138,24 @@ export default async function TagsDirectoryPage() {
             <h2 id="tags-all-heading" className="tags-page__section-title">
               All approved tags
             </h2>
-            <ul className="tags-page__tree">
-              {topLevel.map((parent) => {
-                const children = childrenByParent.get(parent.slug) ?? []
-                return (
-                  <li key={parent.slug} className="tags-page__tree-item">
-                    <Link href={`/tag/${parent.slug}`} className="tags-page__tree-link">
-                      #{parent.name}{' '}
-                      <span className="tags-page__count">
-                        · {postCountLabel(counts.get(parent.slug) ?? 0)}
-                      </span>
-                    </Link>
-                    {children.length > 0 && (
-                      <ul className="tags-page__tree-children">
-                        {children.map((child) => (
-                          <li key={child.slug} className="tags-page__tree-item">
-                            <Link
-                              href={`/tag/${child.slug}`}
-                              className="tags-page__tree-link"
-                            >
-                              #{child.name}{' '}
-                              <span className="tags-page__count">
-                                · {postCountLabel(counts.get(child.slug) ?? 0)}
-                              </span>
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </li>
-                )
-              })}
+            <ul className="tags-page__cloud">
+              {cloudTags.map((t) => (
+                <li key={t.slug}>
+                  <Link
+                    href={`/tag/${t.slug}`}
+                    className={
+                      featuredSlugSet.has(t.slug)
+                        ? 'tag-chip tags-page__cloud-chip tags-page__cloud-chip--featured'
+                        : 'tag-chip tags-page__cloud-chip'
+                    }
+                  >
+                    #{t.name}{' '}
+                    <span className="tags-page__count">
+                      · {postCountLabel(counts.get(t.slug) ?? 0)}
+                    </span>
+                  </Link>
+                </li>
+              ))}
             </ul>
           </section>
         </>

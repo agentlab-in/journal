@@ -80,6 +80,31 @@ describe('StructuredSections', () => {
     expect(screen.getByText('The Question')).toBeTruthy()
   })
 
+  it('renders each section as a collapsible <details> that defaults to open (issue #70a)', async () => {
+    const element = await StructuredSections({
+      type: 'playbook',
+      sections: {
+        environment_target: 'mac mini',
+        prerequisites: 'gh cli',
+        core_instructions: 'clone repo',
+        safety_failure_modes: "don't push to main",
+      },
+    })
+    const { container } = render(element as React.ReactElement)
+
+    const details = container.querySelectorAll('details.structured-section')
+    expect(details).toHaveLength(4)
+    // Default state is expanded so first-time readers see content immediately.
+    details.forEach((d) => expect(d.hasAttribute('open')).toBe(true))
+
+    // Each disclosure is labelled by a <summary> carrying the section heading.
+    const summary = container.querySelector(
+      'details.structured-section > summary',
+    )
+    expect(summary).not.toBeNull()
+    expect(summary?.querySelector('h2')?.textContent).toBe('Environment / Target')
+  })
+
   it('skips a null section but renders other present ones', async () => {
     const element = await StructuredSections({
       type: 'playbook',
