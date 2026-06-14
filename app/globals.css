@@ -882,6 +882,50 @@ a {
   margin-bottom: 0;
 }
 
+/* Playbook: the four sections live inside ONE collapsible, default closed.
+   The summary reads as the block heading; an inline chevron rotates open. */
+.structured-sections__summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  border-radius: 4px;
+}
+
+.structured-sections__summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Keyboard focus uses the global :focus-visible ring (outline + bg halo);
+   we only round the corners so that ring hugs the summary row. */
+
+.structured-sections__summary-label {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--fg);
+  margin: 0;
+}
+
+.structured-sections__chevron {
+  flex: 0 0 auto;
+  color: var(--fg-subtle);
+  transition: transform 0.15s ease;
+}
+
+.structured-sections__disclosure[open] > .structured-sections__summary .structured-sections__chevron {
+  transform: rotate(180deg);
+}
+
+.structured-sections__summary:hover .structured-sections__chevron {
+  color: var(--fg);
+}
+
+.structured-sections__content {
+  margin-top: 1.25rem;
+}
+
 /* ---- Post body (rendered from body_html) ---- */
 /* The `prose` class would normally come from @tailwindcss/typography, but
    we're not pulling that dep — these rules give body_html the legibility
