@@ -241,3 +241,114 @@ test.describe('Phase 5 post-read page', () => {
     await expect(backlinkLocator).toHaveAttribute('href', urlB)
   })
 })
+
+// ---------------------------------------------------------------------------
+// Issue #70 — home discovery rails on the read page
+//
+// The read page now renders inside the same HomeShell three-column shell
+// used by `/`: LeftNav + TrendingTagsRail on the left, RightSidebar on the
+// right, article in the center. The body keeps its narrow prose cap; only
+// the surrounding shell widens.
+// ---------------------------------------------------------------------------
+
+test.describe('issue #70 — discovery rails on the read page', () => {
+  /** Create a post via the API and return its public URL. */
+  async function seedPost(
+    request: import('@playwright/test').APIRequestContext,
+  ): Promise<string> {
+    const createRes = await request.post('/api/posts', {
+      headers: HEADER_E2E_AUTH,
+      data: validPostBody(String(Date.now())),
+    })
+    expect(createRes.status()).toBe(201)
+    const { url } = (await createRes.json()) as { url: string }
+    return url
+  }
+
+  // -------------------------------------------------------------------------
+  // 6. At xl the read page shows the same three-column shell as `/`.
+  // -------------------------------------------------------------------------
+  test('xl read page renders the three-column shell with left nav + right sidebar', async ({
+    page,
+    request,
+  }) => {
+    test.skip(!HAS_E2E_AUTH, SKIP_REASON)
+
+    const url = await seedPost(request)
+
+    // xl viewport (>=1280) so both asides are visible.
+    await page.setViewportSize({ width: 1440, height: 900 })
+    const res = await page.goto(url, { waitUntil: 'domcontentloaded' })
+    expect(res?.status()).toBe(200)
+
+    // The shared HomeShell grid wraps the article.
+    await expect(page.locator('.home-shell')).toBeVisible()
+
+    // Left sidebar (xl-only) carries the same section nav as on `/`.
+    const left = page.locator('aside.home-shell__left')
+    await expect(left).toBeVisible()
+    await expect(left.locator('.left-nav__list')).toBeVisible()
+    await expect(
+      left.getByRole('link', { name: 'Home', exact: true }),
+    ).toBeVisible()
+
+    // Right sidebar (lg+) is present.
+    await expect(page.locator('aside.home-shell__right')).toBeVisible()
+
+    // The article still renders inside the center column.
+    await expect(page.locator('article.post-page h1')).toBeVisible()
+  })
+
+  // -------------------------------------------------------------------------
+  // 7. Below lg the read page collapses to a single column.
+  // -------------------------------------------------------------------------
+  test('<lg read page collapses to a single column (both asides hidden)', async ({
+    page,
+    request,
+  }) => {
+    test.skip(!HAS_E2E_AUTH, SKIP_REASON)
+
+    const url = await seedPost(request)
+
+    // Below lg (<1024) both desktop asides are hidden; LeftNav relocates to
+    // the top nav (.nav-leftnav) exactly like on `/`.
+    await page.setViewportSize({ width: 800, height: 900 })
+    const res = await page.goto(url, { waitUntil: 'domcontentloaded' })
+    expect(res?.status()).toBe(200)
+
+    await expect(page.locator('aside.home-shell__left')).toBeHidden()
+    await expect(page.locator('aside.home-shell__right')).toBeHidden()
+
+    // The article is the primary content at this width.
+    await expect(page.locator('article.post-page')).toBeVisible()
+  })
+
+  // -------------------------------------------------------------------------
+  // 8. The post body keeps its narrow prose cap inside the wider shell.
+  // -------------------------------------------------------------------------
+  test('post body keeps its narrow prose cap inside the wider shell', async ({
+    page,
+    request,
+  }) => {
+    test.skip(!HAS_E2E_AUTH, SKIP_REASON)
+
+    const url = await seedPost(request)
+
+    await page.setViewportSize({ width: 1440, height: 900 })
+    const res = await page.goto(url, { waitUntil: 'domcontentloaded' })
+    expect(res?.status()).toBe(200)
+
+    // The article container stays capped at 720px even though the center
+    // column is far wider — the shell provides air, not wider prose.
+    const articleWidth = await page
+      .locator('article.post-page')
+      .evaluate((el) => el.getBoundingClientRect().width)
+    expect(articleWidth).toBeLessThanOrEqual(720)
+
+    // The rendered body keeps its 70ch line-length cap, narrower still.
+    const bodyWidth = await page
+      .locator('.post-body')
+      .evaluate((el) => el.getBoundingClientRect().width)
+    expect(bodyWidth).toBeLessThanOrEqual(720)
+  })
+})

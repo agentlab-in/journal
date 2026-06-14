@@ -107,12 +107,21 @@ function findByComponentType(
     if (!React.isValidElement(node)) return false
     if (node.type === target) return true
     const props = node.props as Record<string, unknown>
-    const children = props.children
-    if (children == null) return false
-    if (Array.isArray(children)) {
-      return children.some(walk)
-    }
-    return walk(children as React.ReactNode)
+    // Traverse `children` plus HomeShell's named slot props (left/center/
+    // right). The read page renders inside HomeShell, which receives the
+    // article via the `center` prop rather than as JSX children — so a
+    // children-only walk would miss everything below the shell.
+    const branches: React.ReactNode[] = [
+      props.children as React.ReactNode,
+      props.left as React.ReactNode,
+      props.center as React.ReactNode,
+      props.right as React.ReactNode,
+    ]
+    return branches.some((branch) => {
+      if (branch == null) return false
+      if (Array.isArray(branch)) return branch.some(walk)
+      return walk(branch)
+    })
   }
   return walk(tree)
 }
