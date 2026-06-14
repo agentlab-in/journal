@@ -352,3 +352,134 @@ test.describe('issue #70 — discovery rails on the read page', () => {
     expect(bodyWidth).toBeLessThanOrEqual(720)
   })
 })
+
+// ---------------------------------------------------------------------------
+// Structured sections — playbook vs deep dive disclosure shapes
+//
+// Playbook: the four structured sections (Environment/Target, Prerequisites,
+// Core Instructions, Safety/Failure Modes) are wrapped in ONE <details> that
+// defaults CLOSED. Deep dive: TL;DR + The Question stay individually
+// collapsible and default-open (unchanged from PR #73).
+// ---------------------------------------------------------------------------
+
+test.describe('structured sections disclosure', () => {
+  const PLAYBOOK_BODY = [
+    '## Environment / Target',
+    'A mac mini running the agent.',
+    '',
+    '## Prerequisites',
+    'The gh CLI must be installed.',
+    '',
+    '## Core Instructions',
+    'Clone the repo and run the harness.',
+    '',
+    '## Safety / Failure Modes',
+    'Never push to main.',
+  ].join('\n')
+
+  const DIVE_BODY = [
+    '## TL;DR',
+    'The short answer to the question.',
+    '',
+    '## The Question',
+    'A longer exploration of the question at hand.',
+  ].join('\n')
+
+  /** Create a playbook/dive post via the API and return its public URL. */
+  async function seedStructured(
+    request: import('@playwright/test').APIRequestContext,
+    type: 'playbook' | 'dive',
+    body_md: string,
+  ): Promise<string> {
+    const suffix = String(Date.now()) + Math.round(performance.now())
+    const createRes = await request.post('/api/posts', {
+      headers: HEADER_E2E_AUTH,
+      data: {
+        type,
+        title: `E2E ${type} ${suffix}`,
+        summary: 'A sufficiently long summary that passes validation.',
+        body_md,
+        tags: ['rag'],
+      },
+    })
+    expect(createRes.status()).toBe(201)
+    const { url } = (await createRes.json()) as { url: string }
+    return url
+  }
+
+  // -------------------------------------------------------------------------
+  // Playbook: one wrapper <details>, default closed, opens on click.
+  // -------------------------------------------------------------------------
+  test('playbook wraps four sections in one disclosure that defaults closed', async ({
+    page,
+    request,
+  }) => {
+    test.skip(!HAS_E2E_AUTH, SKIP_REASON)
+
+    const url = await seedStructured(request, 'playbook', PLAYBOOK_BODY)
+    const res = await page.goto(url, { waitUntil: 'domcontentloaded' })
+    expect(res?.status()).toBe(200)
+
+    // Exactly ONE disclosure wraps the whole structured block.
+    const disclosure = page.locator('details.structured-sections__disclosure')
+    await expect(disclosure).toHaveCount(1)
+    // ...and no per-section <details> leaked in (the walked-back design).
+    await expect(page.locator('details.structured-section')).toHaveCount(0)
+
+    // Default state is CLOSED.
+    expect(await disclosure.evaluate((el) => (el as HTMLDetailsElement).open)).toBe(
+      false,
+    )
+
+    // The four section headings are hidden while collapsed.
+    const heading = page.getByRole('heading', { name: 'Core Instructions' })
+    await expect(heading).toBeHidden()
+
+    // Clicking the summary opens it and reveals all four <h3> headings.
+    await page.getByText('Playbook details', { exact: true }).click()
+    expect(await disclosure.evaluate((el) => (el as HTMLDetailsElement).open)).toBe(
+      true,
+    )
+    for (const label of [
+      'Environment / Target',
+      'Prerequisites',
+      'Core Instructions',
+      'Safety / Failure Modes',
+    ]) {
+      await expect(page.getByRole('heading', { name: label })).toBeVisible()
+    }
+
+    // No persistence — a reload returns to the closed default.
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    expect(await disclosure.evaluate((el) => (el as HTMLDetailsElement).open)).toBe(
+      false,
+    )
+  })
+
+  // -------------------------------------------------------------------------
+  // Deep dive: two individual <details>, both default-open (PR #73 design).
+  // -------------------------------------------------------------------------
+  test('deep dive keeps two individual disclosures, both default open', async ({
+    page,
+    request,
+  }) => {
+    test.skip(!HAS_E2E_AUTH, SKIP_REASON)
+
+    const url = await seedStructured(request, 'dive', DIVE_BODY)
+    const res = await page.goto(url, { waitUntil: 'domcontentloaded' })
+    expect(res?.status()).toBe(200)
+
+    // Two per-section disclosures, no single-wrapper disclosure.
+    const sections = page.locator('details.structured-section')
+    await expect(sections).toHaveCount(2)
+    await expect(
+      page.locator('details.structured-sections__disclosure'),
+    ).toHaveCount(0)
+
+    // Both default open → first-time readers see the hook immediately.
+    const openStates = await sections.evaluateAll((els) =>
+      els.map((el) => (el as HTMLDetailsElement).open),
+    )
+    expect(openStates).toEqual([true, true])
+  })
+})
