@@ -6,7 +6,7 @@
  * cache-hot in practice).  Returns null when empty.
  *
  * Hidden at lg+ via `lg:hidden` so it only appears in the single-column
- * mobile layout (below 1024 px) where LeftSidebar's TrendingTagsRail is
+ * mobile layout (below 1024 px) where RightSidebar's TrendingTagsRail is
  * not visible.  The `.trending-strip` selector provides a stable hook for
  * E2E targeting (OPC-5: no paging arrows, OS-default scrollbar).
  *

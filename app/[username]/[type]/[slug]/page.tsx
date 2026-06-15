@@ -27,9 +27,9 @@ import { ReportButton } from '@/components/report/ReportButton'
 import { CommentSkeleton } from '@/components/skeleton/CommentSkeleton'
 import { logRouteError } from '@/lib/logging/error-log'
 // Home discovery rails — the read page reuses the exact same three-column
-// shell as `/` (issue #70). Left nav + trending tags on the left, TopByType
-// + featured-tags fallback on the right. Same `unstable_cache`-backed data
-// (#54); no new caching layers.
+// shell as `/` (issue #70). Left nav only on the left; trending tags +
+// TopByType + featured-tags fallback consolidated on the right. Same
+// `unstable_cache`-backed data (#54); no new caching layers.
 import { HomeShell } from '@/components/home/HomeShell'
 import { LeftSidebar } from '@/components/home/LeftSidebar'
 import { RightSidebar } from '@/components/home/RightSidebar'

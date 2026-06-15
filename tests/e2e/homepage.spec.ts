@@ -132,7 +132,7 @@ test.describe('Phase B — Discovery rails (xl layout)', () => {
     'requires E2E_TEST_AUTH_USER_ID + SUPABASE_SERVICE_ROLE_KEY',
   )
 
-  test('xl (1440×900): trending-tags rail appears in left sidebar when seeded posts exist', async ({
+  test('xl (1440×900): trending-tags rail appears at the top of the right sidebar, above top-by-type', async ({
     page,
     request,
   }) => {
@@ -152,9 +152,34 @@ test.describe('Phase B — Discovery rails (xl layout)', () => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto('/', { waitUntil: 'domcontentloaded' })
 
-    // The left sidebar must be visible at xl.
-    const leftAside = page.locator('.home-shell__left')
-    await expect(leftAside).toBeVisible()
+    // The right sidebar must be visible at xl and now owns the trending rail.
+    const rightAside = page.locator('.home-shell__right')
+    await expect(rightAside).toBeVisible()
+
+    const trendingRail = rightAside.locator(
+      'section[aria-labelledby="trending-tags-heading"]',
+    )
+    await expect(trendingRail).toBeVisible()
+
+    // The trending rail must sit ABOVE the top-playbooks rail in the DOM
+    // (consolidated discovery order: trending → top-by-type → fallback).
+    const playbooksRail = rightAside.locator(
+      'section[aria-labelledby="top-playbook-heading"]',
+    )
+    if (await playbooksRail.count() > 0) {
+      const trendingBox = await trendingRail.boundingBox()
+      const playbooksBox = await playbooksRail.boundingBox()
+      if (trendingBox && playbooksBox) {
+        expect(trendingBox.y).toBeLessThan(playbooksBox.y)
+      }
+    }
+
+    // The left sidebar is now nav-only — it must NOT contain a trending rail.
+    await expect(
+      page.locator(
+        '.home-shell__left section[aria-labelledby="trending-tags-heading"]',
+      ),
+    ).toHaveCount(0)
 
     // No error boundary should fire regardless of cache state.
     await expect(page.locator('text=Something went wrong')).toHaveCount(0)
@@ -237,8 +262,8 @@ test.describe('Phase C — Risk 1: cache-invalidation drift', () => {
   }) => {
     const suffix = String(Date.now())
 
-    // Set xl viewport once — all assertions in this test require the left
-    // sidebar (trending-tags rail) and right sidebar to be visible.
+    // Set xl viewport once — all assertions in this test require the right
+    // sidebar (trending-tags rail + top-by-type rails) to be visible.
     await page.setViewportSize({ width: 1440, height: 900 })
 
     // ---------------------------------------------------------------------------
@@ -251,7 +276,7 @@ test.describe('Phase C — Risk 1: cache-invalidation drift', () => {
     // from zero.
     //
     // The rail renders as:
-    //   <section aria-labelledby="trending-tags-heading">   (in .home-shell__left at xl)
+    //   <section aria-labelledby="trending-tags-heading">   (in .home-shell__right at lg+)
     //     <a href="/tag/security">
     //       <span class="trending-tags-rail__name">#Security</span>
     //       <span class="trending-tags-rail__count text-muted">{count}</span>
@@ -259,9 +284,10 @@ test.describe('Phase C — Risk 1: cache-invalidation drift', () => {
     // ---------------------------------------------------------------------------
     await page.goto('/', { waitUntil: 'domcontentloaded' })
 
-    // The left sidebar's trending-tags rail section (xl-only).
+    // The right sidebar's trending-tags rail section (lives at the top of the
+    // consolidated discovery rail, lg+).
     const trendingRail = page.locator(
-      '.home-shell__left section[aria-labelledby="trending-tags-heading"]',
+      '.home-shell__right section[aria-labelledby="trending-tags-heading"]',
     )
 
     // Find the Security tag link inside the rail (may not exist yet if count is 0).

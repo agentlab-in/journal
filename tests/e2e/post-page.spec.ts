@@ -246,9 +246,9 @@ test.describe('Phase 5 post-read page', () => {
 // Issue #70 — home discovery rails on the read page
 //
 // The read page now renders inside the same HomeShell three-column shell
-// used by `/`: LeftNav + TrendingTagsRail on the left, RightSidebar on the
-// right, article in the center. The body keeps its narrow prose cap; only
-// the surrounding shell widens.
+// used by `/`: LeftNav on the left (nav-only), the consolidated discovery
+// RightSidebar on the right, article in the center. The body keeps its narrow
+// prose cap; only the surrounding shell widens.
 // ---------------------------------------------------------------------------
 
 test.describe('issue #70 — discovery rails on the read page', () => {

@@ -1,15 +1,15 @@
 /**
  * RightSidebar — lg-only right column (hidden below lg=1024 px).
  *
- * Phase B: replaces the Phase A skeleton stubs with the real data-backed
- * rails.
+ * Consolidated discovery rail. The left column is nav-only, so all discovery
+ * lives here in a single stack, top to bottom:
+ *   1. TrendingTagsRail — top 5 trending tags (7-day window).
+ *   2. TopByType (playbook, dive) — top posts per type.
+ *   3. FeaturedTagsFallback — only when both top-by-type rails are empty.
  *
  * Responsive matrix:
- *   xl (>=1280 px) — LeftSidebar is visible; TrendingTagsRail lives there.
- *                    The `xl:hidden` wrapper below ensures no duplicate.
- *   lg (1024-1279) — LeftSidebar is hidden; TrendingTagsRail relocates here
- *                    (inside `hidden lg:block xl:hidden`).
- *   <lg            — Both sidebars are hidden; TrendingStrip handles mobile.
+ *   lg+ (>=1024 px) — this rail is visible; TrendingTagsRail sits at the top.
+ *   <lg             — both sidebars are hidden; TrendingStrip handles mobile.
  *
  * Trade-off accepted (per plan): the parent awaits both cached queries before
  * the children stream, enabling the `bothEmpty` fallback check.  In practice
@@ -36,15 +36,12 @@ export async function RightSidebar() {
 
   return (
     <div className="right-sidebar flex flex-col gap-8">
-      {/* lg-only: left sidebar is hidden at lg, so the trending rail
-          relocates here, above the playbooks (responsive matrix).
-          xl:hidden avoids duplicating it next to LeftSidebar's copy. */}
-      <div className="hidden lg:block xl:hidden">
-        <Suspense fallback={<RailSkeleton rows={5} />}>
-          {/* unique headingId avoids duplicate-id-aria: LeftSidebar owns the default id at xl */}
-          <TrendingTagsRail headingId="trending-tags-heading-lg" />
-        </Suspense>
-      </div>
+      {/* Trending tags sit at the top of the consolidated discovery rail,
+          above the top-by-type rails. LeftSidebar is nav-only now, so there is
+          no duplicate copy and the rail uses the default heading id. */}
+      <Suspense fallback={<RailSkeleton rows={5} />}>
+        <TrendingTagsRail />
+      </Suspense>
 
       <Suspense fallback={<RailSkeleton rows={3} />}>
         <TopByType type="playbook" />
