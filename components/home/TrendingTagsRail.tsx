@@ -7,7 +7,8 @@
  * set is empty so the parent Suspense boundary leaves no empty gap.
  *
  * Rendered inside a `<Suspense fallback={<RailSkeleton rows={5} />}>`
- * wrapper in LeftSidebar (xl) and RightSidebar (lg breakpoint slot).
+ * wrapper at the top of RightSidebar (lg+). On mobile (<lg) the horizontal
+ * TrendingStrip handles the same data instead.
  */
 
 import Link from 'next/link'
