@@ -1,5 +1,4 @@
 import Logo from '@/components/brand/Logo'
-import WaitlistForm from '@/components/marketing/WaitlistForm'
 
 export default function HomePage() {
   return (
@@ -12,9 +11,8 @@ export default function HomePage() {
         Community publishing for AI agent infrastructure.
       </p>
       <p className="mt-2 font-mono text-sm text-fg-subtle sm:text-base">
-        Coming soon — drop your email to hear when we open.
+        Launching soon at agentlab.in.
       </p>
-      <WaitlistForm />
     </div>
   )
 }
