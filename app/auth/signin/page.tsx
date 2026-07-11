@@ -1,9 +1,10 @@
 'use client'
 
 import { signIn } from 'next-auth/react'
+import Link from 'next/link'
 
 /**
- * Sign-in page — minimal "Continue with GitHub" prompt.
+ * Sign-in page: minimal "Continue with GitHub" prompt.
  * Client component because it calls signIn() from next-auth/react.
  */
 export default function SignInPage() {
@@ -23,7 +24,7 @@ export default function SignInPage() {
           className="flex w-full items-center justify-center gap-3 rounded border border-border px-4 py-3 font-mono text-sm font-semibold text-fg transition-colors hover:bg-bg-hover"
           aria-label="Continue with GitHub"
         >
-          {/* GitHub mark (inline SVG — no extra dep) */}
+          {/* GitHub mark (inline SVG, no extra dep) */}
           <svg
             role="img"
             viewBox="0 0 24 24"
@@ -37,7 +38,11 @@ export default function SignInPage() {
         </button>
 
         <p className="text-xs text-fg-subtle">
-          New accounts are subject to a brief eligibility check.
+          New here?{' '}
+          <Link href="/auth/apply" className="underline underline-offset-2 hover:text-fg">
+            Request access
+          </Link>{' '}
+          first.
         </p>
       </div>
     </main>
