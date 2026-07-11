@@ -1,5 +1,7 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { getSession } from '@/lib/auth'
+import { requireAdmin } from '@/lib/admin'
 import { searchOrgs } from '@/lib/admin/search-orgs'
 import type { AdminOrgRow, AdminOrgStatus } from '@/lib/admin/search-orgs'
 import OrgActions from '@/components/admin/OrgActions'
@@ -37,6 +39,9 @@ export default async function AdminOrgsPage({
 }: {
   searchParams: Promise<PageSearchParams>
 }) {
+  const session = await getSession()
+  await requireAdmin(session) // throws notFound() for non-admin; per-request defense-in-depth (layout is not an auth boundary)
+
   const sp = await searchParams
   const q = (sp?.q ?? '').trim()
   const status: AdminOrgStatus = isValidStatus(sp?.status) ? sp.status : 'all'

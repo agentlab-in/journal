@@ -1,0 +1,12 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore(ci)"
+# npm dependency security updates are handled by GitHub's "Dependabot security
+# updates" repo setting (Settings > Code security), which opens PRs only for
+# advisories. We deliberately do not add a routine npm version-bump block here,
+# to keep PR noise near zero on a repo that may be unwatched for weeks.

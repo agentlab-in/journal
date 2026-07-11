@@ -1,5 +1,7 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { getSession } from '@/lib/auth'
+import { requireAdmin } from '@/lib/admin'
 import { listPendingTags } from '@/lib/admin/list-tags'
 import type { PendingTagRow } from '@/lib/admin/list-tags'
 import TagActions from '@/components/admin/TagActions'
@@ -29,6 +31,9 @@ export default async function AdminTagsPage({
 }: {
   searchParams: Promise<PageSearchParams>
 }) {
+  const session = await getSession()
+  await requireAdmin(session) // throws notFound() for non-admin; per-request defense-in-depth (layout is not an auth boundary)
+
   const sp = await searchParams
   const cursor = sp?.cursor ?? null
 

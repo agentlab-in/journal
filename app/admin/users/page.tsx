@@ -1,5 +1,7 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { getSession } from '@/lib/auth'
+import { requireAdmin } from '@/lib/admin'
 import { searchUsers } from '@/lib/admin/search-users'
 import type { AdminUserRow, AdminModActionRow } from '@/lib/admin/search-users'
 import UserActions from '@/components/admin/UserActions'
@@ -30,6 +32,9 @@ export default async function AdminUsersPage({
 }: {
   searchParams: Promise<PageSearchParams>
 }) {
+  const session = await getSession()
+  await requireAdmin(session) // throws notFound() for non-admin; per-request defense-in-depth (layout is not an auth boundary)
+
   const sp = await searchParams
   const q = (sp?.q ?? '').trim()
 
