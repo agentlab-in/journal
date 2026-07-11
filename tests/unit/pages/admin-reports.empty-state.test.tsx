@@ -8,6 +8,17 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+// F2: the page now runs its own per-request admin guard (defense-in-depth,
+// independent of the layout). Stub both so the empty-state assertion below
+// doesn't depend on a real session/DB lookup.
+vi.mock('@/lib/auth', () => ({
+  getSession: vi.fn(async () => ({ user: { id: 'admin-1' } })),
+}))
+
+vi.mock('@/lib/admin', () => ({
+  requireAdmin: vi.fn(async () => 'admin-1'),
+}))
+
 vi.mock('@/lib/admin/list-reports', () => ({
   listUnresolvedReports: vi.fn(),
 }))

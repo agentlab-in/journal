@@ -1,5 +1,7 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { getSession } from '@/lib/auth'
+import { requireAdmin } from '@/lib/admin'
 import { listUnresolvedReports } from '@/lib/admin/list-reports'
 import type { ReportListRow, ReportTarget } from '@/lib/admin/list-reports'
 import ReportActions from '@/components/admin/ReportActions'
@@ -53,6 +55,9 @@ export default async function AdminReportsPage({
 }: {
   searchParams: Promise<PageSearchParams>
 }) {
+  const session = await getSession()
+  await requireAdmin(session) // throws notFound() for non-admin; per-request defense-in-depth (layout is not an auth boundary)
+
   const sp = await searchParams
   const cursor = sp?.cursor ?? null
 

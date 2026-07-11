@@ -1,5 +1,7 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { getSession } from '@/lib/auth'
+import { requireAdmin } from '@/lib/admin'
 import { listAuditActions } from '@/lib/admin/list-audit'
 import type { AuditActionRow } from '@/lib/admin/list-audit'
 import RestoreButton from '@/components/admin/RestoreButton'
@@ -67,6 +69,9 @@ export default async function AdminAuditPage({
 }: {
   searchParams: Promise<PageSearchParams>
 }) {
+  const session = await getSession()
+  await requireAdmin(session) // throws notFound() for non-admin; per-request defense-in-depth (layout is not an auth boundary)
+
   const sp = await searchParams
   const actor = sp?.actor?.trim() ?? undefined
   const target_type = sp?.target_type?.trim() ?? undefined
