@@ -10,7 +10,7 @@
 
 **Spec:** [`docs/superpowers/specs/2026-06-01-home-discovery-rails-design.md`](./superpowers/specs/2026-06-01-home-discovery-rails-design.md) — read end-to-end before starting any phase. This plan refines and phases the spec; where the two conflict, the spec wins on shape, this plan wins on rollout sequence.
 
-**Tracking:** Issue [#54](https://github.com/harshitsinghbhandari/agentlab-in/issues/54). Does not block Phase 15 launch but is scheduled for the pre-launch window per the operator.
+**Tracking:** Issue [#54](https://github.com/agentlab-in/journal/issues/54). Does not block Phase 15 launch but is scheduled for the pre-launch window per the operator.
 
 **Status:** PLAN (no code yet). Phases A → B → C are sequential — Phase B depends on the shell from A, Phase C depends on the cache plumbing from B.
 

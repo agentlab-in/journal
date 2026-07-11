@@ -8,7 +8,7 @@
 
 **Tech Stack:** Next.js 16 App Router, React 19 server components, Supabase JS query builder, `unstable_cache` + `revalidateTag`, Vitest + Testing Library, Playwright + axe-core.
 
-**Spec:** `docs/superpowers/specs/2026-06-01-home-discovery-rails-design.md`. Tracking issue: [#54](https://github.com/harshitsinghbhandari/agentlab-in/issues/54).
+**Spec:** `docs/superpowers/specs/2026-06-01-home-discovery-rails-design.md`. Tracking issue: [#54](https://github.com/agentlab-in/journal/issues/54).
 
 ---
 
