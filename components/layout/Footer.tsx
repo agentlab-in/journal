@@ -1,12 +1,6 @@
 import Link from 'next/link'
 
-const FOOTER_LINKS = [
-  { label: 'Privacy', href: '/privacy' },
-  { label: 'Terms', href: '/terms' },
-  { label: 'Content Policy', href: '/policy' },
-  { label: 'Grievance', href: '/grievance' },
-  { label: 'DMCA', href: '/dmca' },
-] as const
+const FOOTER_LINKS = [{ label: 'Terms', href: '/terms' }] as const
 
 export default function Footer() {
   return (

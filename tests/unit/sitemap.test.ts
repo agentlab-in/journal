@@ -140,13 +140,9 @@ describe('app/sitemap', () => {
       'https://agentlab.in/latest',
       'https://agentlab.in/tags',
       'https://agentlab.in/search',
-      // Legal pages also live at the root level — these are NOT
-      // user-profile entries.
-      'https://agentlab.in/privacy',
+      // The legal page also lives at the root level — this is NOT a
+      // user-profile entry.
       'https://agentlab.in/terms',
-      'https://agentlab.in/policy',
-      'https://agentlab.in/grievance',
-      'https://agentlab.in/dmca',
     ])
     // Anything single-segment that isn't one of the known static routes or
     // a tag URL would be a stray profile entry.

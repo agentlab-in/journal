@@ -19,7 +19,7 @@ export async function POST(req: NextRequest | Request): Promise<Response> {
   const userId = session.user.id
 
   // Origin guard only — pin add/remove isn't in the bucket list.
-  const guard = await guardMutatingRequest(req, { userId, requireConsent: true })
+  const guard = await guardMutatingRequest(req, { userId })
   if (guard.failed) return guard.response
 
   let raw: unknown

@@ -21,7 +21,7 @@ export async function POST(req: Request): Promise<Response> {
   const adminUserId = session!.user.id
 
   // Origin guard only — admin actions are internal-only; no RL budget.
-  const guard = await guardMutatingRequest(req, { userId: adminUserId, requireConsent: true })
+  const guard = await guardMutatingRequest(req, { userId: adminUserId })
   if (guard.failed) return guard.response
 
   let raw: unknown

@@ -60,6 +60,16 @@ const nextConfig: NextConfig = {
       },
     ]
   },
+  // Phase 3 legal consolidation: every other legal URL now redirects to
+  // the single combined /terms page.
+  async redirects() {
+    return [
+      { source: '/privacy', destination: '/terms', permanent: true },
+      { source: '/policy', destination: '/terms', permanent: true },
+      { source: '/grievance', destination: '/terms', permanent: true },
+      { source: '/dmca', destination: '/terms', permanent: true },
+    ]
+  },
   images: {
     remotePatterns: [
       {

@@ -21,7 +21,7 @@ export async function DELETE(
   const userId = session.user.id
 
   // Origin guard only — pin remove isn't in the bucket list.
-  const guard = await guardMutatingRequest(req, { userId, requireConsent: true })
+  const guard = await guardMutatingRequest(req, { userId })
   if (guard.failed) return guard.response
 
   const { postId } = await context.params
