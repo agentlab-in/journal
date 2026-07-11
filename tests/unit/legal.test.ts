@@ -3,17 +3,14 @@ import { LEGAL_DOCS, getLegalDoc } from '@/lib/legal/docs'
 import { renderLegalDoc } from '@/lib/legal/render'
 
 describe('legal docs registry', () => {
-  it('exposes exactly the five canonical legal routes', () => {
+  it('exposes exactly the single terms route', () => {
     const slugs = LEGAL_DOCS.map((d) => d.slug).sort()
-    expect(slugs).toEqual(['dmca', 'grievance', 'policy', 'privacy', 'terms'])
+    expect(slugs).toEqual(['terms'])
   })
 
   it('getLegalDoc returns the matching entry', () => {
-    expect(getLegalDoc('privacy').file).toBe('privacy-policy.md')
     expect(getLegalDoc('terms').file).toBe('terms-of-service.md')
-    expect(getLegalDoc('policy').file).toBe('content-policy.md')
-    expect(getLegalDoc('grievance').file).toBe('grievance-officer.md')
-    expect(getLegalDoc('dmca').file).toBe('dmca-policy.md')
+    expect(getLegalDoc('terms').title).toBe('Terms and Privacy')
   })
 
   it('each registry entry has a non-trivial title and description', () => {
@@ -53,8 +50,8 @@ describe('renderLegalDoc()', () => {
   })
 
   it('does not emit content-policy or copyright cross-link slugs', async () => {
-    // After the slug normalization in this PR, no doc should still
-    // reference the old paths. Catches accidental re-introduction.
+    // After the legal collapse, no doc should reference the retired
+    // per-doc paths. Catches accidental re-introduction.
     for (const doc of LEGAL_DOCS) {
       const result = await renderLegalDoc(doc.slug)
       expect(result.bodyHtml).not.toMatch(/href="\/content-policy"/)

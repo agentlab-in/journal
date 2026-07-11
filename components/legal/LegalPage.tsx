@@ -1,5 +1,4 @@
-import Link from 'next/link'
-import { LEGAL_DOCS, getLegalDoc, type LegalDoc } from '@/lib/legal/docs'
+import { getLegalDoc, type LegalDoc } from '@/lib/legal/docs'
 import { renderLegalDoc } from '@/lib/legal/render'
 import { absoluteUrl } from '@/lib/site-url'
 
@@ -17,16 +16,14 @@ function formatStamp(iso: string): string {
 }
 
 /**
- * Server component shared by all five /app/(legal)/<slug>/page.tsx
- * routes. Reads the markdown, renders it through the operator-content
- * pipeline (no sanitization), and wraps it in the article chrome.
+ * Server component shared by the /app/(legal)/<slug>/page.tsx route(s).
+ * Reads the markdown, renders it through the operator-content pipeline
+ * (no sanitization), and wraps it in the article chrome.
  */
 export async function LegalPage({ slug }: LegalPageProps) {
   const doc = getLegalDoc(slug)
   const { bodyHtml, effectiveDate, effectiveDateLabel } =
     await renderLegalDoc(slug)
-
-  const others = LEGAL_DOCS.filter((d) => d.slug !== slug)
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -73,26 +70,6 @@ export async function LegalPage({ slug }: LegalPageProps) {
           className="post-body leading-relaxed"
           dangerouslySetInnerHTML={{ __html: bodyHtml }}
         />
-        <nav
-          aria-label="Other legal pages"
-          className="mt-16 border-t border-border pt-6"
-        >
-          <p className="text-xs uppercase tracking-wide text-fg-subtle">
-            More legal
-          </p>
-          <ul className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm">
-            {others.map((other) => (
-              <li key={other.slug}>
-                <Link
-                  href={`/${other.slug}`}
-                  className="text-fg underline underline-offset-2 hover:text-fg"
-                >
-                  {other.title}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
       </article>
     </main>
   )

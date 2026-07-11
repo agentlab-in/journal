@@ -21,11 +21,7 @@ const PUBLIC_ROUTES: Array<{ path: string; label: string }> = [
   { path: '/search?q=agent', label: 'search with query' },
   { path: '/auth/signin', label: 'sign-in' },
   { path: '/auth/blocked', label: 'blocked notice' },
-  { path: '/privacy', label: 'privacy policy' },
-  { path: '/terms', label: 'terms of service' },
-  { path: '/policy', label: 'content policy' },
-  { path: '/grievance', label: 'grievance officer notice' },
-  { path: '/dmca', label: 'copyright takedown policy' },
+  { path: '/terms', label: 'terms and privacy' },
 ]
 
 // Phase 13 dark-mode audit: axe defaults to whichever theme the headless
