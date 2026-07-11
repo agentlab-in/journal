@@ -1,0 +1,67 @@
+name: Deploy (Vercel)
+
+# Token-based Vercel deploy, run from CI instead of Vercel's Git integration.
+# The repo is org-owned (agentlab-in/journal), and Vercel's Git integration for
+# organization repos is a Pro feature. This workflow uploads a prebuilt output
+# with `vercel deploy --prebuilt`, which does not use the Git integration and
+# works for an org-owned private repo on any plan.
+#
+# Runs ONLY on push to this repo's own branches, never on pull_request, so the
+# Vercel token is never exposed to fork-PR code. Production deploys on `main`;
+# every push to `develop` gets a preview deployment.
+#
+# Required repo secrets (Settings > Secrets and variables > Actions):
+#   VERCEL_TOKEN       - a Vercel access token (vercel.com/account/tokens)
+#   VERCEL_ORG_ID      - team id: team_uosSyFMEnl4b9LECipQbEIeH
+#   VERCEL_PROJECT_ID  - the id of the project that owns agentlab.in; confirm
+#                        which of the two projects is canonical before setting.
+
+on:
+  push:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy to Vercel
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Resolve target (production on main, preview on develop)
+        id: target
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "flag=--prod" >> "$GITHUB_OUTPUT"
+            echo "env=production" >> "$GITHUB_OUTPUT"
+          else
+            echo "flag=" >> "$GITHUB_OUTPUT"
+            echo "env=preview" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Pull Vercel project settings
+        run: vercel pull --yes --environment=${{ steps.target.outputs.env }} --token="${{ secrets.VERCEL_TOKEN }}"
+
+      - name: Build
+        run: vercel build ${{ steps.target.outputs.flag }} --token="${{ secrets.VERCEL_TOKEN }}"
+
+      - name: Deploy prebuilt output
+        run: vercel deploy --prebuilt ${{ steps.target.outputs.flag }} --token="${{ secrets.VERCEL_TOKEN }}"
