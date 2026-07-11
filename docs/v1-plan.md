@@ -12,7 +12,7 @@
 
 > **Stack-version note for future subagents:** The original Discussion #2 spec said Next.js 14 / Tailwind v3 / ESLint legacy. As of 2026-05-29 (Phase 0 bootstrap), `create-next-app@latest` produces Next 16 / Tailwind v4 / ESLint 9 flat. User accepted the modernization. **Next 16 has breaking changes vs. training data** — there's an `AGENTS.md` at the repo root spelling this out. Before writing any Next-API code (route handlers, server actions, `next/font`, middleware, etc.), grep `node_modules/next/dist/docs/` for the current API rather than relying on Next 14 memory. If a modernization breaks a feature the plan needs, surface it to the user before rolling back — they want to keep the modern stack "until it doesn't fuck up the app."
 
-**Canonical source of truth:** [Discussion #2](https://github.com/harshitsinghbhandari/agentlab-in/discussions/2). Open decisions resolved on Issue #4 (2026-05-29). Key resolutions baked into this plan:
+**Canonical source of truth:** [Discussion #2](https://github.com/agentlab-in/journal/discussions/2). Open decisions resolved on Issue #4 (2026-05-29). Key resolutions baked into this plan:
 
 - Curator handle is **`agentlab-in`** (the user's own GitHub org), not `agentlab` (which collides with an existing org).
 - **No staging branch / no staging Supabase project.** Feature → PR → Vercel preview → merge to `main` → production. Single Supabase project (`agentlab-prod`).

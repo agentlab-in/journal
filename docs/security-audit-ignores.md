@@ -13,7 +13,7 @@ upstream packages.
 ### CVE-2026-41907 — `uuid <11.1.1` (transitive via `next-auth@4`)
 
 - **Severity:** moderate (CVSS 7.5)
-- **Source:** issue [#49](https://github.com/harshitsinghbhandari/agentlab-in/issues/49) (L2 finding from the 2026-06-01 pre-launch audit)
+- **Source:** issue [#49](https://github.com/agentlab-in/journal/issues/49) (L2 finding from the 2026-06-01 pre-launch audit)
 - **Advisory:** <https://github.com/advisories/GHSA-w5hq-g745-h8pq>
 - **Path:** `next-auth → uuid@8.3.2`
 

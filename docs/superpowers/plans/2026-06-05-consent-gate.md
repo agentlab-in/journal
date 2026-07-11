@@ -10,7 +10,7 @@
 
 **Branch:** `feat/consent-gate` (PRs into `develop`, NEVER `main`).
 
-**Closes:** [#57](https://github.com/harshitsinghbhandari/agentlab-in/issues/57)
+**Closes:** [#57](https://github.com/agentlab-in/journal/issues/57)
 
 **Pre-flight notes for every task:**
 - `cd` to `/Users/harshitsinghbhandari/.agent-orchestrator/projects/agentlab-in_430706fffe/worktrees/age-41` (this worktree). Never `cd` to the canonical Downloads/ path.

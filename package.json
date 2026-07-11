@@ -2,6 +2,11 @@
   "name": "agentlab-in",
   "version": "0.1.0",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/agentlab-in/journal.git"
+  },
+  "homepage": "https://journal.agentlab.in",
   "scripts": {
     "dev": "next dev -p 3010",
     "build": "next build",

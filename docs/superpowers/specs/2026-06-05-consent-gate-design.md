@@ -1,7 +1,7 @@
 # Consent Gate at Signup — Design Spec
 
 **Date:** 2026-06-05
-**Issue:** [#57](https://github.com/harshitsinghbhandari/agentlab-in/issues/57)
+**Issue:** [#57](https://github.com/agentlab-in/journal/issues/57)
 **Branch:** `feat/consent-gate` (PRs into `develop`)
 **Milestone:** Pre-launch (June 7 deadline)
 **Status:** Approved (defaults from issue body + orchestrator brief)
