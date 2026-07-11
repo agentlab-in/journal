@@ -171,6 +171,22 @@ export async function resolveIsAdmin(userId: string): Promise<boolean> {
   }
 }
 
+/** DB-backed approval check by GitHub login (lowercased). */
+export async function resolveIsApproved(login: string): Promise<boolean> {
+  if (!login) return false
+  try {
+    const supabase = createAdminSupabaseClient()
+    const { data } = await supabase
+      .from('approved_users')
+      .select('github_login')
+      .eq('github_login', login.toLowerCase())
+      .maybeSingle<{ github_login: string }>()
+    return Boolean(data)
+  } catch {
+    return false
+  }
+}
+
 // ---------------------------------------------------------------------------
 // NextAuth v4 configuration
 // ---------------------------------------------------------------------------
@@ -461,6 +477,33 @@ export const authOptions: NextAuthOptions = {
 
       if (!result.ok) {
         return result.redirect
+      }
+
+      // Approval gate (public launch). Only GitHub logins the owner has
+      // manually approved (public.approved_users) may obtain a session.
+      // Match on gh.login, the freshly-fetched handle, because
+      // next_auth.users.github_login is not populated until events.signIn,
+      // which runs after this callback returns. Fail-closed.
+      {
+        const login = gh.login.toLowerCase()
+        try {
+          const supabase = createAdminSupabaseClient()
+          const { data: approvedRow, error: approvedError } = await supabase
+            .from('approved_users')
+            .select('github_login')
+            .eq('github_login', login)
+            .maybeSingle<{ github_login: string }>()
+          if (approvedError) {
+            console.error('[auth] approved_users lookup error (fail-closed):', approvedError.message)
+            return `/auth/blocked?reason=lookup_error&login=${encodeURIComponent(login)}`
+          }
+          if (!approvedRow) {
+            return `/auth/blocked?reason=not_approved&login=${encodeURIComponent(login)}`
+          }
+        } catch (approvedErr) {
+          console.error('[auth] approved_users lookup threw (fail-closed):', approvedErr)
+          return `/auth/blocked?reason=lookup_error&login=${encodeURIComponent(login)}`
+        }
       }
 
       // Ban check — three layers:
@@ -793,29 +836,32 @@ export async function getSession(): Promise<Session | null> {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) return session
 
-  // Per-request banned check. The 0015 session-invalidator trigger deletes
-  // sessions when a user is banned, so a live cookie usually fails the
-  // adapter's session lookup first — but a moderator may flip banned_at via
-  // SQL or a backfill path that bypasses the trigger, and the trigger only
-  // fires on the UPDATE; so we recheck here to keep banned users out of
-  // every authenticated request (read or write).
+  // Per-request ban + approval check, combined into one round-trip (C5:
+  // India-region RTT is the worst-measured surface, so this must not become
+  // two queries). The 0015 session-invalidator trigger deletes sessions when
+  // a user is banned, so a live cookie usually fails the adapter's session
+  // lookup first — but a moderator may flip banned_at via SQL or a backfill
+  // path that bypasses the trigger, and the trigger only fires on the
+  // UPDATE; so we recheck here. Approval is rechecked the same way so
+  // revoking a login (deleting its approved_users row) drops the session on
+  // the very next request, with no separate query.
   try {
     const supabase = createAdminSupabaseClient()
     const { data, error } = await supabase
-      .from('users')
-      .select('banned_at')
-      .eq('id', session.user.id)
-      .maybeSingle<{ banned_at: string | null }>()
+      .rpc('resolve_session_gate', { p_user_id: session.user.id })
+      .maybeSingle<{ banned_at: string | null; is_approved: boolean }>()
     if (error) {
-      console.error('[auth] per-request ban lookup error:', error.message)
-      // Fail-closed: drop the session rather than letting a banned user act.
+      console.error('[auth] per-request session-gate lookup error:', error.message)
       return null
     }
-    if (data?.banned_at) {
-      return null
-    }
+    // No user row, banned, or not approved -> drop the session. Reading needs
+    // no session (anon reads everything), so dropping it is safe and makes
+    // ban/approval revocation take effect on the next request.
+    if (!data) return null
+    if (data.banned_at) return null
+    if (!data.is_approved) return null
   } catch (err) {
-    console.error('[auth] per-request ban lookup threw:', err)
+    console.error('[auth] per-request session-gate lookup threw:', err)
     return null
   }
 
