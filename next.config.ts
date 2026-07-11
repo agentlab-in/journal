@@ -16,13 +16,22 @@ const supabaseHostname = (() => {
   }
 })()
 
-// Phase 14 / C4 — Baseline security response headers.
+// Phase 14 / C4 / F13: baseline security response headers.
 //
-// CSP is intentionally shipped in Report-Only mode: the operator will
-// watch reports for a week before flipping to enforcement, so a stray
-// inline script can't 500 the site mid-launch. Everything else is
-// enforced immediately because the failure mode is benign (no rendering
-// behaviour depends on these absent headers).
+// CSP is intentionally shipped in Report-Only mode: the operator watches
+// reports before flipping to enforcement, so a stray inline script can't
+// 500 the site mid-launch. Everything else is enforced immediately because
+// the failure mode is benign (no rendering behaviour depends on these
+// absent headers).
+//
+// F13 reporting: set CSP_REPORT_URI to a hosted collector's ingest URL
+// (report-uri.com / URIports, configured to email harshit@agentlab.in) to
+// receive violation reports. When it is unset, no reporting directives are
+// emitted, so nothing ships until the operator wires a collector. This stays
+// Report-Only; flipping to enforcing is a separate change made only after a
+// clean week of reports plus a manual prod page-walk.
+const CSP_REPORT_URI = process.env.CSP_REPORT_URI ?? ''
+
 const CSP_REPORT_ONLY = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline'",
@@ -36,10 +45,21 @@ const CSP_REPORT_ONLY = [
   "object-src 'none'",
   "form-action 'self'",
   'upgrade-insecure-requests',
+  // Reporting directives, emitted only when a collector URL is configured.
+  // report-uri is the widely-supported legacy form; report-to targets the
+  // Reporting API group declared in the Reporting-Endpoints header below.
+  ...(CSP_REPORT_URI
+    ? [`report-uri ${CSP_REPORT_URI}`, 'report-to csp-endpoint']
+    : []),
 ].join('; ')
 
 const SECURITY_HEADERS = [
   { key: 'Content-Security-Policy-Report-Only', value: CSP_REPORT_ONLY },
+  // Reporting API endpoint group referenced by the CSP report-to directive.
+  // Only present when a collector URL is configured.
+  ...(CSP_REPORT_URI
+    ? [{ key: 'Reporting-Endpoints', value: `csp-endpoint="${CSP_REPORT_URI}"` }]
+    : []),
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   {
