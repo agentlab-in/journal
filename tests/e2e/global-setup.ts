@@ -1,15 +1,12 @@
 /**
  * Issue #57 — E2E global setup.
  *
- * After the consent gate landed, every authed E2E spec needs the stub
- * user (`E2E_TEST_AUTH_USER_ID`) to have a current consent row. The
- * consent-gate spec itself clears + restores this row around each test.
- *
- * Phase 1 (approval gate, 0024_approved_users.sql) added a second write
- * gate: the stub user's github_login must also be present in
- * public.approved_users, or every write-path spec (publish, engagement,
- * comments, editor, orgs) fails closed via the enforce_author_approved
- * triggers / getSession()'s per-request approval recheck.
+ * Phase 1 (approval gate, 0024_approved_users.sql) added a write gate:
+ * the stub user's (`E2E_TEST_AUTH_USER_ID`) github_login must be present
+ * in public.approved_users, or every write-path spec (publish,
+ * engagement, comments, editor, orgs) fails closed via the
+ * enforce_author_approved triggers / getSession()'s per-request approval
+ * recheck.
  *
  * No-op when:
  *   - `E2E_TEST_AUTH_USER_ID` is unset, OR
@@ -27,31 +24,9 @@ export default async function globalSetup(): Promise<void> {
   // Placeholder URL from playwright.config.ts: don't try to write against it.
   if (supabaseUrl.endsWith('.invalid')) return
 
-  // Resolve LEGAL_VERSIONS at setup time so the seeded row tracks
-  // whatever the source-of-truth says today.
-  const { LEGAL_VERSIONS } = await import('../../lib/legal/versions')
-
   const supabase = createClient(supabaseUrl, serviceKey, {
     auth: { persistSession: false },
   })
-
-  const { error } = await supabase.from('consents').upsert(
-    {
-      user_id: userId,
-      age_confirmed: true,
-      terms_version: LEGAL_VERSIONS.terms,
-      content_policy_version: LEGAL_VERSIONS.content_policy,
-      privacy_policy_version: LEGAL_VERSIONS.privacy_policy,
-    },
-    { onConflict: 'user_id,terms_version,content_policy_version,privacy_policy_version' },
-  )
-
-  if (error) {
-    // Don't fail the entire suite for a setup blip — the consent-gate
-    // spec needs a clean state anyway, and other specs surface a
-    // redirect/412 if the seed truly didn't land.
-    console.warn(`[e2e global-setup] consent seed failed: ${error.message}`)
-  }
 
   // Phase 1 approval gate: seed the stub user's github_login into
   // approved_users so authed write specs stay green. github_login lives on

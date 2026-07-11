@@ -21,7 +21,6 @@ const PUBLIC_ROUTES: Array<{ path: string; label: string }> = [
   { path: '/search?q=agent', label: 'search with query' },
   { path: '/auth/signin', label: 'sign-in' },
   { path: '/auth/blocked', label: 'blocked notice' },
-  { path: '/auth/consent-declined', label: 'consent declined' },
   { path: '/privacy', label: 'privacy policy' },
   { path: '/terms', label: 'terms of service' },
   { path: '/policy', label: 'content policy' },

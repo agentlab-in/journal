@@ -62,7 +62,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const userId = session.user.id
 
   // 1b. Origin + image_upload bucket rate-limit (Phase 14)
-  const guard = await guardMutatingRequest(req, { bucket: 'image_upload', userId, requireConsent: true })
+  const guard = await guardMutatingRequest(req, { bucket: 'image_upload', userId })
   if (guard.failed) return guard.response
 
   // 1c. Cheap Content-Length pre-check. `req.formData()` materialises the

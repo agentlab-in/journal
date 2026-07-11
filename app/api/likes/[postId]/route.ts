@@ -43,7 +43,7 @@ export async function POST(
   const userId = session.user.id
 
   // Origin + engagement-bucket rate-limit (Phase 14).
-  const guard = await guardMutatingRequest(req, { bucket: 'engagement', userId, requireConsent: true })
+  const guard = await guardMutatingRequest(req, { bucket: 'engagement', userId })
   if (guard.failed) return guard.response
 
   const { postId } = await context.params
@@ -97,7 +97,7 @@ export async function DELETE(
   const userId = session.user.id
 
   // Same engagement bucket for DELETE — click-spam either way.
-  const guard = await guardMutatingRequest(req, { bucket: 'engagement', userId, requireConsent: true })
+  const guard = await guardMutatingRequest(req, { bucket: 'engagement', userId })
   if (guard.failed) return guard.response
 
   const { postId } = await context.params

@@ -17,7 +17,7 @@ export async function POST(req: Request): Promise<Response> {
   if (gate) return gate
   const adminUserId = session!.user.id
 
-  const guard = await guardMutatingRequest(req, { userId: adminUserId, requireConsent: true })
+  const guard = await guardMutatingRequest(req, { userId: adminUserId })
   if (guard.failed) return guard.response
 
   // Parse body

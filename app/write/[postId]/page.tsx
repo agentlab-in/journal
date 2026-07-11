@@ -13,7 +13,6 @@
 import { redirect, notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import { getSession } from '@/lib/auth'
-import { requireConsentOrRedirect } from '@/lib/consent/require-consent'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { ensurePublicUser } from '@/lib/users/ensure-public-user'
 import { EditorShell, type InitialPost } from '@/components/editor/EditorShell'
@@ -76,8 +75,6 @@ export default async function EditPostPage({
   if (!session?.user?.id) {
     redirect(`/auth/signin?callbackUrl=/write/${postId}`)
   }
-  await requireConsentOrRedirect(session.user.id)
-
   const supabase = createAdminSupabaseClient()
 
   // Fetch the post + ownership in one shot.
