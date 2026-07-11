@@ -47,6 +47,14 @@ function json(status: number, body: Record<string, unknown>): Response {
 
 export async function POST(req: NextRequest): Promise<Response> {
   // 1. Auth
+  //
+  // C7: this getSession() call is the ONLY enforcement layer for uploads.
+  // Content tables (posts, comments, etc.) get a second net from the
+  // 0024_approved_users.sql BEFORE INSERT triggers, but storage.objects has
+  // no such trigger behind it, so there is nothing downstream to catch a
+  // write here if getSession() is ever refactored to stop checking approval.
+  // A future editor touching getSession()'s ban/approval gate must know
+  // uploads has no second net.
   const session = await getSession()
   if (!session?.user?.id) {
     return json(401, { error: 'unauthorized' })

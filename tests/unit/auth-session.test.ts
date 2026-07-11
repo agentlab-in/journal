@@ -27,6 +27,7 @@ import type { AdapterUser } from 'next-auth/adapters'
 
 const ensurePublicUser = vi.fn()
 const createAdminSupabaseClient = vi.fn()
+const getServerSessionMock = vi.fn()
 
 vi.mock('@/lib/users/ensure-public-user', () => ({
   ensurePublicUser: (...args: unknown[]) => ensurePublicUser(...args),
@@ -36,7 +37,14 @@ vi.mock('@/lib/supabase/admin', () => ({
   createAdminSupabaseClient: (...args: unknown[]) => createAdminSupabaseClient(...args),
 }))
 
-import { authOptions } from '@/lib/auth'
+// getServerSession is only exercised by the getSession() describe block
+// below; the session-callback tests above call authOptions.callbacks.session
+// directly and never touch this mock.
+vi.mock('next-auth/next', () => ({
+  getServerSession: (...args: unknown[]) => getServerSessionMock(...args),
+}))
+
+import { authOptions, getSession } from '@/lib/auth'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -474,5 +482,115 @@ describe('authOptions.callbacks.session — first call with real ensurePublicUse
     expect(
       calls.some((c) => c.ctx.schema === 'next_auth' && c.ctx.table === 'users'),
     ).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// getSession() — combined ban + approval gate (Phase 1, 0024_approved_users.sql)
+//
+// getSession()'s per-request recheck used to be a single `.from('users').
+// select('banned_at')` lookup. It now calls the `resolve_session_gate` RPC,
+// which returns { banned_at, is_approved } in one round-trip (C5: must stay
+// one query, not two). Any error, a missing row, banned_at set, or
+// is_approved false all drop the session (fail-closed), so revoking a login
+// (deleting its approved_users row) takes effect on the very next request.
+// ---------------------------------------------------------------------------
+
+describe('getSession() — combined ban + approval gate', () => {
+  const REAL_SESSION: Session = {
+    user: { id: 'user-1', name: 'Alice', email: 'alice@example.com' },
+    expires: '2099-12-31T23:59:59.000Z',
+  }
+
+  function mockResolveSessionGate(
+    row: { banned_at: string | null; is_approved: boolean } | null,
+    error: { message: string } | null = null,
+  ) {
+    const maybeSingle = vi.fn().mockResolvedValue({ data: row, error })
+    const rpc = vi.fn(() => ({ maybeSingle }))
+    return { rpc, _maybeSingle: maybeSingle }
+  }
+
+  beforeEach(() => {
+    createAdminSupabaseClient.mockReset()
+    getServerSessionMock.mockReset()
+    // Guard against ALLOW_E2E_AUTH leaking from another test file in the
+    // same worker — the E2E shim short-circuits getSession() before it
+    // ever reaches the rpc() gate under test here.
+    delete (process.env as Record<string, string | undefined>).ALLOW_E2E_AUTH
+  })
+
+  it('returns null when is_approved is false (not banned)', async () => {
+    getServerSessionMock.mockResolvedValue(REAL_SESSION)
+    const supa = mockResolveSessionGate({ banned_at: null, is_approved: false })
+    createAdminSupabaseClient.mockReturnValue(supa)
+
+    const out = await getSession()
+
+    expect(out).toBeNull()
+    expect(supa.rpc).toHaveBeenCalledWith('resolve_session_gate', { p_user_id: 'user-1' })
+  })
+
+  it('returns the session when is_approved is true and banned_at is null', async () => {
+    getServerSessionMock.mockResolvedValue(REAL_SESSION)
+    const supa = mockResolveSessionGate({ banned_at: null, is_approved: true })
+    createAdminSupabaseClient.mockReturnValue(supa)
+
+    const out = await getSession()
+
+    expect(out).toEqual(REAL_SESSION)
+  })
+
+  it('returns null when banned_at is set even though is_approved is true', async () => {
+    getServerSessionMock.mockResolvedValue(REAL_SESSION)
+    const supa = mockResolveSessionGate({
+      banned_at: '2026-05-30T10:00:00.000Z',
+      is_approved: true,
+    })
+    createAdminSupabaseClient.mockReturnValue(supa)
+
+    const out = await getSession()
+
+    expect(out).toBeNull()
+  })
+
+  it('returns null (fail-closed) when the rpc call errors', async () => {
+    getServerSessionMock.mockResolvedValue(REAL_SESSION)
+    const supa = mockResolveSessionGate(null, { message: 'boom' })
+    createAdminSupabaseClient.mockReturnValue(supa)
+
+    const out = await getSession()
+
+    expect(out).toBeNull()
+  })
+
+  it('returns null (fail-closed) when the row is missing entirely', async () => {
+    getServerSessionMock.mockResolvedValue(REAL_SESSION)
+    const supa = mockResolveSessionGate(null)
+    createAdminSupabaseClient.mockReturnValue(supa)
+
+    const out = await getSession()
+
+    expect(out).toBeNull()
+  })
+
+  it('returns null (fail-closed) when createAdminSupabaseClient throws', async () => {
+    getServerSessionMock.mockResolvedValue(REAL_SESSION)
+    createAdminSupabaseClient.mockImplementation(() => {
+      throw new Error('boom')
+    })
+
+    const out = await getSession()
+
+    expect(out).toBeNull()
+  })
+
+  it('passes through the server session unchanged when getServerSession has no user id', async () => {
+    getServerSessionMock.mockResolvedValue(null)
+
+    const out = await getSession()
+
+    expect(out).toBeNull()
+    expect(createAdminSupabaseClient).not.toHaveBeenCalled()
   })
 })

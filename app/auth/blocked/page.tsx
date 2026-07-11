@@ -24,6 +24,8 @@ export const metadata: Metadata = {
  *   invalid_account_data   — GitHub /user returned a malformed timestamp
  *   banned                 — account has been suspended by a moderator
  *   username_taken_by_org  — GitHub login collides with an existing org slug
+ *   not_approved           — GitHub login is not in public.approved_users
+ *   lookup_error           — a Supabase error during sign-in forced a fail-closed deny
  */
 
 interface PageProps {
@@ -126,6 +128,27 @@ function parseReason(
         </a>
         ; otherwise sign in with a different GitHub account.
       </p>
+    )
+  }
+
+  if (reason === 'not_approved') {
+    return (
+      <div className="space-y-3 text-sm leading-relaxed">
+        <p className="text-fg-subtle">
+          agentlab.in is invite-only right now. To request access, email{' '}
+          <a
+            href="mailto:harshit@agentlab.in"
+            className="text-fg underline underline-offset-2 hover:opacity-80"
+          >
+            harshit@agentlab.in
+          </a>{' '}
+          explaining why you should be allowed to post.
+        </p>
+        <p className="text-fg-subtle">
+          If approved, you must reply with the line &ldquo;I agree to the
+          terms at agentlab.in/terms&rdquo; before your account is activated.
+        </p>
+      </div>
     )
   }
 
