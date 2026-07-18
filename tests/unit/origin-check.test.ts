@@ -3,6 +3,10 @@ import { isAllowedOrigin } from '@/lib/security/origin-check'
 
 describe('isAllowedOrigin', () => {
   describe('allowed origins', () => {
+    it('accepts https://journal.agentlab.in', () => {
+      expect(isAllowedOrigin('https://journal.agentlab.in')).toBe(true)
+    })
+
     it('accepts https://agentlab.in', () => {
       expect(isAllowedOrigin('https://agentlab.in')).toBe(true)
     })

@@ -14,6 +14,7 @@
  * matches the local dev port against the prod deployment.
  */
 const ALWAYS_ALLOWED_ORIGINS: ReadonlyArray<string> = [
+  'https://journal.agentlab.in',
   'https://agentlab.in',
   'https://dev.agentlab.in',
 ]
