@@ -163,6 +163,14 @@ describe('POST /api/reports — 400 invalid_body', () => {
     expect(body.error).toBe('invalid_body')
   })
 
+  it('returns 400 when target_type is comment', async () => {
+    const { POST } = await import('@/app/api/reports/route')
+    const res = await POST(makeRequest({ target_type: 'comment', target_id: TARGET_POST_ID, reason: 'spam' }))
+    expect(res.status).toBe(400)
+    const body = await res.json()
+    expect(body.error).toBe('invalid_body')
+  })
+
   it('returns 400 when target_id is not a UUID', async () => {
     const { POST } = await import('@/app/api/reports/route')
     const res = await POST(makeRequest({ target_type: 'post', target_id: 'not-a-uuid', reason: 'spam' }))

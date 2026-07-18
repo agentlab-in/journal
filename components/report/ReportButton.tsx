@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { ReportModal } from './ReportModal'
 
 export interface ReportButtonProps {
-  targetType: 'post' | 'comment' | 'user'
+  targetType: 'post' | 'user'
   targetId: string
   isSignedIn: boolean
   currentPath: string

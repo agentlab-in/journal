@@ -13,7 +13,7 @@ const CATEGORIES = [
 type Category = (typeof CATEGORIES)[number]['value']
 
 export interface ReportModalProps {
-  targetType: 'post' | 'comment' | 'user'
+  targetType: 'post' | 'user'
   targetId: string
   onClose: () => void
 }
