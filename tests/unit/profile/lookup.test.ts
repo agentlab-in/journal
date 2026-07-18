@@ -69,8 +69,6 @@ const USER_ROW = {
   avatar_url: 'https://example.com/a.jpg',
   github_login: 'Alice',
   created_at: '2026-01-01T00:00:00Z',
-  follower_count: 12,
-  following_count: 3,
 }
 
 const POST_ROW = {
@@ -128,8 +126,6 @@ describe('lookupProfileByUsername', () => {
       avatar_url: 'https://example.com/a.jpg',
       github_login: 'Alice',
       created_at: '2026-01-01T00:00:00Z',
-      follower_count: 12,
-      following_count: 3,
     })
     expect(db.from).toHaveBeenCalledWith('users_public')
     expect(chain.select).toHaveBeenCalledWith(

@@ -50,15 +50,6 @@ vi.mock('@/components/posts/AuthorActions', () => ({
   AuthorActions: ({ postId }: { postId: string }) =>
     React.createElement('div', { 'data-testid': 'author-actions', 'data-post-id': postId }),
 }))
-vi.mock('@/lib/profile/follow-state', () => ({
-  getFollowState: vi.fn(async () => false),
-}))
-vi.mock('@/components/profile/FollowButton', () => ({
-  FollowButton: () => React.createElement('div', { 'data-testid': 'follow-button' }),
-}))
-vi.mock('@/lib/supabase/admin', () => ({
-  createAdminSupabaseClient: vi.fn(() => ({})),
-}))
 vi.mock('next/link', () => ({
   default: ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) =>
     React.createElement('a', { href, className }, children),

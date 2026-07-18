@@ -2,9 +2,6 @@ import { Suspense } from 'react'
 import { notFound, permanentRedirect } from 'next/navigation'
 import type { Metadata } from 'next'
 import { getSession } from '@/lib/auth'
-import {
-  createAdminSupabaseClient,
-} from '@/lib/supabase/admin'
 import { createAnonServerSupabaseClient } from '@/lib/supabase/server'
 import {
   getAuthoredPosts,
@@ -14,7 +11,6 @@ import {
   getOrgPosts,
   getPinnedPosts,
 } from '@/lib/profile/lookup'
-import { getFollowState } from '@/lib/profile/follow-state'
 import { bioToPlainText, renderBioToHtml } from '@/lib/profile/bio'
 import { organizationJsonLd, personJsonLd } from '@/lib/json-ld'
 import { ProfileHeader } from '@/components/profile/ProfileHeader'
@@ -182,15 +178,7 @@ export default async function ProfilePage({
     const isOwner = viewerId === profile.id
     const isSignedIn = viewerId !== null
 
-    // Follow lookup needs the service-role client — `public.follows` is
-    // owner-only-read under RLS, and the NextAuth session has no Supabase JWT.
-    // Run header-blocking awaits in parallel: bio markdown rendering +
-    // follow state. Both are needed for `<ProfileHeader />`.
-    const admin = createAdminSupabaseClient()
-    const [bioHtml, initialFollowing] = await Promise.all([
-      profile.bio ? renderBioToHtml(profile.bio) : Promise.resolve<string | null>(null),
-      getFollowState({ admin, targetUserId: profile.id, viewerUserId: viewerId }),
-    ])
+    const bioHtml = profile.bio ? await renderBioToHtml(profile.bio) : null
 
     // Person JSON-LD off the already-fetched profile — emitted before
     // <ProfileHeader> so it lands at the top of the SSR document. `bio`
@@ -220,9 +208,6 @@ export default async function ProfilePage({
             githubLogin={profile.github_login}
             isOwner={isOwner}
             targetUserId={profile.id}
-            followerCount={profile.follower_count}
-            followingCount={profile.following_count}
-            initialFollowing={initialFollowing}
             currentPath={`/${profile.username}`}
             isSignedIn={isSignedIn}
           />

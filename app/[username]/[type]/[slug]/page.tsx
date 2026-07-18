@@ -8,7 +8,6 @@ import { getCachedPost } from '@/lib/posts/lookup'
 import { postUrl } from '@/lib/posts/url'
 import { hasMermaid } from '@/lib/posts/has-mermaid'
 import { articleJsonLd } from '@/lib/json-ld'
-import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { PostBodyStatic } from '@/components/posts/PostBodyStatic'
 import { MermaidHydratorClient } from '@/components/posts/MermaidHydratorClient'
 import { StructuredSections } from '@/components/posts/StructuredSections'
@@ -17,8 +16,6 @@ import { MdxFailedFallback } from '@/components/error/MdxFailedFallback'
 import { ViewBeacon } from '@/components/posts/ViewBeacon'
 import { AuthorActions } from '@/components/posts/AuthorActions'
 import { Backlinks } from '@/components/posts/Backlinks'
-import { FollowButton } from '@/components/profile/FollowButton'
-import { getFollowState } from '@/lib/profile/follow-state'
 import { ReportButton } from '@/components/report/ReportButton'
 import { logRouteError } from '@/lib/logging/error-log'
 // Home discovery rails — the read page reuses the exact same three-column
@@ -122,13 +119,6 @@ export default async function PostPage({
     isAdminUser = await resolveIsAdmin(session.user.id)
   }
 
-  const admin = createAdminSupabaseClient()
-  const viewerFollowsAuthor = await getFollowState({
-    admin,
-    targetUserId: post.author_id,
-    viewerUserId: session?.user?.id ?? null,
-  })
-
   const leadingSegment = post.org ? post.org.slug : post.author.username
   const canonicalPath = postUrl(leadingSegment, post.type, post.slug)
 
@@ -210,10 +200,7 @@ export default async function PostPage({
         {post.org ? (
           // Org-authored post: org-prominent byline. Avatar + handle +
           // display_name belong to the org; the human author rides
-          // secondary as "by @author". Orgs are not followable in v1
-          // (per Phase 11 brainstorm), so no Follow affordance here —
-          // the FollowButton is reserved for the author secondary line
-          // when the viewer isn't the author themselves.
+          // secondary as "by @author".
           <div className="post-author post-author--org">
             {post.org.avatar_url && (
               <Image
@@ -235,15 +222,6 @@ export default async function PostPage({
                 @{post.author.username}
               </Link>
             </span>
-            {!isOwner && (
-              <FollowButton
-                targetUserId={post.author_id}
-                username={post.author.username}
-                initialFollowing={viewerFollowsAuthor}
-                isSignedIn={isSignedIn}
-                currentPath={canonicalPath}
-              />
-            )}
           </div>
         ) : (
           <div className="post-author">
@@ -264,15 +242,6 @@ export default async function PostPage({
               @{post.author.username}
             </Link>
             <span className="author-display">{post.author.display_name}</span>
-            {!isOwner && (
-              <FollowButton
-                targetUserId={post.author_id}
-                username={post.author.username}
-                initialFollowing={viewerFollowsAuthor}
-                isSignedIn={isSignedIn}
-                currentPath={canonicalPath}
-              />
-            )}
           </div>
         )}
         {post.tags.length > 0 && (

@@ -2,13 +2,13 @@
  * Profile-header-shaped skeleton. Matches the layout of
  * `components/profile/ProfileHeader`:
  *
- *   [96px avatar]   display-name           [Follow ]
+ *   [96px avatar]   display-name           [action]
  *                   @handle
  *
  *   bio line 1
  *   bio line 2
  *
- *   N followers · N following · GitHub · Joined …
+ *   GitHub · Joined …
  *
  * Renders one instance (profile headers are singular). The wrapping
  * `role="status"` lets a SR user know the profile is loading without

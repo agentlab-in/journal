@@ -1,10 +1,10 @@
 'use client'
 
 /**
- * Route-level error boundary for /[username]/* — profile pages,
- * followers/following lists, and any other segment nested under a
- * profile route. Renders friendly copy + a try-again button without
- * surfacing the underlying Error message or stack trace.
+ * Route-level error boundary for /[username]/* — profile pages and any
+ * other segment nested under a profile route. Renders friendly copy + a
+ * try-again button without surfacing the underlying Error message or
+ * stack trace.
  *
  * Note: never render `error.message` / `error.stack`. The `digest` is
  * the Next.js correlation id and is safe to expose for support.
