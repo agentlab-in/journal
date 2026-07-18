@@ -79,7 +79,6 @@ const POST_ROW = {
   summary: 'Summary',
   cover_image_url: null,
   published_at: '2026-02-01T00:00:00Z',
-  comment_count: 2,
   deleted_at: null,
   post_tags: [
     { tag_slug: 'agents', tags: { slug: 'agents', name: 'Agents', is_approved: true } },

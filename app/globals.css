@@ -73,7 +73,7 @@
    The box-shadow halo fills the `outline-offset` gap with the page
    background color. Without it, the dark `var(--fg)` outline sits
    directly on bg-fg solid buttons (e.g. "Continue with GitHub",
-   Follow active state, settings/comment/report submits) and is
+   settings/report submits) and is
    visually indistinguishable from the button surface. The 4px halo
    guarantees contrast between the outline and any surface.
    ============================================================ */

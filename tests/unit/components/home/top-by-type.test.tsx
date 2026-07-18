@@ -38,7 +38,6 @@ const PLAYBOOK_ROW: TopPostRow = {
   leading_segment: 'alice',
   author_username: 'alice',
   author_display_name: 'Alice',
-  like_count: 12,
 }
 
 const DIVE_ROW: TopPostRow = {
@@ -49,7 +48,6 @@ const DIVE_ROW: TopPostRow = {
   leading_segment: 'bob',
   author_username: 'bob',
   author_display_name: 'Bob',
-  like_count: 7,
 }
 
 const ORG_PLAYBOOK_ROW: TopPostRow = {
@@ -60,7 +58,6 @@ const ORG_PLAYBOOK_ROW: TopPostRow = {
   leading_segment: 'acme-org',  // org slug
   author_username: 'carol',
   author_display_name: 'Carol',
-  like_count: 4,
 }
 
 // ---------------------------------------------------------------------------
@@ -113,14 +110,13 @@ describe('<TopByType type="playbook">', () => {
     expect(screen.getByRole('heading', { name: 'Recent deep dives' })).toBeInTheDocument()
   })
 
-  it('renders title, author username, and like count for each row', async () => {
+  it('renders title and author username for each row', async () => {
     vi.mocked(cachedTopPlaybooks).mockResolvedValue([PLAYBOOK_ROW])
     const element = await TopByType({ type: 'playbook' })
     render(element as React.ReactElement)
 
     expect(screen.getByText('Agent Memory Guide')).toBeInTheDocument()
     expect(screen.getByText(/@alice/)).toBeInTheDocument()
-    expect(screen.getByText(/12/)).toBeInTheDocument()
   })
 
   it('builds href with postUrl using leading_segment (personal post → author username)', async () => {

@@ -116,8 +116,6 @@ const BASE_POST: LookedUpPost = {
   body_html: '<p>Hello</p>',
   cover_image_url: null,
   structured_sections: null,
-  comment_count: 0,
-  like_count: 0,
   published_at: '2026-01-01T00:00:00Z',
   edited_at: null,
   author: {

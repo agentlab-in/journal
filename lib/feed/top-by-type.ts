@@ -27,7 +27,6 @@ export interface TopPostRow {
   leading_segment: string
   author_username: string
   author_display_name: string
-  like_count: number
 }
 
 interface RawPostRow {
@@ -37,7 +36,6 @@ interface RawPostRow {
   type: string
   org_id: string | null
   published_at: string
-  like_count: number | null
   /** Aliased join via posts.author_id FK */
   author: { username: string; display_name: string | null } | null
   /** Aliased join via posts.org_id FK */
@@ -64,7 +62,7 @@ export async function getTopByType(
   const { data, error } = await db
     .from('posts')
     .select(
-      'id, slug, title, type, org_id, published_at, like_count, author:users!posts_author_id_fkey(username, display_name), orgs(slug)',
+      'id, slug, title, type, org_id, published_at, author:users!posts_author_id_fkey(username, display_name), orgs(slug)',
     )
     .eq('type', type)
     .gte('published_at', sinceIso)
@@ -92,6 +90,5 @@ export async function getTopByType(
       leading_segment: r.orgs?.slug ?? r.author!.username,
       author_username: r.author!.username,
       author_display_name: r.author!.display_name ?? r.author!.username,
-      like_count: r.like_count ?? 0,
     }))
 }

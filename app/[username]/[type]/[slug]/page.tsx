@@ -265,19 +265,17 @@ export default async function PostPage({
               <span>Edited {formatDate(post.edited_at)}</span>
             </>
           )}
-          <span aria-hidden="true"> · </span>
-          <span>
-            {post.comment_count}{' '}
-            {post.comment_count === 1 ? 'comment' : 'comments'}
-          </span>
           {!isOwner && (
-            <ReportButton
-              targetType="post"
-              targetId={post.id}
-              isSignedIn={isSignedIn}
-              currentPath={canonicalPath}
-              isSelf={isOwner}
-            />
+            <>
+              <span aria-hidden="true"> · </span>
+              <ReportButton
+                targetType="post"
+                targetId={post.id}
+                isSignedIn={isSignedIn}
+                currentPath={canonicalPath}
+                isSelf={isOwner}
+              />
+            </>
           )}
         </div>
         {(isOwner || isAdminUser) && <AuthorActions postId={post.id} />}

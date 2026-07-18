@@ -27,8 +27,6 @@ export interface LookedUpPost {
   body_html: string
   cover_image_url: string | null
   structured_sections: Record<string, string | null> | null
-  comment_count: number
-  like_count: number
   published_at: string
   edited_at: string | null
   author: {
@@ -81,8 +79,6 @@ interface PostRow {
   body_html: string
   cover_image_url: string | null
   structured_sections: Record<string, string | null> | null
-  comment_count: number
-  like_count: number
   published_at: string
   edited_at: string | null
   deleted_at: string | null
@@ -99,7 +95,7 @@ interface OrgLookupRow {
 }
 
 const POST_SELECT_COLUMNS = `id, author_id, org_id, type, slug, title, summary, body_html,
-  cover_image_url, structured_sections, comment_count, like_count,
+  cover_image_url, structured_sections,
   published_at, edited_at, deleted_at,
   post_tags(tag_slug, tags(slug, name, is_approved))`
 
@@ -257,8 +253,6 @@ function buildLookedUpPost(
     body_html: post.body_html,
     cover_image_url: post.cover_image_url,
     structured_sections: post.structured_sections,
-    comment_count: post.comment_count ?? 0,
-    like_count: post.like_count ?? 0,
     published_at: post.published_at,
     edited_at: post.edited_at,
     author: {
@@ -278,17 +272,13 @@ function buildLookedUpPost(
  *
  *   1. `unstable_cache` (Next data cache) — caches the resolved post across
  *      requests and viewers. Post content is viewer-independent (the page's
- *      per-viewer bits — liked/bookmarked/owner/admin — are fetched
- *      separately), so a single shared entry is correct for everyone. This
- *      is the same caching model as `lib/feed/discovery-cache.ts`: a 600 s
- *      TTL safety net plus the `['posts']` tag, which the post-mutation
- *      routes already invalidate via `revalidateTag('posts', { expire: 0 })`
- *      on create / update (app/api/posts/route.ts, [id]/route.ts) and
- *      delete / restore — so an edit is reflected on the very next request.
- *
- *      Staleness window: `like_count` rides along in the cached row and
- *      lags up to the TTL, the same trade-off the cached home rails
- *      already accept.
+ *      per-viewer bits — owner/admin — are fetched separately), so a single
+ *      shared entry is correct for everyone. This is the same caching model
+ *      as `lib/feed/discovery-cache.ts`: a 600 s TTL safety net plus the
+ *      `['posts']` tag, which the post-mutation routes already invalidate
+ *      via `revalidateTag('posts', { expire: 0 })` on create / update
+ *      (app/api/posts/route.ts, [id]/route.ts) and delete / restore — so an
+ *      edit is reflected on the very next request.
  *
  *   2. React `cache` — request-scoped memoization so `generateMetadata` and
  *      the page body share a single resolution within one render pass

@@ -18,7 +18,6 @@ interface RowOpts {
   type?: string
   org_id?: string | null
   published_at?: string
-  like_count?: number
   authorUsername?: string
   authorDisplayName?: string | null
   orgSlug?: string | null
@@ -32,7 +31,6 @@ function makeRawRow(opts: RowOpts = {}) {
     type = 'playbook',
     org_id = null,
     published_at = hoursAgo(2),
-    like_count = 5,
     authorUsername = 'alice',
     authorDisplayName = 'Alice',
     orgSlug = null,
@@ -44,7 +42,6 @@ function makeRawRow(opts: RowOpts = {}) {
     type,
     org_id,
     published_at,
-    like_count,
     author: { username: authorUsername, display_name: authorDisplayName },
     orgs: orgSlug !== null ? { slug: orgSlug } : null,
   }
@@ -130,28 +127,25 @@ describe('getTopByType', () => {
     expect(result).toHaveLength(2)
   })
 
-  it('preserves the query order (published_at descending): recency, not engagement, decides rank', async () => {
-    // The DB query orders by published_at descending; a low-like-count post
-    // published more recently must outrank a high-like-count older post,
-    // because ranking is now pure recency with no heat-score rerank.
-    const recentLow = makeRawRow({
-      id: 'recent-low',
-      like_count: 2,
+  it('preserves the query order (published_at descending): recency decides rank', async () => {
+    // The DB query orders by published_at descending; a recently published
+    // post must outrank an older one, because ranking is pure recency.
+    const recent = makeRawRow({
+      id: 'recent',
       published_at: hoursAgo(1),
     })
-    const oldHigh = makeRawRow({
-      id: 'old-high',
-      like_count: 100,
+    const older = makeRawRow({
+      id: 'older',
       published_at: hoursAgo(48),
     })
 
     // Rows arrive already ordered by published_at desc, as the real query
     // would return them: recent first.
-    const db = buildDb([recentLow, oldHigh])
+    const db = buildDb([recent, older])
     const result = await getTopByType(db as never, 'playbook', 7, 3)
 
-    expect(result[0].id).toBe('recent-low')
-    expect(result[1].id).toBe('old-high')
+    expect(result[0].id).toBe('recent')
+    expect(result[1].id).toBe('older')
 
     // Assert the query calls .order with the correct column and direction.
     const orderArgs = db.getOrderArgs()
@@ -199,13 +193,6 @@ describe('getTopByType', () => {
     const db = buildDb([row])
     const result = await getTopByType(db as never, 'playbook', 7, 3)
     expect(result[0].leading_segment).toBe('bob')
-  })
-
-  it('carries like_count through for display', async () => {
-    const row = makeRawRow({ id: 'liked-post', like_count: 42 })
-    const db = buildDb([row])
-    const result = await getTopByType(db as never, 'playbook', 7, 3)
-    expect(result[0].like_count).toBe(42)
   })
 
   it('filters published_at with the correct window cutoff', async () => {

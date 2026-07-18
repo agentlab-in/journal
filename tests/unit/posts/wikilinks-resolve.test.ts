@@ -7,7 +7,6 @@ interface Row {
   username: string
   type: 'post' | 'playbook' | 'dive'
   slug: string
-  like_count: number
   published_at: string
   org_id?: string | null
   org_slug?: string | null
@@ -21,7 +20,6 @@ function rowToDbShape(r: Row) {
     slug: r.slug,
     type: r.type,
     published_at: r.published_at,
-    like_count: r.like_count,
     users: { username: r.username },
     orgs: r.org_slug ? { slug: r.org_slug } : null,
   }
@@ -44,7 +42,7 @@ describe('resolveAnchor', () => {
     expect(res).toBeNull()
   })
 
-  it('prefers own post even when other posts have more likes', async () => {
+  it('prefers own post even when other posts are newer', async () => {
     const db = mockDb([
       {
         id: 'p-mine',
@@ -52,16 +50,14 @@ describe('resolveAnchor', () => {
         username: 'me',
         type: 'post',
         slug: 'shared-slug',
-        like_count: 1,
         published_at: '2026-01-01T00:00:00Z',
       },
       {
-        id: 'p-popular',
+        id: 'p-newer',
         author_id: 'user-other',
         username: 'pop',
         type: 'post',
         slug: 'shared-slug',
-        like_count: 99,
         published_at: '2026-05-01T00:00:00Z',
       },
     ])
@@ -69,50 +65,23 @@ describe('resolveAnchor', () => {
     expect(res?.targetPostId).toBe('p-mine')
   })
 
-  it('uses likes tiebreak when no own post', async () => {
+  it('uses newest published_at as tiebreak when no own post', async () => {
     const db = mockDb([
-      {
-        id: 'p-old-pop',
-        author_id: 'a',
-        username: 'a',
-        type: 'post',
-        slug: 's',
-        like_count: 50,
-        published_at: '2026-01-01T00:00:00Z',
-      },
-      {
-        id: 'p-newer-cold',
-        author_id: 'b',
-        username: 'b',
-        type: 'post',
-        slug: 's',
-        like_count: 1,
-        published_at: '2026-05-01T00:00:00Z',
-      },
-    ])
-    const res = await resolveAnchor('S', { db: db as never, currentUserId: me })
-    expect(res?.targetPostId).toBe('p-old-pop')
-  })
-
-  it('falls back to recency when likes are tied', async () => {
-    const db = mockDb([
-      {
-        id: 'p-newer',
-        author_id: 'a',
-        username: 'a',
-        type: 'dive',
-        slug: 's',
-        like_count: 0,
-        published_at: '2026-05-01T00:00:00Z',
-      },
       {
         id: 'p-older',
+        author_id: 'a',
+        username: 'a',
+        type: 'post',
+        slug: 's',
+        published_at: '2026-01-01T00:00:00Z',
+      },
+      {
+        id: 'p-newer',
         author_id: 'b',
         username: 'b',
-        type: 'dive',
+        type: 'post',
         slug: 's',
-        like_count: 0,
-        published_at: '2026-01-01T00:00:00Z',
+        published_at: '2026-05-01T00:00:00Z',
       },
     ])
     const res = await resolveAnchor('S', { db: db as never, currentUserId: me })
@@ -127,7 +96,6 @@ describe('resolveAnchor', () => {
         username: 'alice',
         type: 'playbook',
         slug: 'agent-memory',
-        like_count: 0,
         published_at: '2026-01-01T00:00:00Z',
       },
     ])
@@ -153,7 +121,6 @@ describe('resolveAnchor', () => {
         org_slug: 'acme',
         type: 'post',
         slug: 'rag-eval',
-        like_count: 0,
         published_at: '2026-01-01T00:00:00Z',
       },
     ])

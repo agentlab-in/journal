@@ -50,7 +50,6 @@ const SAMPLE_POST: TopPostRow = {
   leading_segment: 'alice',
   author_username: 'alice',
   author_display_name: 'Alice',
-  like_count: 5,
 }
 
 // ---------------------------------------------------------------------------

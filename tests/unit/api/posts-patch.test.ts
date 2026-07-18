@@ -127,7 +127,7 @@ function postsHandler(opts: {
           })),
         }
       }
-      // wikilink resolve: select(...like_count, users!inner(username)).eq(slug).is(deleted_at)
+      // wikilink resolve: select(...published_at, users!inner(username)).eq(slug).is(deleted_at)
       return {
         eq: vi.fn(() => ({
           is: vi.fn(() => Promise.resolve({ data: wikilinkedPosts, error: null })),
