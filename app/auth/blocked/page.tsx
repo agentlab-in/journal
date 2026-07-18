@@ -156,6 +156,8 @@ function parseReason(
         <p className="text-fg-subtle">
           Reading is open to everyone, no account needed.
         </p>
+        {/* Signature em dash is an explicit copy decision, keep it. */}
+        <p className="text-fg-subtle">&mdash; Harshit</p>
       </div>
     )
   }
