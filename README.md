@@ -4,13 +4,18 @@
 &nbsp;·&nbsp; **Live:** [journal.agentlab.in](https://journal.agentlab.in)
 &nbsp;·&nbsp; Next.js 16 · React 19 · TypeScript (strict) · Supabase · Vercel
 
-**journal** is agentlab.in's full-stack community publishing platform for AI agent infrastructure knowledge: posts, playbooks, and deep dives written by practitioners, for practitioners. Think Hacker News meets Substack, purpose-built for the systems side of AI agents.
+**journal** is agentlab.in's full-stack publishing platform for AI agent infrastructure knowledge: posts, playbooks, and deep dives. Reading is open to everyone; writing is invite-only.
 
-Built solo, end to end: authentication, a Markdown/MDX authoring pipeline, social graph (follows, likes, bookmarks), discovery (search, tags, trending), a complete moderation back office, and the production hardening (rate limiting, sanitization, accessibility, legal pages) that a real publishing platform needs.
+Built solo, end to end: authentication with an approval gate, a Markdown/MDX authoring pipeline, discovery (search, tags, RSS), a complete moderation back office, and the production hardening (rate limiting, sanitization, accessibility, legal pages) that a real publishing platform needs.
 
-<!-- Screenshots: add 2-3 to docs/screenshots/ and reference them here.
-     Suggested shots: home/discovery feed, a rendered post with code + Mermaid, the admin moderation dashboard. -->
-<!-- ![Home feed](docs/screenshots/home.png) -->
+## Screenshots
+
+| | |
+|---|---|
+| ![Home feed](docs/screenshots/home.png) | ![Post page](docs/screenshots/post.png) |
+| Home: reverse-chronological feed with tag discovery | Post page: rendered deep dive with TOC and tags |
+| ![Editor](docs/screenshots/editor.png) | ![Admin reports](docs/screenshots/admin-reports.png) |
+| Editor: post types, tags, cover image, live validation | Admin: report queue with dismiss/delete workflow |
 
 ## Highlights
 
@@ -21,7 +26,7 @@ What this project demonstrates, beyond a standard CRUD app:
 - **Production hardening.** Upstash-backed rate limiting on write paths, GitHub OAuth via NextAuth with a Supabase adapter, and a legal surface (privacy, terms, DMCA, grievance).
 - **Accessibility as a gate.** Automated axe-core checks run in CI, not as an afterthought.
 - **Serious test discipline.** 160+ test files spanning Vitest unit tests, Playwright end-to-end flows, and accessibility specs. The full suite (type-check, lint, unit, e2e, a11y) runs on every push.
-- **Discovery that scales.** Search, tag pages, a trending algorithm, and per-user and per-tag RSS feeds.
+- **Discovery without engagement bait.** Full-text search, tag pages, and site-wide plus per-author RSS feeds. Likes, follows, and trending were deliberately removed when the site went invite-only.
 
 ## Tech stack
 
