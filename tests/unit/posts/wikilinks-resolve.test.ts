@@ -74,7 +74,8 @@ describe('resolveAnchor', () => {
         type: 'post',
         slug: 's',
         published_at: '2026-01-01T00:00:00Z',
-      },
+        like_count: 50, // Discriminate: old ranking would pick this on high likes; new ranking picks p-newer on recency
+      } as unknown as Row,
       {
         id: 'p-newer',
         author_id: 'b',
