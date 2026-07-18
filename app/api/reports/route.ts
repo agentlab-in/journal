@@ -81,23 +81,6 @@ export async function POST(req: NextRequest | Request): Promise<Response> {
     if (post.author_id === reporterId) {
       return json(400, { error: 'self_report' })
     }
-  } else if (target_type === 'comment') {
-    // Existence check (soft-deleted comments still exist)
-    const { data: commentRow, error: commentErr } = await admin
-      .from('comments')
-      .select('id, author_id')
-      .eq('id', target_id)
-      .maybeSingle()
-
-    if (commentErr || !commentRow) {
-      return json(404, { error: 'target_not_found' })
-    }
-
-    // Self-report check
-    const comment = commentRow as { id: string; author_id: string }
-    if (comment.author_id === reporterId) {
-      return json(400, { error: 'self_report' })
-    }
   }
 
   // Step 5: Dedup — check for existing unresolved report from this reporter

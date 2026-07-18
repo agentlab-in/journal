@@ -73,7 +73,7 @@
    The box-shadow halo fills the `outline-offset` gap with the page
    background color. Without it, the dark `var(--fg)` outline sits
    directly on bg-fg solid buttons (e.g. "Continue with GitHub",
-   Follow active state, settings/comment/report submits) and is
+   settings/report submits) and is
    visually indistinguishable from the button surface. The 4px halo
    guarantees contrast between the outline and any surface.
    ============================================================ */
@@ -187,47 +187,8 @@ a {
 }
 
 /* ============================================================
-   Phase 13 — Shake-on-revert
-   Visual treatment paired with the existing sr-only aria-live
-   announcement on optimistic engagement reverts (LikeButton,
-   BookmarkButton, FollowButton). Triggered by toggling the
-   `shake-on-revert` class on the button via a re-key bump.
-   Chose shake over toast: no global container/portal/queue needed —
-   the animation is colocated on the failing element, and the
-   aria-live region already covers the screen-reader path.
-   Duration: ~400ms. Amplitude: ~6px. Mirrors the well-worn macOS
-   "wrong password" shake.
-   ============================================================ */
-@keyframes shake {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  20% {
-    transform: translateX(-6px);
-  }
-  40% {
-    transform: translateX(6px);
-  }
-  60% {
-    transform: translateX(-4px);
-  }
-  80% {
-    transform: translateX(4px);
-  }
-}
-
-.shake-on-revert {
-  animation: shake 400ms ease;
-}
-
-/* ============================================================
    Phase 13 — Reduced-motion fallback
-   WCAG 2.3.3 (animation from interactions). Users who set
-   prefers-reduced-motion get instant transitions and no shake —
-   the sr-only aria-live announcement still fires, so the
-   feedback path stays intact for assistive tech and motion-averse
-   sighted users alike.
+   WCAG 2.3.3 (animation from interactions).
    ============================================================ */
 @media (prefers-reduced-motion: reduce) {
   html,
@@ -235,9 +196,6 @@ a {
     transition: none;
   }
   [role='dialog'][aria-modal='true'] {
-    animation: none;
-  }
-  .shake-on-revert {
     animation: none;
   }
 }
@@ -274,17 +232,10 @@ a {
   line-height: 1.6;
 }
 
-/* Mobile-only (<lg) rail wrappers on the read page (issue #70). At <lg both
-   HomeShell asides are hidden, so the trending strip and TopByType rails
-   relocate into the center column above/below the article. They share the
-   post body's 720px cap + 1.25rem gutter so they line up with the prose. */
-.post-page__mobile-trending {
-  width: 100%;
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 1.5rem 1.25rem 0;
-}
-
+/* Mobile-only (<lg) rail wrapper on the read page (issue #70). At <lg both
+   HomeShell asides are hidden, so the TopByType rails relocate into the
+   center column below the article. Shares the post body's 720px cap +
+   1.25rem gutter so it lines up with the prose. */
 .post-page__mobile-rails {
   width: 100%;
   max-width: 720px;
@@ -353,44 +304,6 @@ a {
 
 .author-display {
   color: var(--fg-subtle);
-}
-
-.like-button,
-.bookmark-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.25rem 0.5rem;
-  font-family: inherit;
-  font-size: 0.8125rem;
-  color: var(--fg-subtle);
-  background: transparent;
-  border: none;
-  border-radius: 999px;
-  cursor: pointer;
-  transition: color 0.15s ease, background-color 0.15s ease;
-}
-
-.like-button:hover:not(:disabled),
-.bookmark-button:hover:not(:disabled) {
-  color: var(--fg);
-  background: var(--bg-hover);
-}
-
-.like-button:disabled,
-.bookmark-button:disabled {
-  opacity: 0.6;
-  cursor: progress;
-}
-
-.like-button--active,
-.bookmark-button--active {
-  color: var(--fg);
-}
-
-.like-button__icon,
-.bookmark-button__icon {
-  display: block;
 }
 
 /* ---- Report button (flag icon) ---- */
@@ -603,146 +516,6 @@ a {
 .report-modal__submit:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-
-.follow-button {
-  display: inline-block;
-  font-family: inherit;
-  font-size: 0.8125rem;
-  padding: 0.375rem 0.875rem;
-  background: var(--fg);
-  color: var(--bg);
-  border: 1px solid var(--fg);
-  border-radius: 0.375rem;
-  cursor: pointer;
-  text-decoration: none;
-  transition: background-color 0.15s ease, color 0.15s ease;
-}
-
-.follow-button:hover:not(:disabled) {
-  opacity: 0.9;
-}
-
-.follow-button:disabled {
-  opacity: 0.6;
-  cursor: progress;
-}
-
-.follow-button--active {
-  background: transparent;
-  color: var(--fg);
-  border-color: var(--border);
-}
-
-.follow-button--active:hover:not(:disabled) {
-  background: var(--bg-hover);
-}
-
-.profile-follow-count {
-  color: var(--fg);
-  text-decoration: none;
-}
-
-.profile-follow-count:hover {
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.profile-follow-count strong {
-  font-weight: 600;
-}
-
-/* ---- Followers / Following list pages ---- */
-
-/* 720px to match .profile-page / .post-page — bookmarks, followers, and
- * following are all profile-adjacent personal pages and the prior 640px
- * width visibly narrowed every time the user navigated from /profile here. */
-.profile-follow-page {
-  max-width: 720px;
-  margin: 2rem auto;
-  padding: 0 1rem;
-}
-
-.profile-follow-page__header {
-  margin-bottom: 1.5rem;
-}
-
-.profile-follow-page__title {
-  font-size: 1.125rem;
-  font-weight: 600;
-  margin: 0;
-}
-
-.profile-follow-page__title a {
-  color: var(--fg);
-}
-
-.profile-follow-page__empty {
-  color: var(--fg-subtle);
-  font-size: 0.9375rem;
-}
-
-.profile-follow-page__list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.user-card {
-  display: flex;
-  gap: 0.75rem;
-  align-items: flex-start;
-  padding: 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: 0.5rem;
-  text-decoration: none;
-  color: inherit;
-  transition: background-color 0.15s ease;
-}
-
-.user-card:hover {
-  background: var(--bg-hover);
-}
-
-.user-card__avatar {
-  border-radius: 999px;
-  flex-shrink: 0;
-}
-
-.user-card__body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  min-width: 0;
-}
-
-.user-card__identity {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.375rem;
-}
-
-.user-card__display-name {
-  font-weight: 600;
-  color: var(--fg);
-}
-
-.user-card__handle {
-  font-size: 0.8125rem;
-  color: var(--fg-subtle);
-}
-
-.user-card__bio {
-  margin: 0;
-  font-size: 0.875rem;
-  color: var(--fg-subtle);
-  line-height: 1.4;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .post-tags {
@@ -1461,11 +1234,11 @@ a {
 
 /* ============================================================
    /[username] — GitHub-style two-column profile (issue #52)
-   Narrow sidebar (identity / actions / stats) on the left,
-   wide main column (pinned + posts) on the right. The original
+   Narrow sidebar (identity / actions) on the left, wide main
+   column (pinned + posts) on the right. The original
    .profile-page / .profile-header rules above still drive the
-   org variant (Phase 11) and the followers/following list
-   pages, which keep the single-column 720px layout.
+   org variant (Phase 11), which keeps the single-column 720px
+   layout.
    ============================================================ */
 
 .profile-page--two-col {
@@ -1561,25 +1334,14 @@ a {
 }
 
 /* Make the primary owner/viewer action span the sidebar width so
-   it visually anchors the column, GitHub-style. The follow button
-   and edit link both share these affordances. */
-.profile-sidebar__actions > .profile-edit-link,
-.profile-sidebar__actions > .follow-button {
+   it visually anchors the column, GitHub-style. */
+.profile-sidebar__actions > .profile-edit-link {
   display: block;
   width: 100%;
   text-align: center;
   padding: 0.4375rem 0.875rem;
   font-size: 0.875rem;
   box-sizing: border-box;
-}
-
-.profile-sidebar__stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: baseline;
-  font-size: 0.8125rem;
-  color: var(--fg-subtle);
 }
 
 .profile-sidebar__meta {
@@ -2247,308 +2009,10 @@ a {
   border-top-color: #7f1d1d;
 }
 
-/* ============================================================
-   Phase 7 — Comments
-   Same vocabulary as backlinks: top rule offsets the section
-   from the post body, an UPPERCASE micro-heading marks it.
-   Each comment is a soft bordered box; nested replies hang off
-   their parent via a left rail so the thread is traceable at
-   a glance.
-   ============================================================ */
-
-.comments-section {
-  margin-top: 3rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid var(--border);
-}
-
-.comments-section h2 {
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--fg-subtle);
-  margin: 0 0 1rem;
-}
-
-.comments-section__empty {
-  color: var(--fg-subtle);
-  font-size: 0.875rem;
-  margin: 0;
-}
-
-.comments-section__signin {
-  color: var(--fg-subtle);
-  font-size: 0.875rem;
-  margin: 1rem 0 0;
-}
-
-.comments-section__signin a,
-.comment-thread__signin a {
-  color: var(--fg);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-/* ---- Thread layout ---- */
-
-.comment-thread {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.comment-thread__root-form {
-  margin-bottom: 0.25rem;
-}
-
-.comment-thread__list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.comment-thread__signin {
-  color: var(--fg-subtle);
-  font-size: 0.875rem;
-  margin: 1rem 0 0;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border);
-}
-
-/* ---- One comment ---- */
-
-.comment {
-  border: 1px solid var(--border);
-  border-radius: 0.5rem;
-  padding: 0.875rem 1rem;
-  background: var(--bg);
-}
-
-.comment__header {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  font-size: 0.8125rem;
-  margin-bottom: 0.5rem;
-}
-
-.comment__avatar {
-  width: 1.5rem;
-  height: 1.5rem;
-  border-radius: 50%;
-  object-fit: cover;
-  flex-shrink: 0;
-}
-
-.comment__author {
-  color: var(--fg);
-  font-weight: 500;
-  text-decoration: none;
-}
-
-.comment__author:hover {
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.comment__time,
-.comment__edited {
-  color: var(--fg-subtle);
-  font-size: 0.75rem;
-}
-
-.comment__edited {
-  font-style: italic;
-}
-
-.comment__body {
-  font-size: 0.9375rem;
-  line-height: 1.55;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  margin: 0;
-}
-
-.comment__body--removed {
-  color: var(--fg-subtle);
-  font-style: italic;
-}
-
-.comment__actions {
-  display: flex;
-  gap: 0.5rem;
-  margin-top: 0.625rem;
-}
-
-.comment__action {
-  font-family: inherit;
-  font-size: 0.75rem;
-  padding: 0.25rem 0.625rem;
-  background: transparent;
-  color: var(--fg);
-  border: 1px solid var(--border);
-  border-radius: 0.375rem;
-  cursor: pointer;
-  transition: background-color 0.15s ease;
-}
-
-.comment__action:hover:not(:disabled) {
-  background: var(--bg-hover);
-}
-
-.comment__action:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.comment__action--delete {
-  color: var(--fg-subtle);
-}
-
-.comment__action--delete:hover:not(:disabled) {
-  color: var(--fg);
-}
-
-.comment__reply-form {
-  margin-top: 0.75rem;
-}
-
-/* ---- Nested replies hang off the parent via a left rail ---- */
-
-.comment__children {
-  list-style: none;
-  margin: 0.75rem 0 0;
-  padding: 0 0 0 1rem;
-  border-left: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-/* ---- Form (top-level + reply + edit) ---- */
-
-.comment-form {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  border: 1px solid var(--border);
-  border-radius: 0.5rem;
-  padding: 0.75rem;
-  background: var(--bg-subtle);
-}
-
-.comment-form__textarea {
-  font-family: inherit;
-  font-size: 0.9375rem;
-  line-height: 1.55;
-  padding: 0.5rem 0.625rem;
-  background: var(--bg);
-  color: var(--fg);
-  border: 1px solid var(--border);
-  border-radius: 0.375rem;
-  resize: vertical;
-  min-height: 4.5rem;
-  width: 100%;
-  transition: border-color 0.15s ease;
-}
-
-.comment-form__textarea:focus {
-  border-color: var(--fg);
-}
-
-.comment-form__footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.comment-form__counter {
-  font-size: 0.75rem;
-  color: var(--fg-subtle);
-}
-
-/* Phase 13 dark-mode audit: red-700 (#b91c1c) reads on the light bg but
- * burns out on dark. Light tone in dark theme keeps the over-limit warning
- * visible without screaming. Both shades clear 4.5:1 against their
- * surrounding surface. */
-.comment-form__counter--over {
-  color: #b91c1c;
-}
-
-[data-theme='dark'] .comment-form__counter--over {
-  color: #fca5a5;
-}
-
-/* Phase 14 inline error banner (rate-limit / spam / url-heavy). Reuses
- * the same red palette as the over-limit counter for theme parity. */
-.comment-form__error {
-  font-size: 0.8125rem;
-  color: #b91c1c;
-  padding: 0.375rem 0.5rem;
-  background: rgba(185, 28, 28, 0.08);
-  border: 1px solid rgba(185, 28, 28, 0.25);
-  border-radius: 0.375rem;
-}
-
-[data-theme='dark'] .comment-form__error {
-  color: #fca5a5;
-  background: rgba(252, 165, 165, 0.08);
-  border-color: rgba(252, 165, 165, 0.3);
-}
-
-.comment-form__actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.comment-form__submit,
-.comment-form__cancel {
-  font-family: inherit;
-  font-size: 0.8125rem;
-  padding: 0.375rem 0.875rem;
-  border-radius: 0.375rem;
-  cursor: pointer;
-  transition:
-    background-color 0.15s ease,
-    opacity 0.15s ease;
-}
-
-.comment-form__submit {
-  background: var(--fg);
-  color: var(--bg);
-  border: 1px solid var(--fg);
-}
-
-.comment-form__submit:hover:not(:disabled) {
-  opacity: 0.85;
-}
-
-.comment-form__submit:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.comment-form__cancel {
-  background: transparent;
-  color: var(--fg);
-  border: 1px solid var(--border);
-}
-
-.comment-form__cancel:hover {
-  background: var(--bg-hover);
-}
-
 /* ---- Feed post card (homepage, /latest, /tag/<slug>, /search) ---- */
-/* Distinct from .profile-post-card: feed cards lead with the author chip
-   and surface engagement counts, whereas profile cards lead with the type
-   chip and reserve a slot for owner-only actions (Pin/Unpin). */
+/* Distinct from .profile-post-card: feed cards lead with the author chip,
+   whereas profile cards lead with the type chip and reserve a slot for
+   owner-only actions (Pin/Unpin). */
 
 .post-card {
   border: 1px solid var(--border);
@@ -2675,22 +2139,17 @@ a {
   gap: 0.375rem;
 }
 
-.post-card__meta {
-  font-size: 0.75rem;
-  color: var(--fg-subtle);
-}
-
 /* ============================================================
-   Home feed (/) — For You (authed) / Latest (anon)
+   Home feed (/): Latest
    ============================================================ */
 
 .home-feed {
   /* Single-column reading feed. 48rem keeps line length comfortable while
      giving cards a touch more breathing room than the old 42rem cap on
-     /latest, /trending, /tag and the standalone home center. A genuine
-     two-up card grid would use ultra-wide space better, but the feed items
-     here are border-separated rows (not self-contained cards), so that's
-     deferred — see issue #64 PR notes. */
+     /latest, /tag and the standalone home center. A genuine two-up card
+     grid would use ultra-wide space better, but the feed items here are
+     border-separated rows (not self-contained cards), so that's deferred
+     (see issue #64 PR notes). */
   max-width: 48rem;
   margin: 0 auto;
   padding: 2rem 1rem 4rem;
@@ -3343,9 +2802,9 @@ a {
 }
 
 /* ============================================================
-   .rail-heading — uppercase micro-label for sidebar rail titles
+   .rail-heading - uppercase micro-label for sidebar rail titles
    Matches the visual vocabulary of .tags-page__section-title.
-   Used by Phase B rails (TrendingTagsRail etc.).
+   Used by TopByType (playbooks and deep dives) and FeaturedTagsFallback.
    ============================================================ */
 
 .rail-heading {
@@ -3374,13 +2833,12 @@ a {
 }
 
 /* ============================================================
-   Phase B discovery rails — TrendingTagsRail + TopByType
+   Phase B discovery rails: TopByType
    BEM classes kept for E2E targeting (OPC-5). Visual vocabulary
    matches .left-nav__* and .home-feed__more a: font-mono small
    text, muted → fg on hover, no underline, no list chrome.
    ============================================================ */
 
-.trending-tags-rail__list,
 .top-by-type__list {
   list-style: none;
   padding: 0;
@@ -3388,39 +2846,6 @@ a {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-}
-
-.trending-tags-rail__link {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.5rem;
-  font-family: var(--font-mono, monospace);
-  font-size: 0.875rem;
-  color: var(--fg-subtle);
-  text-decoration: none;
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.25rem;
-  transition: color 0.1s ease, background-color 0.1s ease;
-}
-
-.trending-tags-rail__link:hover {
-  color: var(--fg);
-  background: var(--bg-hover);
-}
-
-.trending-tags-rail__name {
-  /* tag name inherits color from parent link */
-}
-
-.trending-tags-rail__count {
-  font-size: 0.75rem;
-  color: var(--fg-subtle);
-  flex-shrink: 0;
-}
-
-.trending-tags-rail__link:hover .trending-tags-rail__count {
-  color: var(--fg-subtle);
 }
 
 /* TopByType rail — each item is a block link with a title line

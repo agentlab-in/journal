@@ -1,6 +1,6 @@
 /**
- * TopByType — sidebar rail showing top posts (playbooks or deep dives)
- * from the last 7 days, ranked by heat-score.
+ * TopByType: sidebar rail showing the most recent posts (playbooks or
+ * deep dives) from the last 7 days.
  *
  * Server async component.  Prop `type` selects which cached query to
  * await: `cachedTopPlaybooks` for 'playbook', `cachedTopDives` for 'dive'.
@@ -19,10 +19,6 @@ import { postUrl } from '@/lib/posts/url'
 import type { PostType } from '@/lib/posts/url'
 import { RailHeading } from './RailHeading'
 
-function plural(n: number, singular: string, pluralForm: string): string {
-  return `${n} ${n === 1 ? singular : pluralForm}`
-}
-
 export interface TopByTypeProps {
   type: 'playbook' | 'dive'
   headingId?: string
@@ -37,8 +33,8 @@ export async function TopByType({ type, headingId }: TopByTypeProps) {
   if (posts.length === 0) return null
 
   const heading = type === 'playbook'
-    ? 'Top playbooks this week'
-    : 'Top deep dives this week'
+    ? 'Recent playbooks'
+    : 'Recent deep dives'
 
   return (
     <section aria-labelledby={resolvedHeadingId}>
@@ -53,9 +49,7 @@ export async function TopByType({ type, headingId }: TopByTypeProps) {
               className="top-by-type__link"
             >
               <span className="top-by-type__title">{p.title}</span>
-              <span className="top-by-type__meta text-muted">
-                @{p.author_username} · {plural(p.like_count, 'like', 'likes')}
-              </span>
+              <span className="top-by-type__meta text-muted">@{p.author_username}</span>
             </Link>
           </li>
         ))}

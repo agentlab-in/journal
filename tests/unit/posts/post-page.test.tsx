@@ -40,37 +40,12 @@ vi.mock('@/components/posts/MermaidHydratorClient', () => ({
 vi.mock('@/components/posts/StructuredSections', () => ({
   StructuredSections: () => React.createElement('div', { 'data-testid': 'structured-sections' }),
 }))
-vi.mock('@/components/posts/ViewBeacon', () => ({
-  ViewBeacon: () => React.createElement('div', { 'data-testid': 'view-beacon' }),
-}))
 vi.mock('@/components/posts/Backlinks', () => ({
   Backlinks: () => React.createElement('div', { 'data-testid': 'backlinks' }),
-}))
-vi.mock('@/components/post/CommentsSection', () => ({
-  CommentsSection: () =>
-    React.createElement('div', { 'data-testid': 'comments-section' }),
 }))
 vi.mock('@/components/posts/AuthorActions', () => ({
   AuthorActions: ({ postId }: { postId: string }) =>
     React.createElement('div', { 'data-testid': 'author-actions', 'data-post-id': postId }),
-}))
-vi.mock('@/components/post/LikeButton', () => ({
-  LikeButton: () => React.createElement('div', { 'data-testid': 'like-button' }),
-}))
-vi.mock('@/components/post/BookmarkButton', () => ({
-  BookmarkButton: () => React.createElement('div', { 'data-testid': 'bookmark-button' }),
-}))
-vi.mock('@/lib/posts/engagement', () => ({
-  getEngagementState: vi.fn(async () => ({ liked: false, bookmarked: false })),
-}))
-vi.mock('@/lib/profile/follow-state', () => ({
-  getFollowState: vi.fn(async () => false),
-}))
-vi.mock('@/components/profile/FollowButton', () => ({
-  FollowButton: () => React.createElement('div', { 'data-testid': 'follow-button' }),
-}))
-vi.mock('@/lib/supabase/admin', () => ({
-  createAdminSupabaseClient: vi.fn(() => ({})),
 }))
 vi.mock('next/link', () => ({
   default: ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) =>
@@ -141,9 +116,6 @@ const BASE_POST: LookedUpPost = {
   body_html: '<p>Hello</p>',
   cover_image_url: null,
   structured_sections: null,
-  view_count: 10,
-  comment_count: 0,
-  like_count: 0,
   published_at: '2026-01-01T00:00:00Z',
   edited_at: null,
   author: {

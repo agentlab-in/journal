@@ -5,35 +5,25 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { getSession, resolveIsAdmin } from '@/lib/auth'
 import { getCachedPost } from '@/lib/posts/lookup'
-import { getEngagementState } from '@/lib/posts/engagement'
 import { postUrl } from '@/lib/posts/url'
 import { hasMermaid } from '@/lib/posts/has-mermaid'
 import { articleJsonLd } from '@/lib/json-ld'
-import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { PostBodyStatic } from '@/components/posts/PostBodyStatic'
 import { MermaidHydratorClient } from '@/components/posts/MermaidHydratorClient'
 import { StructuredSections } from '@/components/posts/StructuredSections'
 import { ErrorBoundary } from '@/components/error/ErrorBoundary'
 import { MdxFailedFallback } from '@/components/error/MdxFailedFallback'
-import { ViewBeacon } from '@/components/posts/ViewBeacon'
 import { AuthorActions } from '@/components/posts/AuthorActions'
 import { Backlinks } from '@/components/posts/Backlinks'
-import { CommentsSection } from '@/components/post/CommentsSection'
-import { LikeButton } from '@/components/post/LikeButton'
-import { BookmarkButton } from '@/components/post/BookmarkButton'
-import { FollowButton } from '@/components/profile/FollowButton'
-import { getFollowState } from '@/lib/profile/follow-state'
 import { ReportButton } from '@/components/report/ReportButton'
-import { CommentSkeleton } from '@/components/skeleton/CommentSkeleton'
 import { logRouteError } from '@/lib/logging/error-log'
 // Home discovery rails — the read page reuses the exact same three-column
-// shell as `/` (issue #70). Left nav only on the left; trending tags +
-// TopByType + featured-tags fallback consolidated on the right. Same
+// shell as `/` (issue #70). Left nav only on the left; TopByType +
+// featured-tags fallback consolidated on the right. Same
 // `unstable_cache`-backed data (#54); no new caching layers.
 import { HomeShell } from '@/components/home/HomeShell'
 import { LeftSidebar } from '@/components/home/LeftSidebar'
 import { RightSidebar } from '@/components/home/RightSidebar'
-import { TrendingStrip } from '@/components/home/TrendingStrip'
 import { TopByType } from '@/components/home/TopByType'
 import { RailSkeleton } from '@/components/skeleton/RailSkeleton'
 
@@ -128,16 +118,6 @@ export default async function PostPage({
     isAdminUser = await resolveIsAdmin(session.user.id)
   }
 
-  const admin = createAdminSupabaseClient()
-  const [engagement, viewerFollowsAuthor] = await Promise.all([
-    getEngagementState({ admin, postId: post.id, userId: session?.user?.id }),
-    getFollowState({
-      admin,
-      targetUserId: post.author_id,
-      viewerUserId: session?.user?.id ?? null,
-    }),
-  ])
-
   const leadingSegment = post.org ? post.org.slug : post.author.username
   const canonicalPath = postUrl(leadingSegment, post.type, post.slug)
 
@@ -191,15 +171,6 @@ export default async function PostPage({
       left={<LeftSidebar />}
       center={
         <main id="main-content">
-          {/* Mobile-only (<lg) trending strip above the post, mirroring the
-              home center column. TrendingStrip self-hides at >=lg; the
-              wrapper supplies the same gutter as the post body so the strip
-              lines up with the article. */}
-          <div className="post-page__mobile-trending lg:hidden">
-            <Suspense fallback={null}>
-              <TrendingStrip />
-            </Suspense>
-          </div>
           <article className="post-page">
       <script
         type="application/ld+json"
@@ -228,10 +199,7 @@ export default async function PostPage({
         {post.org ? (
           // Org-authored post: org-prominent byline. Avatar + handle +
           // display_name belong to the org; the human author rides
-          // secondary as "by @author". Orgs are not followable in v1
-          // (per Phase 11 brainstorm), so no Follow affordance here —
-          // the FollowButton is reserved for the author secondary line
-          // when the viewer isn't the author themselves.
+          // secondary as "by @author".
           <div className="post-author post-author--org">
             {post.org.avatar_url && (
               <Image
@@ -253,15 +221,6 @@ export default async function PostPage({
                 @{post.author.username}
               </Link>
             </span>
-            {!isOwner && (
-              <FollowButton
-                targetUserId={post.author_id}
-                username={post.author.username}
-                initialFollowing={viewerFollowsAuthor}
-                isSignedIn={isSignedIn}
-                currentPath={canonicalPath}
-              />
-            )}
           </div>
         ) : (
           <div className="post-author">
@@ -282,15 +241,6 @@ export default async function PostPage({
               @{post.author.username}
             </Link>
             <span className="author-display">{post.author.display_name}</span>
-            {!isOwner && (
-              <FollowButton
-                targetUserId={post.author_id}
-                username={post.author.username}
-                initialFollowing={viewerFollowsAuthor}
-                isSignedIn={isSignedIn}
-                currentPath={canonicalPath}
-              />
-            )}
           </div>
         )}
         {post.tags.length > 0 && (
@@ -315,33 +265,17 @@ export default async function PostPage({
               <span>Edited {formatDate(post.edited_at)}</span>
             </>
           )}
-          <span aria-hidden="true"> · </span>
-          <span>
-            {post.comment_count}{' '}
-            {post.comment_count === 1 ? 'comment' : 'comments'}
-          </span>
-          <span aria-hidden="true"> · </span>
-          <LikeButton
-            postId={post.id}
-            initialLiked={engagement.liked}
-            initialCount={post.like_count}
-            isSignedIn={isSignedIn}
-            currentPath={canonicalPath}
-          />
-          <BookmarkButton
-            postId={post.id}
-            initialBookmarked={engagement.bookmarked}
-            isSignedIn={isSignedIn}
-            currentPath={canonicalPath}
-          />
           {!isOwner && (
-            <ReportButton
-              targetType="post"
-              targetId={post.id}
-              isSignedIn={isSignedIn}
-              currentPath={canonicalPath}
-              isSelf={isOwner}
-            />
+            <>
+              <span aria-hidden="true"> · </span>
+              <ReportButton
+                targetType="post"
+                targetId={post.id}
+                isSignedIn={isSignedIn}
+                currentPath={canonicalPath}
+                isSelf={isOwner}
+              />
+            </>
           )}
         </div>
         {(isOwner || isAdminUser) && <AuthorActions postId={post.id} />}
@@ -368,17 +302,6 @@ export default async function PostPage({
       </ErrorBoundary>
 
       <Backlinks postId={post.id} />
-
-      {/* Comments are the expensive thread walk on this page — a
-          service-role read of every comment row + author join. Stream
-          them in under a `CommentSkeleton` fallback so the post body
-          (already in DOM) paints first and the page is scrollable
-          before comments resolve. */}
-      <Suspense fallback={<CommentSkeleton count={3} />}>
-        <CommentsSection postId={post.id} />
-      </Suspense>
-
-      <ViewBeacon postId={post.id} />
       </article>
           {/* Mobile-only (<lg) discovery rails below the post. The right
               sidebar is hidden at <lg, so surface the same TopByType rails

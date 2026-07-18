@@ -56,9 +56,6 @@ interface PostsRow {
   title: string
   summary: string
   published_at: string
-  like_count: number | null
-  bookmark_count: number | null
-  comment_count: number | null
 }
 
 export async function generateMetadata({
@@ -179,7 +176,7 @@ async function TagPostsList({
     const baseChain = db
       .from('posts')
       .select(
-        'id, author_id, type, slug, title, summary, published_at, like_count, bookmark_count, comment_count',
+        'id, author_id, type, slug, title, summary, published_at',
       )
       .in('id', postIds)
       .is('deleted_at', null)
@@ -224,9 +221,6 @@ async function TagPostsList({
       title: r.title,
       summary: r.summary,
       published_at: r.published_at,
-      like_count: r.like_count ?? 0,
-      bookmark_count: r.bookmark_count ?? 0,
-      comment_count: r.comment_count ?? 0,
       author: {
         username: author.username,
         display_name: author.display_name ?? author.username,

@@ -12,8 +12,8 @@
  * `E2E_TEST_AUTH_USER_ID` (same guard used in publish.spec.ts) so the suite
  * runs locally with a real backend and cleanly skips in CI.
  *
- * Navigation calls use `waitUntil: 'domcontentloaded'` to tolerate the
- * ViewBeacon's fire-and-forget fetch that can keep the page "loading".
+ * Navigation calls use `waitUntil: 'domcontentloaded'` to avoid waiting on
+ * the network-idle heuristic, which is flaky under Next.js streaming.
  */
 import { test, expect, type Page } from '@playwright/test'
 

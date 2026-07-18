@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 export const ReportCreateBody = z
   .object({
-    target_type: z.enum(['post', 'comment', 'user']),
+    target_type: z.enum(['post', 'user']),
     target_id: z.string().uuid(),
     reason: z.string().min(1).max(1000),
   })

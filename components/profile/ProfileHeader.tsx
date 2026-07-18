@@ -1,6 +1,5 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { FollowButton } from './FollowButton'
 import { ReportButton } from '@/components/report/ReportButton'
 import { ErrorBoundary } from '@/components/error/ErrorBoundary'
 import { MdxFailedFallback } from '@/components/error/MdxFailedFallback'
@@ -28,19 +27,11 @@ export interface ProfileHeaderProps {
    */
   githubLogin: string | null
   isOwner: boolean
-  /** users.id of the profile being viewed; passed through to FollowButton. */
+  /** users.id of the profile being viewed; passed through to ReportButton. */
   targetUserId: string
-  followerCount: number
-  followingCount: number
   /**
-   * Whether the viewer already follows this profile. Server-resolved; the
-   * FollowButton seeds its own optimistic state from this. Always `false`
-   * for anon / self per `getFollowState`.
-   */
-  initialFollowing: boolean
-  /**
-   * Path of the page rendering this header — forwarded to FollowButton as
-   * the callbackUrl when an anon viewer clicks Follow.
+   * Path of the page rendering this header; forwarded to ReportButton as
+   * the callbackUrl when an anon viewer opens the report flow.
    */
   currentPath: string
   /** Whether the viewer has an authenticated session. */
@@ -50,8 +41,8 @@ export interface ProfileHeaderProps {
 /**
  * Sidebar component for the user profile page. Renders identity (avatar,
  * display name, handle, bio), the primary owner/viewer action (Edit Profile
- * vs Follow), followed by stats and the GitHub/joined meta row. Lives in an
- * `<aside>` so the surrounding `<main>` is the only main landmark.
+ * vs Report), followed by the GitHub/joined meta row. Lives in an `<aside>`
+ * so the surrounding `<main>` is the only main landmark.
  */
 export function ProfileHeader({
   username,
@@ -62,9 +53,6 @@ export function ProfileHeader({
   githubLogin,
   isOwner,
   targetUserId,
-  followerCount,
-  followingCount,
-  initialFollowing,
   currentPath,
   isSignedIn,
 }: ProfileHeaderProps) {
@@ -105,34 +93,14 @@ export function ProfileHeader({
             Edit Profile
           </Link>
         ) : (
-          <>
-            <FollowButton
-              targetUserId={targetUserId}
-              username={username}
-              initialFollowing={initialFollowing}
-              isSignedIn={isSignedIn}
-              currentPath={currentPath}
-            />
-            <ReportButton
-              targetType="user"
-              targetId={targetUserId}
-              isSignedIn={isSignedIn}
-              currentPath={currentPath}
-              isSelf={isOwner}
-            />
-          </>
+          <ReportButton
+            targetType="user"
+            targetId={targetUserId}
+            isSignedIn={isSignedIn}
+            currentPath={currentPath}
+            isSelf={isOwner}
+          />
         )}
-      </div>
-
-      <div className="profile-sidebar__stats">
-        <Link href={`/${username}/followers`} className="profile-follow-count">
-          <strong>{followerCount}</strong>{' '}
-          {followerCount === 1 ? 'follower' : 'followers'}
-        </Link>
-        <span aria-hidden="true">·</span>
-        <Link href={`/${username}/following`} className="profile-follow-count">
-          <strong>{followingCount}</strong> following
-        </Link>
       </div>
 
       <div className="profile-sidebar__meta">

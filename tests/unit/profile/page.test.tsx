@@ -32,14 +32,6 @@ vi.mock('@/lib/supabase/server', () => ({
   createAnonServerSupabaseClient: vi.fn(() => ({ from: vi.fn() })),
 }))
 
-vi.mock('@/lib/supabase/admin', () => ({
-  createAdminSupabaseClient: vi.fn(() => ({ from: vi.fn() })),
-}))
-
-vi.mock('@/lib/profile/follow-state', () => ({
-  getFollowState: vi.fn(async () => false),
-}))
-
 vi.mock('next/navigation', () => ({
   notFound: vi.fn(() => {
     throw new Error('NEXT_NOT_FOUND')
@@ -98,8 +90,6 @@ const BASE_PROFILE: ProfileUser = {
   avatar_url: null,
   github_login: 'Alice',
   created_at: '2026-01-01T00:00:00Z',
-  follower_count: 0,
-  following_count: 0,
 }
 
 // Walk the rendered tree looking for the first React element whose `type`

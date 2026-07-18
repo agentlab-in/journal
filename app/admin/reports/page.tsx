@@ -31,12 +31,6 @@ function targetLink(target: ReportTarget | null): { href: string; label: string 
       label: target.title,
     }
   }
-  if (target.type === 'comment') {
-    return {
-      href: `/${target.post_author_username}/post/${target.post_slug}#comments`,
-      label: `Comment: "${target.excerpt}${target.excerpt.length >= 80 ? '…' : ''}"`,
-    }
-  }
   if (target.type === 'user') {
     return {
       href: `/${target.username}`,

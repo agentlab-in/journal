@@ -33,7 +33,6 @@ interface Row {
   slug: string
   type: string
   published_at: string
-  like_count: number
   users: { username: string } | null
   orgs: { slug: string } | null
 }
@@ -44,9 +43,7 @@ function pickTop(rows: Row[], currentUserId: string): Row | null {
     const aMine = a.author_id === currentUserId ? 1 : 0
     const bMine = b.author_id === currentUserId ? 1 : 0
     if (aMine !== bMine) return bMine - aMine
-    const aLikes = a.like_count ?? 0
-    const bLikes = b.like_count ?? 0
-    if (aLikes !== bLikes) return bLikes - aLikes
+    // Duplicate-slug tiebreak: newest published post wins.
     return b.published_at.localeCompare(a.published_at)
   })
   return sorted[0]
@@ -77,7 +74,7 @@ export async function resolveAnchor(
   const { data, error } = await opts.db
     .from('posts')
     .select(
-      'id, author_id, org_id, slug, type, published_at, like_count, users!inner(username), orgs(slug)',
+      'id, author_id, org_id, slug, type, published_at, users!inner(username), orgs(slug)',
     )
     .eq('slug', target)
     .is('deleted_at', null)
@@ -95,7 +92,7 @@ export async function resolveAnchor(
  * thousand-anchor body (now capped upstream at 100, but the fix and the
  * cap were paired) into a thousand-RTT publish. The batched form keeps
  * the same ranking semantics: per anchor we pick the row whose slug
- * matches, then sort by (mine, likes desc, published_at desc).
+ * matches, then sort by (mine, published_at desc).
  *
  * Returns a Map keyed by the original anchor string (NOT the slugified
  * form) so call sites can look up by the in-body token directly.
@@ -121,7 +118,7 @@ export async function resolveAnchors(
   const { data, error } = await opts.db
     .from('posts')
     .select(
-      'id, author_id, org_id, slug, type, published_at, like_count, users!inner(username), orgs(slug)',
+      'id, author_id, org_id, slug, type, published_at, users!inner(username), orgs(slug)',
     )
     .in('slug', [...slugSet])
     .is('deleted_at', null)

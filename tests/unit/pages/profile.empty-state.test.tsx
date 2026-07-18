@@ -36,8 +36,6 @@ const POST_FIXTURE: ProfilePostCardData = {
   summary: 'A summary',
   cover_image_url: null,
   published_at: '2026-02-01T00:00:00Z',
-  view_count: 5,
-  comment_count: 0,
   tags: [],
 }
 

@@ -16,13 +16,10 @@ export type RateLimitBucket =
   | 'publish'
   | 'edit_post'
   | 'delete_post'
-  | 'comment'
-  | 'engagement'
   | 'report'
   | 'image_upload'
   | 'delete_account'
   | 'mdx_preview'
-  | 'view_count'
 
 export interface RateLimitResult {
   success: boolean
@@ -46,8 +43,6 @@ const BUCKETS: Record<RateLimitBucket, BucketSpec> = {
   publish: { limit: 10, windowMs: 60 * 60 * 1000, windowDuration: '1 h' },
   edit_post: { limit: 30, windowMs: 60 * 60 * 1000, windowDuration: '1 h' },
   delete_post: { limit: 30, windowMs: 60 * 60 * 1000, windowDuration: '1 h' },
-  comment: { limit: 30, windowMs: 10 * 60 * 1000, windowDuration: '10 m' },
-  engagement: { limit: 60, windowMs: 60 * 1000, windowDuration: '1 m' },
   report: { limit: 10, windowMs: 60 * 60 * 1000, windowDuration: '1 h' },
   image_upload: { limit: 20, windowMs: 60 * 60 * 1000, windowDuration: '1 h' },
   // Self-service account deletion is irreversible; a low cap defends against
@@ -58,10 +53,6 @@ const BUCKETS: Record<RateLimitBucket, BucketSpec> = {
   // ceiling is generous — defends against a script hammering the endpoint
   // without throttling honest authors.
   mdx_preview: { limit: 60, windowMs: 60 * 1000, windowDuration: '1 m' },
-  // Anonymous view beacon. Keyed by IP (not user) at the call site since
-  // the route is unauth. 60/min lets normal browsing through; a script
-  // forging Origin and pumping increments gets shut down.
-  view_count: { limit: 60, windowMs: 60 * 1000, windowDuration: '1 m' },
 }
 
 // ---------------------------------------------------------------------------

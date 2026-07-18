@@ -5,7 +5,7 @@ import AxeBuilder from '@axe-core/playwright'
  * Axe-core a11y checks across every public route.
  *
  * Spec: Phase 13 — target zero serious/critical violations on the public
- * surface. Auth-gated routes (/write, /bookmarks, /admin/*, /settings/*)
+ * surface. Auth-gated routes (/write, /admin/*, /settings/*)
  * are skipped in CI because the E2E auth shim only activates with the
  * `x-e2e-auth: 1` header, which Playwright's `page.goto` doesn't send.
  * They're covered by their own per-feature E2E specs.
@@ -14,7 +14,6 @@ import AxeBuilder from '@axe-core/playwright'
 const PUBLIC_ROUTES: Array<{ path: string; label: string }> = [
   { path: '/', label: 'home' },
   { path: '/latest', label: 'latest feed' },
-  { path: '/trending', label: 'trending feed' },
   { path: '/tags', label: 'tags index' },
   { path: '/tag/agents', label: 'tag landing (likely empty)' },
   { path: '/search', label: 'search (empty)' },

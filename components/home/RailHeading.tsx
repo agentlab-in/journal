@@ -3,18 +3,18 @@
  * left-rail discovery section, now with a leading inline SVG icon (issue #65).
  *
  * Why a shared component: the icon + uppercase micro-label markup must stay
- * identical across TopByType, TrendingTagsRail and FeaturedTagsFallback so
- * the rails read as one consistent set rather than three hand-rolled headers.
+ * identical across TopByType and FeaturedTagsFallback so the rails read as
+ * one consistent set rather than hand-rolled per-component headers.
  *
  * Icons are SVG-only (no emoji, no icon library) and stroke with
  * `currentColor`, so each one inherits the heading color and flips with the
  * theme automatically. The stroke vocabulary (viewBox 0 0 24 24,
- * strokeWidth 2, round caps) matches the existing lucide-style icons in
- * BookmarkButton / LikeButton — consistency over novelty.
+ * strokeWidth 2, round caps) matches the existing lucide-style icons
+ * elsewhere in the app: consistency over novelty.
  */
 import type { ReactNode } from 'react'
 
-export type RailIconName = 'book-open' | 'compass' | 'hash' | 'tag'
+export type RailIconName = 'book-open' | 'compass' | 'tag'
 
 interface RailHeadingProps {
   id: string
@@ -65,15 +65,6 @@ const ICON_PATHS: Record<RailIconName, ReactNode> = {
     <>
       <circle cx="12" cy="12" r="10" />
       <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
-    </>
-  ),
-  // hash → Trending tags
-  hash: (
-    <>
-      <line x1="4" y1="9" x2="20" y2="9" />
-      <line x1="4" y1="15" x2="20" y2="15" />
-      <line x1="10" y1="3" x2="8" y2="21" />
-      <line x1="16" y1="3" x2="14" y2="21" />
     </>
   ),
   // tag → Featured / starter topics

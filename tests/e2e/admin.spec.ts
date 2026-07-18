@@ -1,7 +1,7 @@
 /**
  * Phase 12 moderation — E2E tests for /admin surface
  *
- * Auth strategy: same E2E shim as profile.spec.ts / comments.spec.ts.
+ * Auth strategy: same E2E shim as profile.spec.ts.
  *   - header `x-e2e-auth: 1` activates the bypass inside `lib/auth.ts`.
  *   - env `E2E_TEST_AUTH_USER_ID` sets the user ID the bypass returns.
  *

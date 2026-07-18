@@ -28,9 +28,6 @@ export interface SearchHit {
    */
   snippet: string
   published_at: string
-  like_count: number
-  bookmark_count: number
-  comment_count: number
   rank: number
 }
 

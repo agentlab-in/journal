@@ -14,18 +14,12 @@ import type { TopPostRow } from '@/lib/feed/top-by-type'
 // ---------------------------------------------------------------------------
 
 vi.mock('@/lib/feed/discovery-cache', () => ({
-  cachedTrendingTags: vi.fn(),
   cachedTopPlaybooks: vi.fn(),
   cachedTopDives: vi.fn(),
 }))
 
 // Stub child async components with synchronous stubs so RightSidebar
 // can be rendered in jsdom without needing Suspense streaming.
-vi.mock('@/components/home/TrendingTagsRail', () => ({
-  TrendingTagsRail: async () =>
-    React.createElement('div', { 'data-testid': 'trending-tags-rail' }),
-}))
-
 vi.mock('@/components/home/TopByType', () => ({
   TopByType: async ({ type }: { type: string }) =>
     React.createElement('div', { 'data-testid': `top-by-type-${type}` }),
@@ -56,7 +50,6 @@ const SAMPLE_POST: TopPostRow = {
   leading_segment: 'alice',
   author_username: 'alice',
   author_display_name: 'Alice',
-  like_count: 5,
 }
 
 // ---------------------------------------------------------------------------

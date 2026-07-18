@@ -1,9 +1,9 @@
 /**
  * RailSkeleton — sidebar-rail-shaped loading placeholder.
  *
- * Used as a stand-in for TrendingTagsRail and similar vertical list
- * widgets until Phase B wires up the data layer. Shape: a short heading
- * bar followed by `rows` full-width content bars.
+ * Used as a stand-in for TopByType and similar vertical list widgets
+ * while their data loads. Shape: a short heading bar followed by `rows`
+ * full-width content bars.
  *
  * Accessibility contract (matches established skeleton pattern):
  *   - Outer section: `role="status"` + `aria-label="Loading rail"` +

@@ -4,7 +4,7 @@
  * Phase 1 (approval gate, 0024_approved_users.sql) added a write gate:
  * the stub user's (`E2E_TEST_AUTH_USER_ID`) github_login must be present
  * in public.approved_users, or every write-path spec (publish,
- * engagement, comments, editor, orgs) fails closed via the
+ * report, editor, orgs) fails closed via the
  * enforce_author_approved triggers / getSession()'s per-request approval
  * recheck.
  *

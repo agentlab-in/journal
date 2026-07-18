@@ -9,13 +9,13 @@
  * rendering sites stay in sync automatically.
  *
  * Item order (OPC-8, locked — do not reorder):
- *   Home → Trending → All tags → Bookmarks → Profile
+ *   Home → All tags → Profile
  *
  * No Settings entry (OPC-3, decided).
  * No icons/emoji (brand: mono text labels only).
  *
  * Active route: exact pathname match marks the link `aria-current="page"`.
- * Session-gated items (Bookmarks, Profile) only render when authenticated.
+ * Session-gated items (Profile) only render when authenticated.
  */
 
 import Link from 'next/link'
@@ -24,7 +24,6 @@ import { useSession } from 'next-auth/react'
 
 const PUBLIC_ITEMS = [
   { href: '/', label: 'Home' },
-  { href: '/trending', label: 'Trending' },
   { href: '/tags', label: 'All tags' },
 ] as const
 
@@ -48,18 +47,6 @@ export function LeftNav() {
             </Link>
           </li>
         ))}
-
-        {session && (
-          <li className="left-nav__item">
-            <Link
-              href="/bookmarks"
-              className="left-nav__link"
-              aria-current={pathname === '/bookmarks' ? 'page' : undefined}
-            >
-              Bookmarks
-            </Link>
-          </li>
-        )}
 
         {session && username && (
           <li className="left-nav__item">
