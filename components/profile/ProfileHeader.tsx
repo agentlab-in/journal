@@ -30,7 +30,7 @@ export interface ProfileHeaderProps {
   /** users.id of the profile being viewed; passed through to ReportButton. */
   targetUserId: string
   /**
-   * Path of the page rendering this header — forwarded to ReportButton as
+   * Path of the page rendering this header; forwarded to ReportButton as
    * the callbackUrl when an anon viewer opens the report flow.
    */
   currentPath: string

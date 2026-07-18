@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * Route-level error boundary for /[username]/* — profile pages and any
+ * Route-level error boundary for /[username]/*: profile pages and any
  * other segment nested under a profile route. Renders friendly copy + a
  * try-again button without surfacing the underlying Error message or
  * stack trace.
