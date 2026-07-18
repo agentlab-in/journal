@@ -11,17 +11,23 @@
 -- go away.
 --
 -- Drops (in dependency order):
---   1. Guard-rail DELETEs: reports/mod_actions rows with target_type =
---      'comment'. These reference a table (public.comments) that is about
---      to disappear, and the narrowed CHECK constraints below would reject
---      re-adding the constraint while these rows still exist.
+--   1. Guard-rail DELETEs: reports rows whose target_type will not satisfy
+--      the narrowed CHECK (anything outside post/user, so 'comment' and the
+--      already-retired 'org'), and mod_actions rows with target_type =
+--      'comment'. Some of these reference a table (public.comments) that is
+--      about to disappear, and the narrowed CHECK constraints below would
+--      reject re-adding the constraint while disallowed rows still exist.
 --   2. Tables: public.likes, public.comments, public.bookmarks,
 --      public.follows (CASCADE: comments is referenced by
 --      mod_actions.target_comment_id (0020), and CASCADE also takes each
 --      table's own RLS policies and the four *_require_approved triggers
 --      from 0024 that were owned by these tables).
 --   3. Columns: posts.view_count/like_count/bookmark_count/comment_count,
---      users.follower_count/following_count, mod_actions.target_comment_id.
+--      users.follower_count/following_count (public.users_public from 0014
+--      selects both, so the view is dropped and recreated without them in
+--      this step), mod_actions.target_comment_id (its drop also takes the
+--      mod_actions_target_single_typed CHECK and the
+--      mod_actions_target_comment_idx partial index from 0020 with it).
 --   4. Functions: increment_post_view_count (0004), comment_depth_for_parent
 --      and handle_comment_count_change (0007), feed_shortlist_by_heat (0009),
 --      handle_like_count_change / handle_bookmark_count_change /
@@ -47,13 +53,25 @@
 -- =============================================================================
 
 -- ---------------------------------------------------------------------------
--- 1. Guard-rail deletes: comment-target rows in reports/mod_actions.
+-- 1. Guard-rail deletes: rows whose target_type will no longer satisfy the
+--    narrowed CHECK constraints added in step 5.
 --
 -- Must run before the CHECK-narrowing in step 5: ADD CONSTRAINT validates
--- against existing rows, so any surviving target_type = 'comment' row would
+-- against existing rows, so any surviving disallowed target_type row would
 -- fail the narrowed CHECK.
+--
+-- reports: the narrowed CHECK keeps only ('post', 'user'), dropping both
+-- 'comment' (this migration) and 'org' (already retired from the
+-- report-creation API on this branch, see step 5's comment). A plain
+-- = 'comment' delete would leave a stray org-target row behind and fail
+-- ADD CONSTRAINT, so this deletes anything outside the surviving set
+-- instead.
+--
+-- mod_actions: the narrowed CHECK drops only 'comment' and keeps
+-- ('post', 'user', 'tag', 'report', 'org'), the same set as before minus
+-- 'comment', so a plain = 'comment' delete is sufficient here.
 -- ---------------------------------------------------------------------------
-DELETE FROM public.reports WHERE target_type = 'comment';
+DELETE FROM public.reports WHERE target_type NOT IN ('post', 'user');
 DELETE FROM public.mod_actions WHERE target_type = 'comment';
 
 -- ---------------------------------------------------------------------------
@@ -73,15 +91,58 @@ DROP TABLE IF EXISTS public.follows CASCADE;
 
 -- ---------------------------------------------------------------------------
 -- 3. Drop columns.
+--
+-- public.users_public (0014_rls_hardening.sql) selects follower_count and
+-- following_count, so a plain DROP COLUMN on either would be refused by
+-- Postgres (a view still depends on the column) and CASCADE would delete
+-- the view outright, taking anon/authenticated's only safe read path to
+-- public.users with it. The view is dropped here first, then recreated
+-- immediately after the column drops using 0014's exact definition minus
+-- the two removed columns, with 0014's REVOKE ALL / GRANT SELECT on the
+-- view re-issued so anon/authenticated keep working read access. 0014's
+-- REVOKE SELECT on the underlying public.users table is untouched by this
+-- (it targets the table, not the view) and needs no re-issue.
 -- ---------------------------------------------------------------------------
 ALTER TABLE public.posts DROP COLUMN IF EXISTS view_count;
 ALTER TABLE public.posts DROP COLUMN IF EXISTS like_count;
 ALTER TABLE public.posts DROP COLUMN IF EXISTS bookmark_count;
 ALTER TABLE public.posts DROP COLUMN IF EXISTS comment_count;
 
+DROP VIEW IF EXISTS public.users_public;
+
 ALTER TABLE public.users DROP COLUMN IF EXISTS follower_count;
 ALTER TABLE public.users DROP COLUMN IF EXISTS following_count;
 
+CREATE VIEW public.users_public AS
+    SELECT
+        id,
+        username,
+        display_name,
+        bio,
+        avatar_url,
+        github_login,
+        created_at
+    FROM public.users;
+
+COMMENT ON VIEW public.users_public IS
+    'Safe projection of public.users for anon/authenticated readers. '
+    'Excludes banned_at, banned_reason, banned_by (0011), signup_flags (0012), '
+    'updated_at, and email-bearing columns. Anon/authenticated clients should '
+    'always query this view instead of the underlying table. '
+    'Runs with owner privileges (no security_invoker) so callers do not need '
+    'SELECT on public.users: the column projection is the security boundary. '
+    'Service-role bypasses both the view and the underlying GRANT. '
+    'Recreated in 0026_drop_engagement.sql without follower_count and '
+    'following_count (columns dropped along with the engagement layer).';
+
+REVOKE ALL ON public.users_public FROM anon, authenticated;
+GRANT SELECT ON public.users_public TO anon, authenticated;
+
+-- mod_actions.target_comment_id: dropping this column also auto-drops the
+-- mod_actions_target_single_typed multi-column CHECK (0020_misc_hardening.sql,
+-- the column is one of the four counted by num_nonnulls in that CHECK) and
+-- the partial index mod_actions_target_comment_idx (0020). Both go with the
+-- column; the single-typed guard is being retired here, not replaced.
 ALTER TABLE public.mod_actions DROP COLUMN IF EXISTS target_comment_id;
 
 -- ---------------------------------------------------------------------------

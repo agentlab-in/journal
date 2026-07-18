@@ -15,12 +15,22 @@ describe('0026_drop_engagement.sql shape', () => {
   // -------------------------------------------------------------------------
   // Guard-rail deletes (must precede the CHECK narrowing below)
   // -------------------------------------------------------------------------
-  it('deletes comment-target reports before narrowing the CHECK', () => {
-    const deleteIdx = migration.indexOf("DELETE FROM public.reports WHERE target_type = 'comment'")
+  it('deletes reports rows outside post/user before narrowing the CHECK', () => {
+    const deleteIdx = migration.indexOf("DELETE FROM public.reports WHERE target_type NOT IN ('post', 'user')")
     const checkIdx = migration.indexOf('ADD CONSTRAINT reports_target_type_check')
     expect(deleteIdx).toBeGreaterThan(-1)
     expect(checkIdx).toBeGreaterThan(-1)
     expect(deleteIdx).toBeLessThan(checkIdx)
+  })
+
+  it('uses NOT IN (not a plain = comment check) for the reports guard-rail delete', () => {
+    // The old reports CHECK (0017) also allowed 'org', which the narrowed
+    // CHECK here drops too, so a plain = 'comment' delete would leave a
+    // stray org-target row behind and fail ADD CONSTRAINT.
+    expect(migration).not.toMatch(/DELETE FROM public\.reports WHERE target_type = 'comment';/)
+    expect(migration).toMatch(
+      /DELETE FROM public\.reports WHERE target_type NOT IN \('post', 'user'\);/,
+    )
   })
 
   it('deletes comment-target mod_actions before narrowing the CHECK', () => {
@@ -64,6 +74,53 @@ describe('0026_drop_engagement.sql shape', () => {
   it('drops mod_actions.target_comment_id', () => {
     expect(migration).toMatch(
       /ALTER TABLE public\.mod_actions DROP COLUMN IF EXISTS target_comment_id;/,
+    )
+  })
+
+  it('notes that dropping target_comment_id also retires its CHECK and partial index', () => {
+    const dropIdx = migration.indexOf('ALTER TABLE public.mod_actions DROP COLUMN IF EXISTS target_comment_id;')
+    expect(dropIdx).toBeGreaterThan(-1)
+    const preceding = migration.slice(Math.max(0, dropIdx - 500), dropIdx)
+    expect(preceding).toMatch(/mod_actions_target_single_typed/)
+    expect(preceding).toMatch(/mod_actions_target_comment_idx/)
+  })
+
+  // -------------------------------------------------------------------------
+  // public.users_public view (must be dropped before, and recreated after,
+  // the users.follower_count/following_count column drops)
+  // -------------------------------------------------------------------------
+  it('drops users_public before dropping the users count columns', () => {
+    const dropViewIdx = migration.indexOf('DROP VIEW IF EXISTS public.users_public;')
+    const dropFollowerIdx = migration.indexOf('ALTER TABLE public.users DROP COLUMN IF EXISTS follower_count;')
+    expect(dropViewIdx).toBeGreaterThan(-1)
+    expect(dropFollowerIdx).toBeGreaterThan(-1)
+    expect(dropViewIdx).toBeLessThan(dropFollowerIdx)
+  })
+
+  it('recreates users_public without follower_count/following_count', () => {
+    const viewMatch = migration.match(
+      /CREATE VIEW public\.users_public AS\s*SELECT([\s\S]*?)FROM public\.users;/,
+    )
+    expect(viewMatch).not.toBeNull()
+    const columns = viewMatch![1]
+    expect(columns).not.toMatch(/follower_count/)
+    expect(columns).not.toMatch(/following_count/)
+    for (const col of ['id', 'username', 'display_name', 'bio', 'avatar_url', 'github_login', 'created_at']) {
+      expect(columns).toMatch(new RegExp(`\\b${col}\\b`))
+    }
+  })
+
+  it('recreates users_public after the users count column drops', () => {
+    const dropFollowingIdx = migration.indexOf('ALTER TABLE public.users DROP COLUMN IF EXISTS following_count;')
+    const createViewIdx = migration.indexOf('CREATE VIEW public.users_public AS')
+    expect(dropFollowingIdx).toBeGreaterThan(-1)
+    expect(createViewIdx).toBeGreaterThan(-1)
+    expect(dropFollowingIdx).toBeLessThan(createViewIdx)
+  })
+
+  it('re-issues 0014\'s users_public grants exactly (REVOKE ALL then GRANT SELECT)', () => {
+    expect(migration).toMatch(
+      /REVOKE ALL ON public\.users_public FROM anon, authenticated;\s*GRANT SELECT ON public\.users_public TO anon, authenticated;/,
     )
   })
 
