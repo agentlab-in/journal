@@ -10,7 +10,7 @@ import type { PostType } from '@/lib/posts/url'
  * pin/owner-only action slot: that lives on
  * `components/profile/ProfilePostCard`, which feeds the profile surface.
  * The two are kept separate on purpose; consolidating them would cascade
- * through ProfilePage / BookmarksPage / PinnedPosts / PostList.
+ * through ProfilePage / PinnedPosts / PostList.
  *
  * This is a server component (no `'use client'`) — purely presentational.
  */
