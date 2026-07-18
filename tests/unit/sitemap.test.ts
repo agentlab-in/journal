@@ -89,12 +89,12 @@ describe('app/sitemap', () => {
   it('includes static routes (/, /latest, /tags, /search) with Date lastModified', async () => {
     const entries = await sitemap()
     const urls = entries.map((e) => e.url)
-    expect(urls).toContain('https://agentlab.in/')
-    expect(urls).toContain('https://agentlab.in/latest')
-    expect(urls).toContain('https://agentlab.in/tags')
-    expect(urls).toContain('https://agentlab.in/search')
+    expect(urls).toContain('https://journal.agentlab.in/')
+    expect(urls).toContain('https://journal.agentlab.in/latest')
+    expect(urls).toContain('https://journal.agentlab.in/tags')
+    expect(urls).toContain('https://journal.agentlab.in/search')
     for (const path of ['/', '/latest', '/tags', '/search']) {
-      const entry = entries.find((e) => e.url === `https://agentlab.in${path}`)
+      const entry = entries.find((e) => e.url === `https://journal.agentlab.in${path}`)
       expect(entry?.lastModified).toBeInstanceOf(Date)
     }
   })
@@ -103,7 +103,7 @@ describe('app/sitemap', () => {
     postsResult = { data: [POST_A], error: null }
     const entries = await sitemap()
     const post = entries.find(
-      (e) => e.url === 'https://agentlab.in/alice/post/first-post',
+      (e) => e.url === 'https://journal.agentlab.in/alice/post/first-post',
     )
     expect(post).toBeDefined()
     expect(post?.lastModified).toBe('2026-01-01T00:00:00Z')
@@ -113,7 +113,7 @@ describe('app/sitemap', () => {
     postsResult = { data: [POST_B_EDITED], error: null }
     const entries = await sitemap()
     const post = entries.find(
-      (e) => e.url === 'https://agentlab.in/alice/playbook/second-post',
+      (e) => e.url === 'https://journal.agentlab.in/alice/playbook/second-post',
     )
     expect(post).toBeDefined()
     expect(post?.lastModified).toBe('2026-03-01T00:00:00Z')
@@ -122,8 +122,8 @@ describe('app/sitemap', () => {
   it('dedupes profile entries by username when an author has multiple posts', async () => {
     postsResult = { data: [POST_A, POST_B_EDITED, POST_C_OTHER_AUTHOR], error: null }
     const entries = await sitemap()
-    const aliceEntries = entries.filter((e) => e.url === 'https://agentlab.in/alice')
-    const bobEntries = entries.filter((e) => e.url === 'https://agentlab.in/bob')
+    const aliceEntries = entries.filter((e) => e.url === 'https://journal.agentlab.in/alice')
+    const bobEntries = entries.filter((e) => e.url === 'https://journal.agentlab.in/bob')
     expect(aliceEntries).toHaveLength(1)
     expect(bobEntries).toHaveLength(1)
     expect(aliceEntries[0].lastModified).toBe('2026-01-10T00:00:00Z')
@@ -136,13 +136,13 @@ describe('app/sitemap', () => {
     tagsResult = { data: [TAG_APPROVED], error: null }
     const entries = await sitemap()
     const staticUrls = new Set([
-      'https://agentlab.in/',
-      'https://agentlab.in/latest',
-      'https://agentlab.in/tags',
-      'https://agentlab.in/search',
+      'https://journal.agentlab.in/',
+      'https://journal.agentlab.in/latest',
+      'https://journal.agentlab.in/tags',
+      'https://journal.agentlab.in/search',
       // The legal page also lives at the root level — this is NOT a
       // user-profile entry.
-      'https://agentlab.in/terms',
+      'https://journal.agentlab.in/terms',
     ])
     // Anything single-segment that isn't one of the known static routes or
     // a tag URL would be a stray profile entry.
@@ -157,7 +157,7 @@ describe('app/sitemap', () => {
   it('includes approved tag URLs with lastModified = approved_at', async () => {
     tagsResult = { data: [TAG_APPROVED], error: null }
     const entries = await sitemap()
-    const tag = entries.find((e) => e.url === 'https://agentlab.in/tag/agents')
+    const tag = entries.find((e) => e.url === 'https://journal.agentlab.in/tag/agents')
     expect(tag).toBeDefined()
     expect(tag?.lastModified).toBe('2026-01-15T00:00:00Z')
   })

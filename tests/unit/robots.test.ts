@@ -48,7 +48,7 @@ describe('app/robots', () => {
 
     it('sets host to the canonical site origin', () => {
       const r = robots()
-      expect(r.host).toBe('https://agentlab.in')
+      expect(r.host).toBe('https://journal.agentlab.in')
     })
   })
 

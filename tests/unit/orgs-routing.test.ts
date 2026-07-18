@@ -343,7 +343,7 @@ describe('GET /[username]/feed.xml (org branch)', () => {
     expect(res.status).toBe(200)
     const body = await res.text()
     // First link inside the feed self link must point at the org slug.
-    expect(body).toContain('https://agentlab.in/acme/feed.xml')
+    expect(body).toContain('https://journal.agentlab.in/acme/feed.xml')
     expect(body).toContain('Acme (@acme)')
     // 50 entries.
     const entryCount = (body.match(/<entry>/g) ?? []).length
@@ -427,12 +427,12 @@ describe('sitemap (org-aware)', () => {
     const urls = entries.map((e) => e.url)
 
     // Org profile entries.
-    expect(urls).toContain('https://agentlab.in/acme')
-    expect(urls).toContain('https://agentlab.in/beta-org')
+    expect(urls).toContain('https://journal.agentlab.in/acme')
+    expect(urls).toContain('https://journal.agentlab.in/beta-org')
     // Org-authored post canonicalized at org slug, NOT at author username.
-    expect(urls).toContain('https://agentlab.in/acme/dive/org-post')
-    expect(urls).not.toContain('https://agentlab.in/alice/dive/org-post')
+    expect(urls).toContain('https://journal.agentlab.in/acme/dive/org-post')
+    expect(urls).not.toContain('https://journal.agentlab.in/alice/dive/org-post')
     // Personal post still emits at the author username.
-    expect(urls).toContain('https://agentlab.in/alice/post/first-post')
+    expect(urls).toContain('https://journal.agentlab.in/alice/post/first-post')
   })
 })
