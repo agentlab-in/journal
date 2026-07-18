@@ -14,7 +14,6 @@ import type { TopPostRow } from '@/lib/feed/top-by-type'
 // Mocks — must be declared before component import.
 // ---------------------------------------------------------------------------
 vi.mock('@/lib/feed/discovery-cache', () => ({
-  cachedTrendingTags: vi.fn(),
   cachedTopPlaybooks: vi.fn(),
   cachedTopDives: vi.fn(),
 }))
@@ -100,18 +99,18 @@ describe('<TopByType type="playbook">', () => {
     expect(cachedTopPlaybooks).not.toHaveBeenCalled()
   })
 
-  it('renders heading "Top playbooks this week" for type=playbook', async () => {
+  it('renders heading "Recent playbooks" for type=playbook', async () => {
     vi.mocked(cachedTopPlaybooks).mockResolvedValue([PLAYBOOK_ROW])
     const element = await TopByType({ type: 'playbook' })
     render(element as React.ReactElement)
-    expect(screen.getByRole('heading', { name: 'Top playbooks this week' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Recent playbooks' })).toBeInTheDocument()
   })
 
-  it('renders heading "Top deep dives this week" for type=dive', async () => {
+  it('renders heading "Recent deep dives" for type=dive', async () => {
     vi.mocked(cachedTopDives).mockResolvedValue([DIVE_ROW])
     const element = await TopByType({ type: 'dive' })
     render(element as React.ReactElement)
-    expect(screen.getByRole('heading', { name: 'Top deep dives this week' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Recent deep dives' })).toBeInTheDocument()
   })
 
   it('renders title, author username, and like count for each row', async () => {
@@ -148,7 +147,7 @@ describe('<TopByType type="playbook">', () => {
     vi.mocked(cachedTopPlaybooks).mockResolvedValue([PLAYBOOK_ROW])
     const element = await TopByType({ type: 'playbook' })
     render(element as React.ReactElement)
-    expect(screen.getByRole('heading', { name: 'Top playbooks this week' })).toHaveAttribute(
+    expect(screen.getByRole('heading', { name: 'Recent playbooks' })).toHaveAttribute(
       'id',
       'top-playbook-heading',
     )
@@ -158,7 +157,7 @@ describe('<TopByType type="playbook">', () => {
     vi.mocked(cachedTopPlaybooks).mockResolvedValue([PLAYBOOK_ROW])
     const element = await TopByType({ type: 'playbook', headingId: 'top-playbook-heading-mobile' })
     render(element as React.ReactElement)
-    expect(screen.getByRole('heading', { name: 'Top playbooks this week' })).toHaveAttribute(
+    expect(screen.getByRole('heading', { name: 'Recent playbooks' })).toHaveAttribute(
       'id',
       'top-playbook-heading-mobile',
     )

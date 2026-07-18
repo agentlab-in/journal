@@ -201,68 +201,26 @@ test.describe('Phase 9 discovery — anon surface', () => {
 // Tests — seeded (gated on HAS_E2E_AUTH)
 // ---------------------------------------------------------------------------
 
-// ---------------------------------------------------------------------------
-// Tests — /trending nav link (DB-independent)
-// ---------------------------------------------------------------------------
-
-test.describe('Phase 9 discovery — /trending nav link', () => {
-  // -------------------------------------------------------------------------
-  // Trending nav link: the left-nav (or top-nav .nav-leftnav at <xl)
-  // "Trending" link navigates to /trending and picks up aria-current="page".
-  // -------------------------------------------------------------------------
-  test('Trending link navigates to /trending and gets aria-current="page"', async ({
-    page,
-  }) => {
-    // The Trending link is always present in .nav-leftnav (top nav) at <xl.
-    // We use a viewport of 1100px (lg, below xl=1280) so we can target the
-    // .nav-leftnav wrapper reliably. The left sidebar is hidden at that width.
-    // Set viewport BEFORE navigating so the initial render uses the right size.
-    await page.setViewportSize({ width: 1100, height: 800 })
-
-    // Start on home so the nav is rendered
-    await page.goto('/', { waitUntil: 'domcontentloaded' })
-
-    const navLeftNav = page.locator('.nav-leftnav')
-    await expect(navLeftNav).toBeVisible()
-
-    const trendingLink = navLeftNav.getByRole('link', { name: 'Trending' })
-    await expect(trendingLink).toBeVisible()
-
-    // Navigate via the link
-    await trendingLink.click()
-    await page.waitForURL('/trending', { timeout: 10_000 })
-    expect(new URL(page.url()).pathname).toBe('/trending')
-
-    // After navigation the link should carry aria-current="page" (LeftNav
-    // uses exact pathname matching via usePathname())
-    await expect(trendingLink).toHaveAttribute('aria-current', 'page')
-  })
-})
-
 test.describe('Phase 9 discovery — authed + seeded', () => {
   // -------------------------------------------------------------------------
-  // 8. Authed `/` renders For You without erroring.
-  //
-  // Heat-ranking + caching means the freshly seeded post may not surface
-  // in the top N; we don't assert against the specific seeded post — only
-  // that the page renders with 200 and at least one card is visible.
+  // 8. Authed `/` renders the Latest feed without erroring. Everyone gets
+  // the same reverse-chronological feed now (no personalized ranking), so
+  // this only asserts the authed render doesn't crash.
   // -------------------------------------------------------------------------
-  test('authed GET / renders For You without crashing', async ({
+  test('authed GET / renders Latest without crashing', async ({
     page,
     request,
   }) => {
     test.skip(!HAS_E2E_AUTH, SKIP_REASON)
 
     const suffix = String(Date.now())
-    await createPostWithTag(request, `foryou-${suffix}`, 'security')
+    await createPostWithTag(request, `latest-${suffix}`, 'security')
 
     await signIn(page)
     const res = await page.goto('/', { waitUntil: 'domcontentloaded' })
     expect(res?.status()).toBe(200)
 
-    // Either "For you" or "Latest" header — the For You path falls back to
-    // Latest if `getForYouFeed` throws, and we treat both as a non-crash.
-    await expect(page.locator('h1.home-feed__title')).toBeVisible()
+    await expect(page.locator('h1.home-feed__title', { hasText: 'Latest' })).toBeVisible()
 
     // The error boundary copy from app/error.tsx must NOT be visible. We
     // don't depend on the exact text — assert no <h2> reading "Something
@@ -271,9 +229,7 @@ test.describe('Phase 9 discovery — authed + seeded', () => {
 
     // At least one post card OR the empty-state copy — depending on
     // whether the shared dev DB has any seeded posts. The seeded post
-    // above guarantees at least one visible card unless the For You path
-    // filters it out, in which case the fallback Latest path should still
-    // surface it.
+    // above guarantees at least one visible card.
     const cardCount = await page.locator('li.home-feed__item').count()
     const emptyVisible =
       (await page.locator('p.home-feed__empty').count()) > 0

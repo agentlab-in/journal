@@ -3,8 +3,8 @@
  * left-rail discovery section, now with a leading inline SVG icon (issue #65).
  *
  * Why a shared component: the icon + uppercase micro-label markup must stay
- * identical across TopByType, TrendingTagsRail and FeaturedTagsFallback so
- * the rails read as one consistent set rather than three hand-rolled headers.
+ * identical across TopByType and FeaturedTagsFallback so the rails read as
+ * one consistent set rather than hand-rolled per-component headers.
  *
  * Icons are SVG-only (no emoji, no icon library) and stroke with
  * `currentColor`, so each one inherits the heading color and flips with the

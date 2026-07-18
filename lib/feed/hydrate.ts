@@ -1,10 +1,10 @@
 /**
  * Hydration helpers for feed surfaces (home / latest / tag / search).
  *
- * Feed queries (`getForYouFeed`, `getLatestFeed`, the `/tag/[slug]` posts
- * query) return rows that carry an `author_id` and — sometimes — a list of
- * approved tag slugs. These helpers turn those ids/slugs into the small
- * lookup maps the row → `PostCardData` projection needs.
+ * Feed queries (`getLatestFeed`, the `/tag/[slug]` posts query) return rows
+ * that carry an `author_id` and, sometimes, a list of approved tag slugs.
+ * These helpers turn those ids/slugs into the small lookup maps the row to
+ * `PostCardData` projection needs.
  *
  * Everything here is RLS-friendly: callers pass whichever Supabase client
  * they're already using for the feed read, so the anon vs admin choice
@@ -39,11 +39,6 @@ interface TagJoinRow {
   post_id: string
   tag_slug: string
   tags: { slug: string; name: string; is_approved: boolean } | null
-}
-
-interface TagRow {
-  slug: string
-  name: string
 }
 
 /**
@@ -151,24 +146,5 @@ export async function fetchOrgsByPost(
     if (r.orgs.deleted_at !== null || r.orgs.banned_at !== null) continue
     out.set(r.id, { slug: r.orgs.slug, display_name: r.orgs.display_name })
   }
-  return out
-}
-
-/**
- * Resolve display names for a set of tag slugs. Used by the For-You feed
- * path — `getForYouFeed` returns slugs only, but `PostCard` wants names.
- */
-export async function fetchTagNames(
-  db: Pick<SupabaseClient, 'from'>,
-  slugs: string[],
-): Promise<Map<string, string>> {
-  if (slugs.length === 0) return new Map()
-  const { data, error } = await db
-    .from('tags')
-    .select('slug, name')
-    .in('slug', slugs)
-  if (error || !Array.isArray(data)) return new Map()
-  const out = new Map<string, string>()
-  for (const r of data as TagRow[]) out.set(r.slug, r.name)
   return out
 }

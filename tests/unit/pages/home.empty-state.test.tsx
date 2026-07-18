@@ -1,12 +1,11 @@
 /**
- * Phase 13 — home page empty state.
+ * Home page empty state.
  *
  * The home `/` page wraps its feed query in a Suspense boundary; the
  * empty state lives inside the `FeedList` server component which renders
- * after `getForYouFeed` / `getLatestFeed` returns zero rows. To assert
- * the copy without spinning up Supabase, we walk the server-tree, locate
- * the Suspense child (the async `FeedList`), and await it directly with
- * its resolved props.
+ * after `getLatestFeed` returns zero rows. To assert the copy without
+ * spinning up Supabase, we walk the server-tree, locate the Suspense
+ * child (the async `FeedList`), and await it directly.
  */
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -15,34 +14,23 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 // Module mocks — declared before any imports that trigger them
 // ---------------------------------------------------------------------------
 
-vi.mock('@/lib/auth', () => ({
-  getSession: vi.fn(),
-}))
-
-vi.mock('@/lib/supabase/admin', () => ({
-  createAdminSupabaseClient: vi.fn(() => ({})),
-}))
-
 vi.mock('@/lib/supabase/server', () => ({
   createAnonServerSupabaseClient: vi.fn(() => ({})),
 }))
 
 vi.mock('@/lib/feed', () => ({
-  getForYouFeed: vi.fn(),
   getLatestFeed: vi.fn(),
 }))
 
 vi.mock('@/lib/feed/hydrate', () => ({
   fetchAuthors: vi.fn(async () => new Map()),
   fetchOrgsByPost: vi.fn(async () => new Map()),
-  fetchTagNames: vi.fn(async () => new Map()),
   fetchTagsByPost: vi.fn(async () => new Map()),
 }))
 
-// Mock discovery-cache so TrendingStrip/RightSidebar don't call unstable_cache
+// Mock discovery-cache so TopByType/RightSidebar don't call unstable_cache
 // in jsdom (unstable_cache requires a Next.js incrementalCache context).
 vi.mock('@/lib/feed/discovery-cache', () => ({
-  cachedTrendingTags: vi.fn(async () => []),
   cachedTopPlaybooks: vi.fn(async () => []),
   cachedTopDives: vi.fn(async () => []),
 }))
@@ -51,12 +39,11 @@ vi.mock('@/lib/feed/discovery-cache', () => ({
 // Imports after mocks
 // ---------------------------------------------------------------------------
 
-import { getSession } from '@/lib/auth'
-import { getForYouFeed, getLatestFeed } from '@/lib/feed'
+import { getLatestFeed } from '@/lib/feed'
 import HomePage from '@/app/page'
 
 // ---------------------------------------------------------------------------
-// Tree helpers (shared shape with other phase-13 page tests)
+// Tree helpers (shared shape with other page tests)
 // ---------------------------------------------------------------------------
 
 function collectText(node: React.ReactNode): string {
@@ -119,10 +106,7 @@ function findAllByComponentType(
 // ---------------------------------------------------------------------------
 
 async function renderHomeFeed(): Promise<React.ReactNode> {
-  const tree = await HomePage()
-  // Phase B added TrendingStrip and TopByType wrapped in Suspense before and
-  // after the FeedList Suspense. Find the Suspense whose child is FeedList
-  // (identified by its function name 'FeedList').
+  const tree = HomePage()
   const allSuspenses = findAllByComponentType(tree, React.Suspense)
   const feedListSuspense = allSuspenses.find((s) => {
     const child = (s.props as { children?: React.ReactElement }).children
@@ -142,35 +126,18 @@ async function renderHomeFeed(): Promise<React.ReactNode> {
 
 describe('HomePage empty state', () => {
   beforeEach(() => {
-    vi.mocked(getSession).mockReset()
-    vi.mocked(getForYouFeed).mockReset()
     vi.mocked(getLatestFeed).mockReset()
   })
 
-  it('renders the warming-up copy when the anon Latest feed is empty', async () => {
-    vi.mocked(getSession).mockResolvedValue(null)
+  it('renders neutral copy pointing at /tags when the Latest feed is empty', async () => {
     vi.mocked(getLatestFeed).mockResolvedValue([])
 
     const body = await renderHomeFeed()
     const text = collectText(body)
-    expect(text).toContain('Follow people or wait while the feed warms up.')
     expect(text).toContain('/tags')
   })
 
-  it('renders the warming-up copy when the authed For-You feed is empty', async () => {
-    vi.mocked(getSession).mockResolvedValue({
-      user: { id: 'user-1', name: 'A', email: 'a@example.com' },
-      expires: '2099-12-31T23:59:59.000Z',
-    })
-    vi.mocked(getForYouFeed).mockResolvedValue([])
-
-    const body = await renderHomeFeed()
-    const text = collectText(body)
-    expect(text).toContain('Follow people or wait while the feed warms up.')
-  })
-
   it('the empty-state action links to /tags', async () => {
-    vi.mocked(getSession).mockResolvedValue(null)
     vi.mocked(getLatestFeed).mockResolvedValue([])
 
     const body = await renderHomeFeed()

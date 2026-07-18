@@ -274,17 +274,10 @@ a {
   line-height: 1.6;
 }
 
-/* Mobile-only (<lg) rail wrappers on the read page (issue #70). At <lg both
-   HomeShell asides are hidden, so the trending strip and TopByType rails
-   relocate into the center column above/below the article. They share the
-   post body's 720px cap + 1.25rem gutter so they line up with the prose. */
-.post-page__mobile-trending {
-  width: 100%;
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 1.5rem 1.25rem 0;
-}
-
+/* Mobile-only (<lg) rail wrapper on the read page (issue #70). At <lg both
+   HomeShell asides are hidden, so the TopByType rails relocate into the
+   center column below the article. Shares the post body's 720px cap +
+   1.25rem gutter so it lines up with the prose. */
 .post-page__mobile-rails {
   width: 100%;
   max-width: 720px;
@@ -2681,16 +2674,16 @@ a {
 }
 
 /* ============================================================
-   Home feed (/) — For You (authed) / Latest (anon)
+   Home feed (/): Latest
    ============================================================ */
 
 .home-feed {
   /* Single-column reading feed. 48rem keeps line length comfortable while
      giving cards a touch more breathing room than the old 42rem cap on
-     /latest, /trending, /tag and the standalone home center. A genuine
-     two-up card grid would use ultra-wide space better, but the feed items
-     here are border-separated rows (not self-contained cards), so that's
-     deferred — see issue #64 PR notes. */
+     /latest, /tag and the standalone home center. A genuine two-up card
+     grid would use ultra-wide space better, but the feed items here are
+     border-separated rows (not self-contained cards), so that's deferred
+     (see issue #64 PR notes). */
   max-width: 48rem;
   margin: 0 auto;
   padding: 2rem 1rem 4rem;
@@ -3374,13 +3367,12 @@ a {
 }
 
 /* ============================================================
-   Phase B discovery rails — TrendingTagsRail + TopByType
+   Phase B discovery rails: TopByType
    BEM classes kept for E2E targeting (OPC-5). Visual vocabulary
    matches .left-nav__* and .home-feed__more a: font-mono small
    text, muted → fg on hover, no underline, no list chrome.
    ============================================================ */
 
-.trending-tags-rail__list,
 .top-by-type__list {
   list-style: none;
   padding: 0;
@@ -3388,39 +3380,6 @@ a {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-}
-
-.trending-tags-rail__link {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.5rem;
-  font-family: var(--font-mono, monospace);
-  font-size: 0.875rem;
-  color: var(--fg-subtle);
-  text-decoration: none;
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.25rem;
-  transition: color 0.1s ease, background-color 0.1s ease;
-}
-
-.trending-tags-rail__link:hover {
-  color: var(--fg);
-  background: var(--bg-hover);
-}
-
-.trending-tags-rail__name {
-  /* tag name inherits color from parent link */
-}
-
-.trending-tags-rail__count {
-  font-size: 0.75rem;
-  color: var(--fg-subtle);
-  flex-shrink: 0;
-}
-
-.trending-tags-rail__link:hover .trending-tags-rail__count {
-  color: var(--fg-subtle);
 }
 
 /* TopByType rail — each item is a block link with a title line

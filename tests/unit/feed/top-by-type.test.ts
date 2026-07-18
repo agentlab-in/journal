@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
 import { getTopByType } from '@/lib/feed/top-by-type'
-import { computeHeatScore } from '@/lib/heat'
 
 // ---------------------------------------------------------------------------
 // Fixture helpers
@@ -20,7 +19,6 @@ interface RowOpts {
   org_id?: string | null
   published_at?: string
   like_count?: number
-  bookmark_count?: number
   authorUsername?: string
   authorDisplayName?: string | null
   orgSlug?: string | null
@@ -35,7 +33,6 @@ function makeRawRow(opts: RowOpts = {}) {
     org_id = null,
     published_at = hoursAgo(2),
     like_count = 5,
-    bookmark_count = 0,
     authorUsername = 'alice',
     authorDisplayName = 'Alice',
     orgSlug = null,
@@ -48,14 +45,14 @@ function makeRawRow(opts: RowOpts = {}) {
     org_id,
     published_at,
     like_count,
-    bookmark_count,
     author: { username: authorUsername, display_name: authorDisplayName },
     orgs: orgSlug !== null ? { slug: orgSlug } : null,
   }
 }
 
 /**
- * Build a fake Supabase db that returns the given rows.
+ * Build a fake Supabase db that returns the given rows (already in the
+ * order the real query would return them: `published_at` descending).
  * Captures the .eq and .gte arguments for assertion.
  */
 function buildDb(rows: ReturnType<typeof makeRawRow>[], opts: { error?: boolean } = {}) {
@@ -118,49 +115,38 @@ describe('getTopByType', () => {
 
   it('respects the limit', async () => {
     const rows = [
-      makeRawRow({ id: '1', like_count: 10, published_at: hoursAgo(1) }),
-      makeRawRow({ id: '2', like_count: 8, published_at: hoursAgo(1) }),
-      makeRawRow({ id: '3', like_count: 6, published_at: hoursAgo(1) }),
-      makeRawRow({ id: '4', like_count: 4, published_at: hoursAgo(1) }),
+      makeRawRow({ id: '1', published_at: hoursAgo(1) }),
+      makeRawRow({ id: '2', published_at: hoursAgo(2) }),
+      makeRawRow({ id: '3', published_at: hoursAgo(3) }),
+      makeRawRow({ id: '4', published_at: hoursAgo(4) }),
     ]
     const db = buildDb(rows)
     const result = await getTopByType(db as never, 'playbook', 7, 2)
     expect(result).toHaveLength(2)
   })
 
-  it('sorts by computeHeatScore: older high-engagement beats recent low-engagement', async () => {
-    // "recent-low": published 1h ago, like_count=2 → lower score
-    // "old-high": published 48h ago, like_count=100 → higher score
+  it('preserves the query order (published_at descending): recency, not engagement, decides rank', async () => {
+    // The DB query orders by published_at descending; a low-like-count post
+    // published more recently must outrank a high-like-count older post,
+    // because ranking is now pure recency with no heat-score rerank.
     const recentLow = makeRawRow({
       id: 'recent-low',
       like_count: 2,
-      bookmark_count: 0,
       published_at: hoursAgo(1),
     })
     const oldHigh = makeRawRow({
       id: 'old-high',
       like_count: 100,
-      bookmark_count: 20,
       published_at: hoursAgo(48),
     })
 
-    // Verify expected order using the REAL computeHeatScore.
-    const scoreRecentLow = computeHeatScore(
-      { published_at: recentLow.published_at, like_count: 2, bookmark_count: 0, tag_affinity: 0 },
-      NOW,
-    )
-    const scoreOldHigh = computeHeatScore(
-      { published_at: oldHigh.published_at, like_count: 100, bookmark_count: 20, tag_affinity: 0 },
-      NOW,
-    )
-    expect(scoreOldHigh).toBeGreaterThan(scoreRecentLow)
-
+    // Rows arrive already ordered by published_at desc, as the real query
+    // would return them: recent first.
     const db = buildDb([recentLow, oldHigh])
     const result = await getTopByType(db as never, 'playbook', 7, 3)
 
-    // Highest heat score should come first.
-    expect(result[0].id).toBe('old-high')
-    expect(result[1].id).toBe('recent-low')
+    expect(result[0].id).toBe('recent-low')
+    expect(result[1].id).toBe('old-high')
   })
 
   it('returns [] on DB error', async () => {
@@ -206,7 +192,14 @@ describe('getTopByType', () => {
     expect(result[0].leading_segment).toBe('bob')
   })
 
-  it('filters published_at with the correct window cutoff (mirrors trending-tags pattern)', async () => {
+  it('carries like_count through for display', async () => {
+    const row = makeRawRow({ id: 'liked-post', like_count: 42 })
+    const db = buildDb([row])
+    const result = await getTopByType(db as never, 'playbook', 7, 3)
+    expect(result[0].like_count).toBe(42)
+  })
+
+  it('filters published_at with the correct window cutoff', async () => {
     const fakeNow = new Date('2026-06-01T12:00:00.000Z')
     const expectedSince = new Date(fakeNow.getTime() - 7 * 86_400_000).toISOString()
 

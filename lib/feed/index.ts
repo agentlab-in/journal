@@ -1,136 +1,28 @@
 /**
  * Public entry points for the home-feed module.
  *
- *   getForYouFeed(db, viewerId)   — personalized ranked feed for an
- *                                   authenticated viewer.
- *   getLatestFeed(db)             — anon-friendly fallback: most recent
- *                                   non-deleted posts, no ranking.
+ *   getLatestFeed(db): most recent non-deleted, published posts,
+ *                       reverse-chronological.
  *
- * `getForYouFeed` runs three queries in sequence (the rerank needs the
- * shortlist's ids before it can fetch per-post tags) and then a pure
- * rerank pass. The shortlist is intentionally wider than the user-visible
- * page so the rerank has breadth — global top-30 alone would surface the
- * same handful of posts to every viewer.
- *
- * Both functions take a Supabase client. `getForYouFeed` requires a
- * service-role client (it transitively calls `getViewerTagAffinity`,
- * which reads owner-only likes / bookmarks / follows — see that file's
- * docstring for the M14 audit context). `getLatestFeed` reads only
- * `public.posts` for public columns and works equally well with the
- * anon client; the anon home-page render in `app/page.tsx` already
- * passes one.
+ * Reads only `public.posts` for public columns and works with the anon
+ * client; the anon home-page render in `app/page.tsx` passes one.
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { getViewerTagAffinity } from './affinity'
-import { shortlistByHeat, type ShortlistRow } from './shortlist'
-import { rerankWithAffinity, type RerankRow } from './rerank'
 
-export type { ShortlistRow } from './shortlist'
-export type { RerankRow } from './rerank'
-export { getViewerTagAffinity } from './affinity'
-export { shortlistByHeat } from './shortlist'
-export { rerankWithAffinity } from './rerank'
-
-const FOR_YOU_DEFAULT_LIMIT = 30
-const FOR_YOU_DEFAULT_SHORTLIST_SIZE = 200
 const LATEST_DEFAULT_LIMIT = 30
 
-interface TagJoinRow {
-  post_id: string
-  tag_slug: string
-  tags: { slug: string; is_approved: boolean } | null
-}
-
-/**
- * Structured timing log helper — same shape as the one in
- * `lib/feed/affinity.ts`, kept local to avoid leaking the logger across
- * module boundaries. Gated by `FEED_TIMING_LOGS=1`.
- */
-function feedTimeLog(
-  label: string,
-  ms: number,
-  extra?: Record<string, unknown>,
-): void {
-  if (process.env.FEED_TIMING_LOGS !== '1') return
-  console.log(
-    JSON.stringify({ event: 'feed_timing', label, ms: Math.round(ms), ...extra }),
-  )
-}
-
-/**
- * Personalized home feed. Affinity → shortlist → tag-attach → rerank.
- */
-export async function getForYouFeed(
-  db: SupabaseClient,
-  viewerId: string,
-  options: { limit?: number; shortlistSize?: number; now?: Date } = {},
-): Promise<RerankRow[]> {
-  const limit = options.limit ?? FOR_YOU_DEFAULT_LIMIT
-  const shortlistSize = options.shortlistSize ?? FOR_YOU_DEFAULT_SHORTLIST_SIZE
-  const now = options.now ?? new Date()
-
-  const overallStart = performance.now()
-
-  const [affinity, shortlist] = await Promise.all([
-    getViewerTagAffinity(db, viewerId, { now }),
-    shortlistByHeat(db, { limit: shortlistSize }),
-  ])
-  feedTimeLog('for_you.affinity_plus_shortlist', performance.now() - overallStart, {
-    affinity_size: affinity.size,
-    shortlist_size: shortlist.length,
-  })
-
-  if (shortlist.length === 0) {
-    feedTimeLog('for_you.total', performance.now() - overallStart, {
-      viewer_id: viewerId,
-      empty_shortlist: true,
-    })
-    return []
-  }
-
-  // Fetch approved tag slugs for every shortlisted post in a single round-trip.
-  const tagFetchStart = performance.now()
-  const ids = shortlist.map((p) => p.id)
-  const { data: tagData, error: tagError } = await db
-    .from('post_tags')
-    .select('post_id, tag_slug, tags(slug, is_approved)')
-    .in('post_id', ids)
-  feedTimeLog('for_you.post_tags_attach', performance.now() - tagFetchStart, {
-    post_count: ids.length,
-    ok: !tagError,
-  })
-
-  const tagsByPost = new Map<string, string[]>()
-  if (!tagError && Array.isArray(tagData)) {
-    const rows = tagData as unknown as TagJoinRow[]
-    for (const r of rows) {
-      if (!r.tags || r.tags.is_approved !== true) continue
-      const slug = r.tags.slug ?? r.tag_slug
-      if (!slug) continue
-      const list = tagsByPost.get(r.post_id)
-      if (list) list.push(slug)
-      else tagsByPost.set(r.post_id, [slug])
-    }
-  }
-
-  const enriched: RerankRow[] = shortlist.map((p) => ({
-    ...p,
-    tag_slugs: tagsByPost.get(p.id) ?? [],
-  }))
-
-  const rerankStart = performance.now()
-  const result = rerankWithAffinity(enriched, affinity, { limit, now })
-  feedTimeLog('for_you.rerank', performance.now() - rerankStart, {
-    input_size: enriched.length,
-    output_size: result.length,
-  })
-
-  feedTimeLog('for_you.total', performance.now() - overallStart, {
-    viewer_id: viewerId,
-    returned: result.length,
-  })
-
-  return result
+export interface ShortlistRow {
+  id: string
+  author_id: string
+  type: 'post' | 'playbook' | 'dive'
+  slug: string
+  title: string
+  summary: string
+  cover_image_url: string | null
+  published_at: string
+  like_count: number
+  bookmark_count: number
+  comment_count: number
 }
 
 interface PostsLatestRow {
@@ -148,10 +40,9 @@ interface PostsLatestRow {
 }
 
 /**
- * Anon-friendly fallback: most recent non-deleted posts, no ranking.
- *
- * Used for the logged-out homepage and as a safety net when the
- * personalized feed has nothing to show.
+ * Most recent non-deleted, published posts, reverse-chronological. Used
+ * for the homepage feed and as a safety net when there's nothing more
+ * specific to show.
  */
 export async function getLatestFeed(
   db: Pick<SupabaseClient, 'from'>,

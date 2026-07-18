@@ -9,7 +9,7 @@
  * rendering sites stay in sync automatically.
  *
  * Item order (OPC-8, locked — do not reorder):
- *   Home → Trending → All tags → Bookmarks → Profile
+ *   Home → All tags → Bookmarks → Profile
  *
  * No Settings entry (OPC-3, decided).
  * No icons/emoji (brand: mono text labels only).
@@ -24,7 +24,6 @@ import { useSession } from 'next-auth/react'
 
 const PUBLIC_ITEMS = [
   { href: '/', label: 'Home' },
-  { href: '/trending', label: 'Trending' },
   { href: '/tags', label: 'All tags' },
 ] as const
 

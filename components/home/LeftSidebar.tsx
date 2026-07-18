@@ -1,7 +1,7 @@
 /**
  * LeftSidebar — xl-only left column (hidden below xl=1280 px).
  *
- * Nav-only: renders just LeftNav. Discovery rails (trending tags, top-by-type,
+ * Nav-only: renders just LeftNav. Discovery rails (top-by-type,
  * featured-tags fallback) all live in RightSidebar so discovery is consolidated
  * on a single rail and the left column stays purely navigational.
  *

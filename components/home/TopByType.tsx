@@ -1,6 +1,6 @@
 /**
- * TopByType — sidebar rail showing top posts (playbooks or deep dives)
- * from the last 7 days, ranked by heat-score.
+ * TopByType: sidebar rail showing the most recent posts (playbooks or
+ * deep dives) from the last 7 days.
  *
  * Server async component.  Prop `type` selects which cached query to
  * await: `cachedTopPlaybooks` for 'playbook', `cachedTopDives` for 'dive'.
@@ -37,8 +37,8 @@ export async function TopByType({ type, headingId }: TopByTypeProps) {
   if (posts.length === 0) return null
 
   const heading = type === 'playbook'
-    ? 'Top playbooks this week'
-    : 'Top deep dives this week'
+    ? 'Recent playbooks'
+    : 'Recent deep dives'
 
   return (
     <section aria-labelledby={resolvedHeadingId}>

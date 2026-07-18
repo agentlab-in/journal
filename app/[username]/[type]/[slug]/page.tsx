@@ -25,13 +25,12 @@ import { getFollowState } from '@/lib/profile/follow-state'
 import { ReportButton } from '@/components/report/ReportButton'
 import { logRouteError } from '@/lib/logging/error-log'
 // Home discovery rails — the read page reuses the exact same three-column
-// shell as `/` (issue #70). Left nav only on the left; trending tags +
-// TopByType + featured-tags fallback consolidated on the right. Same
+// shell as `/` (issue #70). Left nav only on the left; TopByType +
+// featured-tags fallback consolidated on the right. Same
 // `unstable_cache`-backed data (#54); no new caching layers.
 import { HomeShell } from '@/components/home/HomeShell'
 import { LeftSidebar } from '@/components/home/LeftSidebar'
 import { RightSidebar } from '@/components/home/RightSidebar'
-import { TrendingStrip } from '@/components/home/TrendingStrip'
 import { TopByType } from '@/components/home/TopByType'
 import { RailSkeleton } from '@/components/skeleton/RailSkeleton'
 
@@ -189,15 +188,6 @@ export default async function PostPage({
       left={<LeftSidebar />}
       center={
         <main id="main-content">
-          {/* Mobile-only (<lg) trending strip above the post, mirroring the
-              home center column. TrendingStrip self-hides at >=lg; the
-              wrapper supplies the same gutter as the post body so the strip
-              lines up with the article. */}
-          <div className="post-page__mobile-trending lg:hidden">
-            <Suspense fallback={null}>
-              <TrendingStrip />
-            </Suspense>
-          </div>
           <article className="post-page">
       <script
         type="application/ld+json"

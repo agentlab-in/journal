@@ -49,18 +49,8 @@ describe('<LeftNav>', () => {
       expect(homeLink).toHaveAttribute('aria-current', 'page')
     })
 
-    it('marks the Trending link aria-current="page" when on /trending', () => {
-      mockUsePathname.mockReturnValue('/trending')
-      mockUseSession.mockReturnValue({ data: null, status: 'unauthenticated' })
-
-      render(<LeftNav />)
-
-      const trendingLink = screen.getByRole('link', { name: 'Trending' })
-      expect(trendingLink).toHaveAttribute('aria-current', 'page')
-    })
-
-    it('does NOT mark Home as active when on /trending', () => {
-      mockUsePathname.mockReturnValue('/trending')
+    it('does NOT mark Home as active when on /tags', () => {
+      mockUsePathname.mockReturnValue('/tags')
       mockUseSession.mockReturnValue({ data: null, status: 'unauthenticated' })
 
       render(<LeftNav />)
@@ -71,14 +61,13 @@ describe('<LeftNav>', () => {
   })
 
   describe('unauthenticated state', () => {
-    it('renders public items (Home, Trending, All tags)', () => {
+    it('renders public items (Home, All tags)', () => {
       mockUsePathname.mockReturnValue('/')
       mockUseSession.mockReturnValue({ data: null, status: 'unauthenticated' })
 
       render(<LeftNav />)
 
       expect(screen.getByRole('link', { name: 'Home' })).toBeInTheDocument()
-      expect(screen.getByRole('link', { name: 'Trending' })).toBeInTheDocument()
       expect(screen.getByRole('link', { name: 'All tags' })).toBeInTheDocument()
     })
 
@@ -182,7 +171,7 @@ describe('<LeftNav>', () => {
   })
 
   describe('item order', () => {
-    it('renders items in locked order: Home → Trending → All tags → Bookmarks → Profile', () => {
+    it('renders items in locked order: Home, All tags, Bookmarks, Profile', () => {
       mockUsePathname.mockReturnValue('/')
       mockUseSession.mockReturnValue({
         status: 'authenticated',
@@ -194,7 +183,7 @@ describe('<LeftNav>', () => {
       const links = screen.getAllByRole('link')
       const labels = links.map((l) => l.textContent)
 
-      expect(labels).toEqual(['Home', 'Trending', 'All tags', 'Bookmarks', 'Profile'])
+      expect(labels).toEqual(['Home', 'All tags', 'Bookmarks', 'Profile'])
     })
   })
 })
