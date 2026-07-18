@@ -6,23 +6,31 @@
 
 **journal** is agentlab.in's full-stack publishing platform for AI agent infrastructure knowledge: posts, playbooks, and deep dives. Reading is open to everyone; writing is invite-only.
 
+![A rendered post page: title, summary, byline, tags, publish date, owner-only Edit/Delete, collapsible table of contents, and MDX body.](docs/screenshots/post.png)
+
+*A published deep dive: MDX body, table of contents, tags, and owner controls.*
+
 Built solo, end to end: authentication with an approval gate, a Markdown/MDX authoring pipeline, discovery (search, tags, RSS), a complete moderation back office, and the production hardening (rate limiting, sanitization, accessibility, legal pages) that a real publishing platform needs.
-
-## Screenshots
-
-| | |
-|---|---|
-| ![Home feed](docs/screenshots/home.png) | ![Post page](docs/screenshots/post.png) |
-| Home: reverse-chronological feed with tag discovery | Post page: rendered deep dive with TOC and tags |
-| ![Editor](docs/screenshots/editor.png) | ![Admin reports](docs/screenshots/admin-reports.png) |
-| Editor: post types, tags, cover image, live validation | Admin: report queue with dismiss/delete workflow |
 
 ## Highlights
 
 What this project demonstrates, beyond a standard CRUD app:
 
+![The signed-in home page: the Latest reverse-chronological feed with post cards showing author, date, type badge, and tags, and a starter-topics tag rail on the right.](docs/screenshots/home.png)
+
+*The home feed: reverse-chronological posts with tag-based discovery.*
+
 - **Real moderation back office.** Admin surfaces for user bans, content reports with a resolution workflow, tag review, and a full audit log. Bans revoke live sessions, not just flags.
+
+![The admin back office Reports tab: an unresolved post report with date, reporter, linked post, and Dismiss / Delete-and-resolve actions. Sensitive fields redacted.](docs/screenshots/admin-reports.png)
+
+*The report queue in the admin back office (sensitive fields redacted).*
+
 - **Secure content pipeline.** User-authored Markdown/MDX rendered through a `unified` pipeline with `rehype-sanitize`, syntax highlighting, and Mermaid diagrams, safe against XSS from untrusted input.
+
+![The /write screen: type selector (Post / Playbook / Deep Dive), title and summary fields with character counts, tag picker, cover image tabs, live slug preview, and inline publish validation.](docs/screenshots/editor.png)
+
+*The editor: three post types, tags, cover image, and live publish validation.*
 - **Production hardening.** Upstash-backed rate limiting on write paths, GitHub OAuth via NextAuth with a Supabase adapter, and a legal surface (privacy, terms, DMCA, grievance).
 - **Accessibility as a gate.** Automated axe-core checks run in CI, not as an afterthought.
 - **Serious test discipline.** 160+ test files spanning Vitest unit tests, Playwright end-to-end flows, and accessibility specs. The full suite (type-check, lint, unit, e2e, a11y) runs on every push.
