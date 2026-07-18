@@ -135,18 +135,26 @@ function parseReason(
     return (
       <div className="space-y-3 text-sm leading-relaxed">
         <p className="text-fg-subtle">
-          agentlab.in is invite-only right now. To request access, email{' '}
+          Writing on agentlab.in is invite-only.
+        </p>
+        <p className="text-fg-subtle">
+          Right now this is mostly my journal. I occasionally invite people
+          building serious agent infrastructure. If that&rsquo;s you, email{' '}
           <a
             href="mailto:harshit@agentlab.in"
             className="text-fg underline underline-offset-2 hover:opacity-80"
           >
             harshit@agentlab.in
           </a>{' '}
-          explaining why you should be allowed to post.
+          with a link to your work. The work is the application, no pitch
+          needed.
         </p>
         <p className="text-fg-subtle">
-          If approved, you must reply with the line &ldquo;I agree to the
-          terms at agentlab.in/terms&rdquo; before your account is activated.
+          I read these slowly and reply rarely. No response isn&rsquo;t
+          personal.
+        </p>
+        <p className="text-fg-subtle">
+          Reading is open to everyone, no account needed.
         </p>
       </div>
     )
