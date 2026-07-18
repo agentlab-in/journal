@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import { createAnonServerSupabaseClient } from '@/lib/supabase/server'
-import { getLatestFeed, type ShortlistRow } from '@/lib/feed'
+import { getLatestFeed, type LatestFeedRow } from '@/lib/feed'
 import {
   fetchAuthors,
   fetchOrgsByPost,
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
  * RESTRICT so this is effectively unreachable in production).
  */
 function buildCards(
-  rows: ShortlistRow[],
+  rows: LatestFeedRow[],
   authorMap: Map<string, AuthorInfo>,
   anonTagMap: Map<string, TagInfo[]>,
   orgMap: Map<string, OrgInfo>,
@@ -74,7 +74,7 @@ async function FeedList() {
   // Anon: RLS-gated client. Public-read policies on posts/users/tags
   // already expose what `getLatestFeed` needs.
   const db = createAnonServerSupabaseClient()
-  let rows: ShortlistRow[] = []
+  let rows: LatestFeedRow[] = []
   try {
     rows = await getLatestFeed(db)
   } catch (err) {

@@ -11,7 +11,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 
 const LATEST_DEFAULT_LIMIT = 30
 
-export interface ShortlistRow {
+export interface LatestFeedRow {
   id: string
   author_id: string
   type: 'post' | 'playbook' | 'dive'
@@ -41,7 +41,7 @@ interface PostsLatestRow {
 export async function getLatestFeed(
   db: Pick<SupabaseClient, 'from'>,
   options: { limit?: number } = {},
-): Promise<ShortlistRow[]> {
+): Promise<LatestFeedRow[]> {
   const limit = options.limit ?? LATEST_DEFAULT_LIMIT
 
   const { data, error } = await db
@@ -59,7 +59,7 @@ export async function getLatestFeed(
   return (data as PostsLatestRow[]).map((r) => ({
     id: r.id,
     author_id: r.author_id,
-    type: r.type as ShortlistRow['type'],
+    type: r.type as LatestFeedRow['type'],
     slug: r.slug,
     title: r.title,
     summary: r.summary,

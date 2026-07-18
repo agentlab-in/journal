@@ -14,7 +14,6 @@ import AxeBuilder from '@axe-core/playwright'
 const PUBLIC_ROUTES: Array<{ path: string; label: string }> = [
   { path: '/', label: 'home' },
   { path: '/latest', label: 'latest feed' },
-  { path: '/trending', label: 'trending feed' },
   { path: '/tags', label: 'tags index' },
   { path: '/tag/agents', label: 'tag landing (likely empty)' },
   { path: '/search', label: 'search (empty)' },

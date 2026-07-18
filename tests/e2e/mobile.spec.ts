@@ -162,47 +162,6 @@ test.describe('mobile (375px): Phase B discovery rails', () => {
     'requires E2E_TEST_AUTH_USER_ID + SUPABASE_SERVICE_ROLE_KEY',
   )
 
-  test('trending-strip (.trending-strip) is visible and horizontally scrollable with chips', async ({
-    page,
-    request,
-  }) => {
-    // Seed a post with a tag so there's trending data.
-    await request.post('/api/posts', {
-      headers: { 'x-e2e-auth': '1' },
-      data: {
-        type: 'post',
-        title: `Mobile Strip Seed ${String(Date.now())}`,
-        summary: 'Seeded for mobile trending strip test.',
-        body_md: 'x'.repeat(60),
-        tags: ['security'],
-      },
-    })
-
-    await page.goto('/', { waitUntil: 'domcontentloaded' })
-
-    // .trending-strip should be present at 375px (it uses lg:hidden so it
-    // shows at <1024px). It may render null if cache returns empty —
-    // that's acceptable; we just assert no horizontal overflow.
-    const strip = page.locator('.trending-strip')
-    const stripCount = await strip.count()
-
-    if (stripCount > 0) {
-      await expect(strip).toBeVisible()
-
-      // Assert at least one chip link is inside the strip.
-      const chips = strip.locator('.tag-chip')
-      const chipCount = await chips.count()
-      expect(chipCount).toBeGreaterThan(0)
-    }
-
-    // Either way: page must not overflow horizontally.
-    const overflow = await page.evaluate(() => {
-      const doc = document.documentElement
-      return Math.max(0, doc.scrollWidth - doc.clientWidth)
-    })
-    expect(overflow, 'homepage overflows at 375px with trending strip').toBeLessThanOrEqual(0)
-  })
-
   test('top-by-type rails appear below the feed at <lg', async ({
     page,
     request,
