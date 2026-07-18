@@ -50,20 +50,17 @@ function makeQueryChain(result: { data: unknown; error: unknown }) {
  *   - reports (WHERE resolved_at IS NULL)
  *   - users (batch reporter lookup + target user lookup)
  *   - posts (target post lookup)
- *   - comments (target comment lookup)
  */
 function makeFakeClient(opts: {
   reportRows?: unknown[]
   reporterRow?: unknown
   postRow?: unknown
-  commentRow?: unknown
   userRow?: unknown
 } = {}) {
   const {
     reportRows = [],
     reporterRow = { id: REPORTER_ID, username: 'reporter' },
     postRow = { title: 'Test Post', slug: 'test-post', type: 'post', author_id: 'author-id' },
-    commentRow = { body: 'This is a comment body', post_id: 'post-id' },
     userRow = { username: 'targetuser' },
   } = opts
 
@@ -100,11 +97,7 @@ function makeFakeClient(opts: {
         return makeQueryChain({ data: userRow, error: null })
       }
       if (table === 'posts') {
-        // Could be target post or comment's parent post
         return makeQueryChain({ data: postRow, error: null })
-      }
-      if (table === 'comments') {
-        return makeQueryChain({ data: commentRow, error: null })
       }
       if (table === 'post_tags') {
         return makeQueryChain({ data: null, error: null })

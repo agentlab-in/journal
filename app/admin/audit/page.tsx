@@ -16,8 +16,6 @@ function collectRestoredTargets(rows: AuditActionRow[]): Set<string> {
   for (const row of rows) {
     if (row.action === 'restore_post' && row.target_type === 'post') {
       restored.add(targetKey(row.target_type, row.target_id))
-    } else if (row.action === 'restore_comment' && row.target_type === 'comment') {
-      restored.add(targetKey(row.target_type, row.target_id))
     }
   }
   return restored
@@ -26,14 +24,10 @@ function collectRestoredTargets(rows: AuditActionRow[]): Set<string> {
 function restorableTarget(
   row: AuditActionRow,
   restored: Set<string>,
-): { type: 'post' | 'comment'; id: string } | null {
+): { type: 'post'; id: string } | null {
   if (row.action === 'delete_post' && row.target_type === 'post') {
     if (restored.has(targetKey(row.target_type, row.target_id))) return null
     return { type: 'post', id: row.target_id }
-  }
-  if (row.action === 'delete_comment' && row.target_type === 'comment') {
-    if (restored.has(targetKey(row.target_type, row.target_id))) return null
-    return { type: 'comment', id: row.target_id }
   }
   return null
 }
@@ -55,7 +49,7 @@ function formatDate(iso: string) {
   return DATE_FMT.format(new Date(iso))
 }
 
-const TARGET_TYPE_OPTIONS = ['post', 'comment', 'user', 'tag', 'report', 'org']
+const TARGET_TYPE_OPTIONS = ['post', 'user', 'tag', 'report', 'org']
 
 interface PageSearchParams {
   actor?: string

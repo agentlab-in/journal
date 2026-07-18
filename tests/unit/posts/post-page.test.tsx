@@ -46,10 +46,6 @@ vi.mock('@/components/posts/ViewBeacon', () => ({
 vi.mock('@/components/posts/Backlinks', () => ({
   Backlinks: () => React.createElement('div', { 'data-testid': 'backlinks' }),
 }))
-vi.mock('@/components/post/CommentsSection', () => ({
-  CommentsSection: () =>
-    React.createElement('div', { 'data-testid': 'comments-section' }),
-}))
 vi.mock('@/components/posts/AuthorActions', () => ({
   AuthorActions: ({ postId }: { postId: string }) =>
     React.createElement('div', { 'data-testid': 'author-actions', 'data-post-id': postId }),

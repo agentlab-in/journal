@@ -26,13 +26,10 @@ vi.mock('@/lib/supabase/admin', () => ({
 // Valid RFC 4122 UUIDs — version nibble 4, variant bits 8
 const REPORTER_ID = 'aabbccdd-1234-4000-8001-000000000001'
 const TARGET_POST_ID = 'aabbccdd-1234-4000-8001-000000000002'
-const TARGET_COMMENT_ID = 'aabbccdd-1234-4000-8001-000000000003'
 const TARGET_USER_ID = 'aabbccdd-1234-4000-8001-000000000004'
 const POST_AUTHOR_ID = 'aabbccdd-1234-4000-8001-000000000005'
-const COMMENT_AUTHOR_ID = 'aabbccdd-1234-4000-8001-000000000006'
 
 const VALID_POST_ROW = { id: TARGET_POST_ID, author_id: POST_AUTHOR_ID }
-const VALID_COMMENT_ROW = { id: TARGET_COMMENT_ID, author_id: COMMENT_AUTHOR_ID }
 const VALID_USER_ROW = { id: TARGET_USER_ID }
 const VALID_REPORT_ROW = { id: 'aabbccdd-1234-4000-8001-000000000099' }
 
@@ -54,21 +51,18 @@ function makeQueryChain(result: { data: unknown; error: unknown }) {
  * Build a fake Supabase client for POST /api/reports tests.
  *
  * opts.postRow    — what the `posts` table returns for .maybeSingle()
- * opts.commentRow — what the `comments` table returns for .maybeSingle()
  * opts.userRow    — what the `users` table returns for .maybeSingle()
  * opts.dupRow     — what the `reports` table returns for the dedup query
  * opts.insertResult — what the `reports` insert returns for .single()
  */
 function makeFakeClient(opts: {
   postRow?: unknown
-  commentRow?: unknown
   userRow?: unknown
   dupRow?: unknown
   insertResult?: { data: unknown; error: unknown }
 } = {}) {
   const {
     postRow = VALID_POST_ROW,
-    commentRow = VALID_COMMENT_ROW,
     userRow = VALID_USER_ROW,
     dupRow = null,
     insertResult = { data: VALID_REPORT_ROW, error: null },
@@ -82,12 +76,6 @@ function makeFakeClient(opts: {
     from: vi.fn((table: string) => {
       if (table === 'posts') {
         return makeQueryChain({ data: postRow, error: postRow ? null : { message: 'not found' } })
-      }
-      if (table === 'comments') {
-        return makeQueryChain({
-          data: commentRow,
-          error: commentRow ? null : { message: 'not found' },
-        })
       }
       if (table === 'users') {
         return makeQueryChain({
@@ -224,17 +212,6 @@ describe('POST /api/reports — 400 self_report', () => {
     const body = await res.json()
     expect(body.error).toBe('self_report')
   })
-
-  it('returns 400 when reporting own comment', async () => {
-    // Make the reporter the comment author
-    sessionState.value = { user: { id: COMMENT_AUTHOR_ID } }
-    currentFakeClient = makeFakeClient()
-    const { POST } = await import('@/app/api/reports/route')
-    const res = await POST(makeRequest({ target_type: 'comment', target_id: TARGET_COMMENT_ID, reason: 'spam' }))
-    expect(res.status).toBe(400)
-    const body = await res.json()
-    expect(body.error).toBe('self_report')
-  })
 })
 
 describe('POST /api/reports — 404 target_not_found', () => {
@@ -246,15 +223,6 @@ describe('POST /api/reports — 404 target_not_found', () => {
     currentFakeClient = makeFakeClient({ postRow: null })
     const { POST } = await import('@/app/api/reports/route')
     const res = await POST(makeRequest({ target_type: 'post', target_id: TARGET_POST_ID, reason: 'spam' }))
-    expect(res.status).toBe(404)
-    const body = await res.json()
-    expect(body.error).toBe('target_not_found')
-  })
-
-  it('returns 404 when comment does not exist', async () => {
-    currentFakeClient = makeFakeClient({ commentRow: null })
-    const { POST } = await import('@/app/api/reports/route')
-    const res = await POST(makeRequest({ target_type: 'comment', target_id: TARGET_COMMENT_ID, reason: 'spam' }))
     expect(res.status).toBe(404)
     const body = await res.json()
     expect(body.error).toBe('target_not_found')
@@ -295,14 +263,6 @@ describe('POST /api/reports — 201 happy path', () => {
   it('inserts report and returns 201 with report id', async () => {
     const { POST } = await import('@/app/api/reports/route')
     const res = await POST(makeRequest({ target_type: 'post', target_id: TARGET_POST_ID, reason: 'spam' }))
-    expect(res.status).toBe(201)
-    const body = await res.json()
-    expect(body.id).toBe(VALID_REPORT_ROW.id)
-  })
-
-  it('accepts target_type=comment', async () => {
-    const { POST } = await import('@/app/api/reports/route')
-    const res = await POST(makeRequest({ target_type: 'comment', target_id: TARGET_COMMENT_ID, reason: 'harassment' }))
     expect(res.status).toBe(201)
     const body = await res.json()
     expect(body.id).toBe(VALID_REPORT_ROW.id)

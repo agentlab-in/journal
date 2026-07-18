@@ -15,7 +15,6 @@ import { describe, it, expect } from 'vitest'
 import { render } from '@testing-library/react'
 
 import { PostCardSkeleton } from '@/components/skeleton/PostCardSkeleton'
-import { CommentSkeleton } from '@/components/skeleton/CommentSkeleton'
 import { ProfileHeaderSkeleton } from '@/components/skeleton/ProfileHeaderSkeleton'
 import { SearchResultSkeleton } from '@/components/skeleton/SearchResultSkeleton'
 
@@ -30,11 +29,6 @@ const cases: CaseSpec[] = [
     name: 'PostCardSkeleton',
     render: () => <PostCardSkeleton />,
     countProp: { value: 3, itemSelector: '.home-feed__item' },
-  },
-  {
-    name: 'CommentSkeleton',
-    render: () => <CommentSkeleton />,
-    countProp: { value: 4, itemSelector: 'article' },
   },
   {
     name: 'ProfileHeaderSkeleton',

@@ -61,7 +61,6 @@ describe('checkRateLimit bucket limits', () => {
     { bucket: 'publish', limit: 10 },
     { bucket: 'edit_post', limit: 30 },
     { bucket: 'delete_post', limit: 30 },
-    { bucket: 'comment', limit: 30 },
     { bucket: 'engagement', limit: 60 },
     { bucket: 'report', limit: 10 },
     { bucket: 'image_upload', limit: 20 },

@@ -18,13 +18,11 @@ import { MdxFailedFallback } from '@/components/error/MdxFailedFallback'
 import { ViewBeacon } from '@/components/posts/ViewBeacon'
 import { AuthorActions } from '@/components/posts/AuthorActions'
 import { Backlinks } from '@/components/posts/Backlinks'
-import { CommentsSection } from '@/components/post/CommentsSection'
 import { LikeButton } from '@/components/post/LikeButton'
 import { BookmarkButton } from '@/components/post/BookmarkButton'
 import { FollowButton } from '@/components/profile/FollowButton'
 import { getFollowState } from '@/lib/profile/follow-state'
 import { ReportButton } from '@/components/report/ReportButton'
-import { CommentSkeleton } from '@/components/skeleton/CommentSkeleton'
 import { logRouteError } from '@/lib/logging/error-log'
 // Home discovery rails — the read page reuses the exact same three-column
 // shell as `/` (issue #70). Left nav only on the left; trending tags +
@@ -368,15 +366,6 @@ export default async function PostPage({
       </ErrorBoundary>
 
       <Backlinks postId={post.id} />
-
-      {/* Comments are the expensive thread walk on this page — a
-          service-role read of every comment row + author join. Stream
-          them in under a `CommentSkeleton` fallback so the post body
-          (already in DOM) paints first and the page is scrollable
-          before comments resolve. */}
-      <Suspense fallback={<CommentSkeleton count={3} />}>
-        <CommentsSection postId={post.id} />
-      </Suspense>
 
       <ViewBeacon postId={post.id} />
       </article>

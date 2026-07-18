@@ -3,7 +3,7 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
 interface RestoreButtonProps {
-  targetType: 'post' | 'comment'
+  targetType: 'post'
   targetId: string
 }
 
@@ -17,10 +17,7 @@ export default function RestoreButton({ targetType, targetId }: RestoreButtonPro
     setBusy(true)
     setError(null)
     try {
-      const path =
-        targetType === 'post'
-          ? `/api/posts/${encodeURIComponent(targetId)}/restore`
-          : `/api/comments/${encodeURIComponent(targetId)}/restore`
+      const path = `/api/posts/${encodeURIComponent(targetId)}/restore`
       const res = await fetch(path, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -16,7 +16,6 @@ export type RateLimitBucket =
   | 'publish'
   | 'edit_post'
   | 'delete_post'
-  | 'comment'
   | 'engagement'
   | 'report'
   | 'image_upload'
@@ -46,7 +45,6 @@ const BUCKETS: Record<RateLimitBucket, BucketSpec> = {
   publish: { limit: 10, windowMs: 60 * 60 * 1000, windowDuration: '1 h' },
   edit_post: { limit: 30, windowMs: 60 * 60 * 1000, windowDuration: '1 h' },
   delete_post: { limit: 30, windowMs: 60 * 60 * 1000, windowDuration: '1 h' },
-  comment: { limit: 30, windowMs: 10 * 60 * 1000, windowDuration: '10 m' },
   engagement: { limit: 60, windowMs: 60 * 1000, windowDuration: '1 m' },
   report: { limit: 10, windowMs: 60 * 60 * 1000, windowDuration: '1 h' },
   image_upload: { limit: 20, windowMs: 60 * 60 * 1000, windowDuration: '1 h' },

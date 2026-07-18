@@ -11,25 +11,18 @@ export interface ReportTargetPost {
   author_username: string
 }
 
-export interface ReportTargetComment {
-  type: 'comment'
-  excerpt: string
-  post_slug: string
-  post_author_username: string
-}
-
 export interface ReportTargetUser {
   type: 'user'
   username: string
 }
 
-export type ReportTarget = ReportTargetPost | ReportTargetComment | ReportTargetUser
+export type ReportTarget = ReportTargetPost | ReportTargetUser
 
 export interface ReportListRow {
   id: string
   created_at: string
   reporter_username: string | null
-  target_type: 'post' | 'comment' | 'user'
+  target_type: 'post' | 'user'
   target_id: string
   reason: string
   target: ReportTarget | null
@@ -70,48 +63,6 @@ async function loadPostTarget(
     title: post.title,
     slug: post.slug,
     author_username: author?.username ?? '',
-  }
-}
-
-async function loadCommentTarget(
-  admin: ReturnType<typeof createAdminSupabaseClient>,
-  targetId: string,
-): Promise<ReportTargetComment | null> {
-  const { data } = await admin
-    .from('comments')
-    .select('body, post_id')
-    .eq('id', targetId)
-    .maybeSingle()
-
-  if (!data) return null
-  const comment = data as { body: string; post_id: string }
-
-  const excerpt = comment.body.slice(0, 80)
-
-  const { data: postData } = await admin
-    .from('posts')
-    .select('slug, author_id')
-    .eq('id', comment.post_id)
-    .maybeSingle()
-
-  if (!postData) {
-    return { type: 'comment', excerpt, post_slug: '', post_author_username: '' }
-  }
-  const post = postData as { slug: string; author_id: string }
-
-  const { data: authorData } = await admin
-    .from('users')
-    .select('username')
-    .eq('id', post.author_id)
-    .maybeSingle()
-
-  const author = authorData as { username: string } | null
-
-  return {
-    type: 'comment',
-    excerpt,
-    post_slug: post.slug,
-    post_author_username: author?.username ?? '',
   }
 }
 
@@ -165,7 +116,7 @@ export async function listUnresolvedReports(
     id: string
     created_at: string
     reporter_id: string | null
-    target_type: 'post' | 'comment' | 'user'
+    target_type: 'post' | 'user'
     target_id: string
     reason: string
   }>
@@ -199,8 +150,6 @@ export async function listUnresolvedReports(
 
       if (r.target_type === 'post') {
         target = await loadPostTarget(admin, r.target_id)
-      } else if (r.target_type === 'comment') {
-        target = await loadCommentTarget(admin, r.target_id)
       } else if (r.target_type === 'user') {
         target = await loadUserTarget(admin, r.target_id)
       }

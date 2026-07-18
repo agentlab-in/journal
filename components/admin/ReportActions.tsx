@@ -43,8 +43,6 @@ export default function ReportActions({ report }: ReportActionsProps) {
       let deleteUrl = ''
       if (report.target_type === 'post') {
         deleteUrl = `/api/posts/${report.target_id}`
-      } else if (report.target_type === 'comment') {
-        deleteUrl = `/api/comments/${report.target_id}`
       }
 
       if (deleteUrl) {
@@ -131,7 +129,7 @@ export default function ReportActions({ report }: ReportActionsProps) {
         Dismiss
       </button>
 
-      {(report.target_type === 'post' || report.target_type === 'comment') && (
+      {report.target_type === 'post' && (
         <button
           type="button"
           onClick={deleteTarget}

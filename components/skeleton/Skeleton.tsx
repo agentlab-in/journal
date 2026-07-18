@@ -1,7 +1,7 @@
 /**
  * Skeleton primitives — small set of presentational building blocks used
  * to compose domain-specific placeholders (PostCardSkeleton,
- * CommentSkeleton, etc.).
+ * ProfileHeaderSkeleton, etc.).
  *
  * Design choices:
  * - Animation: Tailwind's built-in `animate-pulse`. We considered a
