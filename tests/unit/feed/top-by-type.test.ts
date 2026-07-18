@@ -58,6 +58,7 @@ function makeRawRow(opts: RowOpts = {}) {
 function buildDb(rows: ReturnType<typeof makeRawRow>[], opts: { error?: boolean } = {}) {
   const eqArgs: Array<[string, unknown]> = []
   const gteArgs: Array<[string, unknown]> = []
+  const orderArgs: Array<[string, unknown]> = []
 
   const chain: Record<string, ReturnType<typeof vi.fn>> & {
     then?: (r: (v: { data: unknown; error: unknown }) => void) => void
@@ -71,7 +72,10 @@ function buildDb(rows: ReturnType<typeof makeRawRow>[], opts: { error?: boolean 
       return chain
     }),
     is: vi.fn(() => chain),
-    order: vi.fn(() => chain),
+    order: vi.fn((col: string, opts: unknown) => {
+      orderArgs.push([col, opts])
+      return chain
+    }),
     limit: vi.fn(() => chain),
   }
 
@@ -89,6 +93,7 @@ function buildDb(rows: ReturnType<typeof makeRawRow>[], opts: { error?: boolean 
     })),
     getEqArgs: () => eqArgs,
     getGteArgs: () => gteArgs,
+    getOrderArgs: () => orderArgs,
   }
 
   return db
@@ -147,6 +152,10 @@ describe('getTopByType', () => {
 
     expect(result[0].id).toBe('recent-low')
     expect(result[1].id).toBe('old-high')
+
+    // Assert the query calls .order with the correct column and direction.
+    const orderArgs = db.getOrderArgs()
+    expect(orderArgs.some(([col, opts]) => col === 'published_at' && opts && typeof opts === 'object' && 'ascending' in opts && opts.ascending === false)).toBe(true)
   })
 
   it('returns [] on DB error', async () => {

@@ -3336,9 +3336,9 @@ a {
 }
 
 /* ============================================================
-   .rail-heading — uppercase micro-label for sidebar rail titles
+   .rail-heading - uppercase micro-label for sidebar rail titles
    Matches the visual vocabulary of .tags-page__section-title.
-   Used by Phase B rails (TrendingTagsRail etc.).
+   Used by TopByType (playbooks and deep dives) and FeaturedTagsFallback.
    ============================================================ */
 
 .rail-heading {

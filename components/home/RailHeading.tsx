@@ -14,7 +14,7 @@
  */
 import type { ReactNode } from 'react'
 
-export type RailIconName = 'book-open' | 'compass' | 'hash' | 'tag'
+export type RailIconName = 'book-open' | 'compass' | 'tag'
 
 interface RailHeadingProps {
   id: string
@@ -65,15 +65,6 @@ const ICON_PATHS: Record<RailIconName, ReactNode> = {
     <>
       <circle cx="12" cy="12" r="10" />
       <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
-    </>
-  ),
-  // hash → Trending tags
-  hash: (
-    <>
-      <line x1="4" y1="9" x2="20" y2="9" />
-      <line x1="4" y1="15" x2="20" y2="15" />
-      <line x1="10" y1="3" x2="8" y2="21" />
-      <line x1="16" y1="3" x2="14" y2="21" />
     </>
   ),
   // tag → Featured / starter topics
