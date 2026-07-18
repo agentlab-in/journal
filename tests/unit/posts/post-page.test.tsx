@@ -40,9 +40,6 @@ vi.mock('@/components/posts/MermaidHydratorClient', () => ({
 vi.mock('@/components/posts/StructuredSections', () => ({
   StructuredSections: () => React.createElement('div', { 'data-testid': 'structured-sections' }),
 }))
-vi.mock('@/components/posts/ViewBeacon', () => ({
-  ViewBeacon: () => React.createElement('div', { 'data-testid': 'view-beacon' }),
-}))
 vi.mock('@/components/posts/Backlinks', () => ({
   Backlinks: () => React.createElement('div', { 'data-testid': 'backlinks' }),
 }))
@@ -119,7 +116,6 @@ const BASE_POST: LookedUpPost = {
   body_html: '<p>Hello</p>',
   cover_image_url: null,
   structured_sections: null,
-  view_count: 10,
   comment_count: 0,
   like_count: 0,
   published_at: '2026-01-01T00:00:00Z',

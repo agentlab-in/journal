@@ -13,7 +13,6 @@ import { MermaidHydratorClient } from '@/components/posts/MermaidHydratorClient'
 import { StructuredSections } from '@/components/posts/StructuredSections'
 import { ErrorBoundary } from '@/components/error/ErrorBoundary'
 import { MdxFailedFallback } from '@/components/error/MdxFailedFallback'
-import { ViewBeacon } from '@/components/posts/ViewBeacon'
 import { AuthorActions } from '@/components/posts/AuthorActions'
 import { Backlinks } from '@/components/posts/Backlinks'
 import { ReportButton } from '@/components/report/ReportButton'
@@ -305,8 +304,6 @@ export default async function PostPage({
       </ErrorBoundary>
 
       <Backlinks postId={post.id} />
-
-      <ViewBeacon postId={post.id} />
       </article>
           {/* Mobile-only (<lg) discovery rails below the post. The right
               sidebar is hidden at <lg, so surface the same TopByType rails

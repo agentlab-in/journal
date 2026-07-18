@@ -20,7 +20,6 @@ export type RateLimitBucket =
   | 'image_upload'
   | 'delete_account'
   | 'mdx_preview'
-  | 'view_count'
 
 export interface RateLimitResult {
   success: boolean
@@ -54,10 +53,6 @@ const BUCKETS: Record<RateLimitBucket, BucketSpec> = {
   // ceiling is generous — defends against a script hammering the endpoint
   // without throttling honest authors.
   mdx_preview: { limit: 60, windowMs: 60 * 1000, windowDuration: '1 m' },
-  // Anonymous view beacon. Keyed by IP (not user) at the call site since
-  // the route is unauth. 60/min lets normal browsing through; a script
-  // forging Origin and pumping increments gets shut down.
-  view_count: { limit: 60, windowMs: 60 * 1000, windowDuration: '1 m' },
 }
 
 // ---------------------------------------------------------------------------

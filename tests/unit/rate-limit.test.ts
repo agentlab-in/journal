@@ -41,17 +41,17 @@ describe('checkRateLimit (in-memory fallback)', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-01-01T00:00:00Z'))
 
-    // Saturate the view_count bucket (60/min).
+    // Saturate the mdx_preview bucket (60/min).
     for (let i = 0; i < 60; i++) {
-      const r = await checkRateLimit('view_count', 'user:gamma')
+      const r = await checkRateLimit('mdx_preview', 'user:gamma')
       expect(r.success).toBe(true)
     }
-    const blocked = await checkRateLimit('view_count', 'user:gamma')
+    const blocked = await checkRateLimit('mdx_preview', 'user:gamma')
     expect(blocked.success).toBe(false)
 
     // Advance past the 1-minute window.
     vi.setSystemTime(new Date('2026-01-01T00:01:01Z'))
-    const recovered = await checkRateLimit('view_count', 'user:gamma')
+    const recovered = await checkRateLimit('mdx_preview', 'user:gamma')
     expect(recovered.success).toBe(true)
   })
 })

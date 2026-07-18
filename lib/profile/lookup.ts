@@ -27,7 +27,6 @@ export interface ProfilePost {
   summary: string
   cover_image_url: string | null
   published_at: string
-  view_count: number
   comment_count: number
   tags: ProfilePostTag[]
 }
@@ -63,7 +62,6 @@ interface PostRow {
   summary: string
   cover_image_url: string | null
   published_at: string
-  view_count: number
   comment_count: number
   deleted_at: string | null
   post_tags: PostTagRow[]
@@ -75,7 +73,7 @@ interface PinnedRow {
 }
 
 const POST_SELECT =
-  'id, type, slug, title, summary, cover_image_url, published_at, view_count, comment_count, deleted_at, ' +
+  'id, type, slug, title, summary, cover_image_url, published_at, comment_count, deleted_at, ' +
   'post_tags(tag_slug, tags(slug, name, is_approved))'
 
 function mapTags(post: PostRow): ProfilePostTag[] {
@@ -95,7 +93,6 @@ function mapPost(post: PostRow): ProfilePost {
     summary: post.summary,
     cover_image_url: post.cover_image_url,
     published_at: post.published_at,
-    view_count: post.view_count,
     comment_count: post.comment_count ?? 0,
     tags: mapTags(post),
   }

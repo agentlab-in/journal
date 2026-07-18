@@ -79,7 +79,6 @@ const POST_ROW = {
   body_html: '<p>Hello</p>',
   cover_image_url: null,
   structured_sections: null,
-  view_count: 42,
   comment_count: 7,
   published_at: '2026-01-01T00:00:00Z',
   edited_at: null,
@@ -158,7 +157,6 @@ describe('lookupPost', () => {
     expect(result?.type).toBe('post')
     expect(result?.slug).toBe('my-great-post')
     expect(result?.title).toBe('My Great Post')
-    expect(result?.view_count).toBe(42)
     expect(result?.author).toEqual({
       id: 'user-1',
       username: 'alice',
