@@ -5,6 +5,7 @@ import Nav from '@/components/layout/Nav'
 import Footer from '@/components/layout/Footer'
 import AuthProvider from '@/components/providers/AuthProvider'
 import { THEME_INIT_SCRIPT } from '@/lib/theme/init-script'
+import { SITE_URL } from '@/lib/site-url'
 
 const jetbrainsMono = JetBrains_Mono({
   variable: '--font-jetbrains-mono',
@@ -15,7 +16,7 @@ const jetbrainsMono = JetBrains_Mono({
 const SITE_DESCRIPTION = 'Community publishing for AI agent infrastructure.'
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://agentlab.in'),
+  metadataBase: new URL(SITE_URL),
   // Phase 13 title format: `{page label} — agentlab.in` everywhere
   // EXCEPT the home page (which uses `title.absolute: 'agentlab.in'`
   // to bypass the template — the site name alone is the title there).

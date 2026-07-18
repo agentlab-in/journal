@@ -45,7 +45,7 @@ const envSchema = z.object({
   UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
 
   // Canonical site origin used for sitemap/robots/OG absolute URLs. Optional
-  // — lib/site-url.ts falls back to https://agentlab.in when unset.
+  // (lib/site-url.ts falls back to https://journal.agentlab.in when unset)
   NEXT_PUBLIC_SITE_URL: z.string().url().optional(),
 })
 
