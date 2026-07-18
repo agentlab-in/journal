@@ -5,7 +5,6 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { getSession, resolveIsAdmin } from '@/lib/auth'
 import { getCachedPost } from '@/lib/posts/lookup'
-import { getEngagementState } from '@/lib/posts/engagement'
 import { postUrl } from '@/lib/posts/url'
 import { hasMermaid } from '@/lib/posts/has-mermaid'
 import { articleJsonLd } from '@/lib/json-ld'
@@ -18,8 +17,6 @@ import { MdxFailedFallback } from '@/components/error/MdxFailedFallback'
 import { ViewBeacon } from '@/components/posts/ViewBeacon'
 import { AuthorActions } from '@/components/posts/AuthorActions'
 import { Backlinks } from '@/components/posts/Backlinks'
-import { LikeButton } from '@/components/post/LikeButton'
-import { BookmarkButton } from '@/components/post/BookmarkButton'
 import { FollowButton } from '@/components/profile/FollowButton'
 import { getFollowState } from '@/lib/profile/follow-state'
 import { ReportButton } from '@/components/report/ReportButton'
@@ -126,14 +123,11 @@ export default async function PostPage({
   }
 
   const admin = createAdminSupabaseClient()
-  const [engagement, viewerFollowsAuthor] = await Promise.all([
-    getEngagementState({ admin, postId: post.id, userId: session?.user?.id }),
-    getFollowState({
-      admin,
-      targetUserId: post.author_id,
-      viewerUserId: session?.user?.id ?? null,
-    }),
-  ])
+  const viewerFollowsAuthor = await getFollowState({
+    admin,
+    targetUserId: post.author_id,
+    viewerUserId: session?.user?.id ?? null,
+  })
 
   const leadingSegment = post.org ? post.org.slug : post.author.username
   const canonicalPath = postUrl(leadingSegment, post.type, post.slug)
@@ -308,20 +302,6 @@ export default async function PostPage({
             {post.comment_count}{' '}
             {post.comment_count === 1 ? 'comment' : 'comments'}
           </span>
-          <span aria-hidden="true"> · </span>
-          <LikeButton
-            postId={post.id}
-            initialLiked={engagement.liked}
-            initialCount={post.like_count}
-            isSignedIn={isSignedIn}
-            currentPath={canonicalPath}
-          />
-          <BookmarkButton
-            postId={post.id}
-            initialBookmarked={engagement.bookmarked}
-            isSignedIn={isSignedIn}
-            currentPath={canonicalPath}
-          />
           {!isOwner && (
             <ReportButton
               targetType="post"

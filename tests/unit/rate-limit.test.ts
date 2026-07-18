@@ -41,17 +41,17 @@ describe('checkRateLimit (in-memory fallback)', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-01-01T00:00:00Z'))
 
-    // Saturate the engagement bucket (60/min).
+    // Saturate the follow bucket (60/min).
     for (let i = 0; i < 60; i++) {
-      const r = await checkRateLimit('engagement', 'user:gamma')
+      const r = await checkRateLimit('follow', 'user:gamma')
       expect(r.success).toBe(true)
     }
-    const blocked = await checkRateLimit('engagement', 'user:gamma')
+    const blocked = await checkRateLimit('follow', 'user:gamma')
     expect(blocked.success).toBe(false)
 
     // Advance past the 1-minute window.
     vi.setSystemTime(new Date('2026-01-01T00:01:01Z'))
-    const recovered = await checkRateLimit('engagement', 'user:gamma')
+    const recovered = await checkRateLimit('follow', 'user:gamma')
     expect(recovered.success).toBe(true)
   })
 })
@@ -61,7 +61,7 @@ describe('checkRateLimit bucket limits', () => {
     { bucket: 'publish', limit: 10 },
     { bucket: 'edit_post', limit: 30 },
     { bucket: 'delete_post', limit: 30 },
-    { bucket: 'engagement', limit: 60 },
+    { bucket: 'follow', limit: 60 },
     { bucket: 'report', limit: 10 },
     { bucket: 'image_upload', limit: 20 },
   ]

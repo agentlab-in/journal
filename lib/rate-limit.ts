@@ -16,7 +16,7 @@ export type RateLimitBucket =
   | 'publish'
   | 'edit_post'
   | 'delete_post'
-  | 'engagement'
+  | 'follow'
   | 'report'
   | 'image_upload'
   | 'delete_account'
@@ -45,7 +45,9 @@ const BUCKETS: Record<RateLimitBucket, BucketSpec> = {
   publish: { limit: 10, windowMs: 60 * 60 * 1000, windowDuration: '1 h' },
   edit_post: { limit: 30, windowMs: 60 * 60 * 1000, windowDuration: '1 h' },
   delete_post: { limit: 30, windowMs: 60 * 60 * 1000, windowDuration: '1 h' },
-  engagement: { limit: 60, windowMs: 60 * 1000, windowDuration: '1 m' },
+  // Only remaining consumer is /api/follows (likes/bookmarks removed, issue
+  // #85 Task 3). Same limit the shared `engagement` bucket used to apply.
+  follow: { limit: 60, windowMs: 60 * 1000, windowDuration: '1 m' },
   report: { limit: 10, windowMs: 60 * 60 * 1000, windowDuration: '1 h' },
   image_upload: { limit: 20, windowMs: 60 * 60 * 1000, windowDuration: '1 h' },
   // Self-service account deletion is irreversible; a low cap defends against

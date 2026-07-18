@@ -189,8 +189,8 @@ a {
 /* ============================================================
    Phase 13 — Shake-on-revert
    Visual treatment paired with the existing sr-only aria-live
-   announcement on optimistic engagement reverts (LikeButton,
-   BookmarkButton, FollowButton). Triggered by toggling the
+   announcement on optimistic engagement reverts (FollowButton).
+   Triggered by toggling the
    `shake-on-revert` class on the button via a re-key bump.
    Chose shake over toast: no global container/portal/queue needed —
    the animation is colocated on the failing element, and the

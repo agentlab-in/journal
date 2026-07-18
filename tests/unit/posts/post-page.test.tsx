@@ -50,15 +50,6 @@ vi.mock('@/components/posts/AuthorActions', () => ({
   AuthorActions: ({ postId }: { postId: string }) =>
     React.createElement('div', { 'data-testid': 'author-actions', 'data-post-id': postId }),
 }))
-vi.mock('@/components/post/LikeButton', () => ({
-  LikeButton: () => React.createElement('div', { 'data-testid': 'like-button' }),
-}))
-vi.mock('@/components/post/BookmarkButton', () => ({
-  BookmarkButton: () => React.createElement('div', { 'data-testid': 'bookmark-button' }),
-}))
-vi.mock('@/lib/posts/engagement', () => ({
-  getEngagementState: vi.fn(async () => ({ liked: false, bookmarked: false })),
-}))
 vi.mock('@/lib/profile/follow-state', () => ({
   getFollowState: vi.fn(async () => false),
 }))

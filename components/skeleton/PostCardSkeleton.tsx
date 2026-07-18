@@ -7,7 +7,6 @@
  *   title (full-width bar)
  *   summary (two short bars)
  *   #tag  #tag
- *   likes · bookmarks · comments
  *
  * Renders `count` cards (default 5) when used as a Suspense fallback for
  * the feed pages. The outer wrapper carries `role="status"` so SR users

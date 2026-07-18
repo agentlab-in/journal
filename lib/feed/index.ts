@@ -20,9 +20,6 @@ export interface ShortlistRow {
   summary: string
   cover_image_url: string | null
   published_at: string
-  like_count: number
-  bookmark_count: number
-  comment_count: number
 }
 
 interface PostsLatestRow {
@@ -34,9 +31,6 @@ interface PostsLatestRow {
   summary: string
   cover_image_url: string | null
   published_at: string
-  like_count: number | null
-  bookmark_count: number | null
-  comment_count: number | null
 }
 
 /**
@@ -53,7 +47,7 @@ export async function getLatestFeed(
   const { data, error } = await db
     .from('posts')
     .select(
-      'id, author_id, type, slug, title, summary, cover_image_url, published_at, like_count, bookmark_count, comment_count',
+      'id, author_id, type, slug, title, summary, cover_image_url, published_at',
     )
     .is('deleted_at', null)
     .lte('published_at', new Date().toISOString())
@@ -71,8 +65,5 @@ export async function getLatestFeed(
     summary: r.summary,
     cover_image_url: r.cover_image_url,
     published_at: r.published_at,
-    like_count: r.like_count ?? 0,
-    bookmark_count: r.bookmark_count ?? 0,
-    comment_count: r.comment_count ?? 0,
   }))
 }

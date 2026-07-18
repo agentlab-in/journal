@@ -13,8 +13,8 @@ interface ProfileMenuProps {
 
 /**
  * Avatar-triggered dropdown for authenticated users. Groups the secondary
- * account actions (Profile / Bookmarks / Settings / Sign out) into a single
- * menu so the top-nav surfaces only the primary "Write" CTA next to it.
+ * account actions (Profile / Settings / Sign out) into a single menu so
+ * the top-nav surfaces only the primary "Write" CTA next to it.
  *
  * No Radix / headless-ui dependency — the menu is small enough to roll
  * locally and the project brand explicitly avoids generic component
@@ -95,14 +95,6 @@ export default function ProfileMenu({
             className="block px-3 py-2 font-mono text-sm text-fg hover:bg-bg-hover"
           >
             Profile
-          </Link>
-          <Link
-            href="/bookmarks"
-            role="menuitem"
-            onClick={() => setOpen(false)}
-            className="block px-3 py-2 font-mono text-sm text-fg hover:bg-bg-hover"
-          >
-            Bookmarks
           </Link>
           <Link
             href="/settings/profile#orgs"

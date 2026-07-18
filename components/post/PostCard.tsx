@@ -6,8 +6,8 @@ import type { PostType } from '@/lib/posts/url'
  * Feed-surface PostCard.
  *
  * Used by the homepage feed, /latest, /tag/<slug>, and /search. Includes
- * the author chip and engagement counts that feed surfaces want, but
- * intentionally has *no* pin/owner-only action slot — that lives on
+ * the author chip that feed surfaces want, but intentionally has *no*
+ * pin/owner-only action slot: that lives on
  * `components/profile/ProfilePostCard`, which feeds the profile surface.
  * The two are kept separate on purpose; consolidating them would cascade
  * through ProfilePage / BookmarksPage / PinnedPosts / PostList.
@@ -25,10 +25,6 @@ function formatDate(iso: string): string {
   return DATE_FMT.format(new Date(iso))
 }
 
-function plural(n: number, singular: string, plural: string): string {
-  return `${n} ${n === 1 ? singular : plural}`
-}
-
 export interface PostCardData {
   id: string
   type: PostType
@@ -36,9 +32,6 @@ export interface PostCardData {
   title: string
   summary: string
   published_at: string
-  like_count: number
-  bookmark_count: number
-  comment_count: number
   author: {
     username: string
     display_name: string
@@ -156,14 +149,6 @@ export function PostCard({ post }: PostCardProps) {
           ))}
         </ul>
       )}
-
-      <footer className="post-card__meta">
-        <span>{plural(post.like_count, 'like', 'likes')}</span>
-        <span aria-hidden="true"> · </span>
-        <span>{plural(post.bookmark_count, 'bookmark', 'bookmarks')}</span>
-        <span aria-hidden="true"> · </span>
-        <span>{plural(post.comment_count, 'comment', 'comments')}</span>
-      </footer>
     </article>
   )
 }

@@ -5,7 +5,7 @@
  * /tags, /tag/[slug], and the nav search affordance) plus a few authed
  * scenarios that need DB-seeded data.
  *
- * Auth strategy mirrors engagement.spec.ts:
+ * Auth strategy mirrors rate-limit.spec.ts:
  *   - header `x-e2e-auth: 1` activates the bypass inside `lib/auth.ts`.
  *   - env `E2E_TEST_AUTH_USER_ID` sets the user ID the bypass returns
  *     (defaulted to the canonical UUID in `playwright.config.ts`).

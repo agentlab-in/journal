@@ -30,9 +30,6 @@ const SAMPLE_HIT: SearchHit = {
   summary: 'summary',
   snippet: 'sni<mark>ppe</mark>t',
   published_at: '2026-05-29T00:00:00.000Z',
-  like_count: 2,
-  bookmark_count: 1,
-  comment_count: 0,
   rank: 0.42,
 }
 

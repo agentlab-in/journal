@@ -109,9 +109,6 @@ describe('<PostCard> byline', () => {
     title: 'Hello',
     summary: 'A summary',
     published_at: '2026-06-01T00:00:00Z',
-    like_count: 0,
-    bookmark_count: 0,
-    comment_count: 0,
     author: {
       username: 'alice',
       display_name: 'Alice',

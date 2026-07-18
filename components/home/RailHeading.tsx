@@ -9,8 +9,8 @@
  * Icons are SVG-only (no emoji, no icon library) and stroke with
  * `currentColor`, so each one inherits the heading color and flips with the
  * theme automatically. The stroke vocabulary (viewBox 0 0 24 24,
- * strokeWidth 2, round caps) matches the existing lucide-style icons in
- * BookmarkButton / LikeButton — consistency over novelty.
+ * strokeWidth 2, round caps) matches the existing lucide-style icons
+ * elsewhere in the app: consistency over novelty.
  */
 import type { ReactNode } from 'react'
 

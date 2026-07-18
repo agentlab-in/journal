@@ -7,7 +7,7 @@
  *
  * Coverage focus is the Write button: present + ordered before the avatar
  * dropdown trigger when authed, absent for anon and loading states. The
- * dropdown's contents (Bookmarks / Settings / Sign out) are exercised in
+ * dropdown's contents (Profile / Settings / Sign out) are exercised in
  * the dedicated <ProfileMenu> tests once you open it.
  */
 import React from 'react'

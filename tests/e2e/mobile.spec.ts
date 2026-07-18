@@ -136,15 +136,6 @@ test.describe('mobile (375px): auth-gated routes', () => {
     expect(overflow).toBeLessThanOrEqual(0)
   })
 
-  test('/bookmarks fits within viewport', async ({ page }) => {
-    await page.setExtraHTTPHeaders(HEADER_E2E_AUTH)
-    const response = await page.goto('/bookmarks', { waitUntil: 'load' })
-    expect(response?.status()).toBeLessThan(500)
-
-    const overflow = await horizontalOverflow(page)
-    expect(overflow).toBeLessThanOrEqual(0)
-  })
-
   test('/settings/profile fits within viewport', async ({ page }) => {
     await page.setExtraHTTPHeaders(HEADER_E2E_AUTH)
     const response = await page.goto('/settings/profile', {

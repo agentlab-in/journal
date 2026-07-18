@@ -8,7 +8,7 @@ import ProfileMenu from './ProfileMenu'
  * Client component that renders the auth widget in the Nav.
  * - Unauthenticated: "Sign in" link → /auth/signin
  * - Authenticated:   primary "Write" CTA + avatar dropdown (Profile /
- *                    Bookmarks / Settings / Sign out)
+ *                    Settings / Sign out)
  *
  * Why a primary CTA + dropdown: pre-cleanup the nav had four flat actions
  * (profile chip, Write, Bookmarks, Sign out) all in the same ghost-button

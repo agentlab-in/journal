@@ -52,9 +52,6 @@ function buildCards(
       title: r.title,
       summary: r.summary,
       published_at: r.published_at,
-      like_count: r.like_count,
-      bookmark_count: r.bookmark_count,
-      comment_count: r.comment_count,
       author: {
         username: author.username,
         display_name: author.display_name ?? author.username,
